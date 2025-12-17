@@ -1,0 +1,62 @@
+package app
+
+import (
+	"context"
+	"errors"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lukasbauer/karen/internal/httpapi"
+	"github.com/lukasbauer/karen/internal/store"
+)
+
+type App struct {
+	cfg    Config
+	logger *log.Logger
+	db     *pgxpool.Pool
+	store  *store.Store
+}
+
+func New(cfg Config, logger *log.Logger) (*App, error) {
+	if cfg.DatabaseURL == "" {
+		return nil, errors.New("DATABASE_URL is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Ping(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	s := store.New(db)
+
+	// MVP: no automatic migrations to keep startup simple in Coolify.
+	// Run migrations externally (psql) or extend later with a migration runner.
+
+	return &App{
+		cfg:    cfg,
+		logger: logger,
+		db:     db,
+		store:  s,
+	}, nil
+}
+
+func (a *App) Router() http.Handler {
+	return httpapi.NewRouter(a.cfg, a.logger, a.store)
+}
+
+func (a *App) Close() error {
+	if a.db != nil {
+		a.db.Close()
+	}
+	return nil
+}
+
+

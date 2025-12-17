@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.env.*
+
+backend/bin/
+backend/tmp/
+
+frontend/node_modules/
+frontend/dist/
+
+
