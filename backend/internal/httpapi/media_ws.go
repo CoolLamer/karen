@@ -662,7 +662,7 @@ func (s *callSession) analyzeCall() {
 		CreatedAt:            time.Now().UTC(),
 	}
 
-	if err := s.store.InsertScreeningResult(s.ctx, s.callID, sr); err != nil {
+	if err := s.store.InsertScreeningResult(ctx, s.callID, sr); err != nil {
 		s.logger.Printf("media_ws: failed to store screening result: %v", err)
 	} else {
 		s.logger.Printf("media_ws: call classified as %s (%.0f%% confidence)",
