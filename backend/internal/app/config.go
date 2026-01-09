@@ -35,7 +35,7 @@ func LoadConfigFromEnv() Config {
 		ElevenLabsAPIKey: getenv("ELEVENLABS_API_KEY", ""),
 
 		// Voice settings
-		GreetingText: getenv("GREETING_TEXT", "Dobrý den, prosím řekněte mi, o co se jedná."),
+		GreetingText: getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
 		TTSVoiceID:   getenv("TTS_VOICE_ID", ""), // ElevenLabs voice ID
 	}
 }

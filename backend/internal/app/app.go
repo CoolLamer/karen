@@ -51,6 +51,7 @@ func New(cfg Config, logger *log.Logger) (*App, error) {
 func (a *App) Router() http.Handler {
 	routerCfg := httpapi.RouterConfig{
 		PublicBaseURL:    a.cfg.PublicBaseURL,
+		TwilioAuthToken:  a.cfg.TwilioAuthTok,
 		DeepgramAPIKey:   a.cfg.DeepgramAPIKey,
 		OpenAIAPIKey:     a.cfg.OpenAIAPIKey,
 		ElevenLabsAPIKey: a.cfg.ElevenLabsAPIKey,

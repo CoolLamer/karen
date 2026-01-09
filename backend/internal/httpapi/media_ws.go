@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -71,9 +72,10 @@ type twilioMark struct {
 
 // callSession manages a single call's voice AI session
 type callSession struct {
-	callSid   string
-	streamSid string
-	callID    string // DB call ID
+	callSid    string
+	streamSid  string
+	accountSid string
+	callID     string // DB call ID
 
 	conn   *websocket.Conn
 	connMu sync.Mutex
@@ -82,9 +84,10 @@ type callSession struct {
 	llmClient *llm.OpenAIClient
 	ttsClient *tts.ElevenLabsClient
 
-	store  *store.Store
-	logger *log.Logger
-	cfg    RouterConfig
+	store      *store.Store
+	logger     *log.Logger
+	cfg        RouterConfig
+	httpClient *http.Client
 
 	// Conversation state
 	messages     []llm.Message
@@ -113,13 +116,14 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithCancel(req.Context())
 
 	session := &callSession{
-		conn:     conn,
-		store:    r.store,
-		logger:   r.logger,
-		cfg:      r.cfg,
-		messages: []llm.Message{},
-		ctx:      ctx,
-		cancel:   cancel,
+		conn:       conn,
+		store:      r.store,
+		logger:     r.logger,
+		cfg:        r.cfg,
+		httpClient: &http.Client{Timeout: 10 * time.Second},
+		messages:   []llm.Message{},
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 
 	// Create LLM client (doesn't require connection)
@@ -201,6 +205,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 	}
 
 	s.streamSid = start.StreamSid
+	s.accountSid = start.AccountSid
 
 	// Get callSid from custom parameters or directly from start message
 	s.callSid = start.CallSid
@@ -240,6 +245,9 @@ func (s *callSession) handleStart(start *twilioStart) error {
 
 	// Start processing STT results
 	go s.processSTTResults()
+
+	// Speak the greeting using ElevenLabs (same voice as rest of conversation)
+	go s.speakGreeting()
 
 	return nil
 }
@@ -392,6 +400,12 @@ func (s *callSession) generateAndSpeak() {
 	if err := s.speakText(responseText); err != nil {
 		s.logger.Printf("media_ws: TTS error: %v", err)
 	}
+
+	// If this was a goodbye, hang up the call
+	if isGoodbye(responseText) {
+		s.logger.Printf("media_ws: detected goodbye, hanging up call")
+		go s.hangUpCall()
+	}
 }
 
 func (s *callSession) speakText(text string) error {
@@ -437,6 +451,88 @@ func (s *callSession) speakText(text string) error {
 	s.connMu.Unlock()
 
 	return err
+}
+
+// speakGreeting sends the initial greeting via ElevenLabs TTS
+func (s *callSession) speakGreeting() {
+	s.speakingMu.Lock()
+	s.speaking = true
+	s.speakingMu.Unlock()
+
+	defer func() {
+		s.speakingMu.Lock()
+		s.speaking = false
+		s.speakingMu.Unlock()
+	}()
+
+	greeting := s.cfg.GreetingText
+	if greeting == "" {
+		greeting = "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"
+	}
+
+	s.logger.Printf("media_ws: speaking greeting: %s", greeting)
+
+	if err := s.speakText(greeting); err != nil {
+		s.logger.Printf("media_ws: greeting TTS error: %v", err)
+	}
+}
+
+// isGoodbye checks if the response contains goodbye phrases
+func isGoodbye(text string) bool {
+	lower := strings.ToLower(text)
+	goodbyePhrases := []string{
+		"na shledanou",
+		"nashledanou",
+		"mějte se",
+		"hezký den",
+		"ahoj",
+		"čau",
+	}
+	for _, phrase := range goodbyePhrases {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+// hangUpCall terminates the call via Twilio REST API
+func (s *callSession) hangUpCall() {
+	if s.callSid == "" || s.accountSid == "" || s.cfg.TwilioAuthToken == "" {
+		s.logger.Printf("media_ws: cannot hang up - missing callSid, accountSid, or auth token")
+		return
+	}
+
+	// Wait a moment for the TTS audio to finish playing
+	time.Sleep(2 * time.Second)
+
+	apiURL := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Calls/%s.json",
+		s.accountSid, s.callSid)
+
+	data := url.Values{}
+	data.Set("Status", "completed")
+
+	req, err := http.NewRequestWithContext(s.ctx, http.MethodPost, apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		s.logger.Printf("media_ws: failed to create hang up request: %v", err)
+		return
+	}
+
+	req.SetBasicAuth(s.accountSid, s.cfg.TwilioAuthToken)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to hang up call: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		s.logger.Printf("media_ws: call %s hung up successfully", s.callSid)
+	} else {
+		s.logger.Printf("media_ws: hang up returned status %d", resp.StatusCode)
+	}
 }
 
 func (s *callSession) analyzeCall() {

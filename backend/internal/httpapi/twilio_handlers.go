@@ -66,11 +66,9 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 	wsBase := wsURLFromPublicBase(r.cfg.PublicBaseURL)
 	mediaURL := strings.TrimRight(wsBase, "/") + "/media"
 
+	// Note: We don't use <Say> here - greeting is spoken via ElevenLabs TTS
+	// in the media websocket handler for voice consistency
 	resp := twimlResponse{
-		Say: &twimlSay{
-			Voice: "Google.cs-CZ-Wavenet-A",
-			Text:  "Dobrý den, prosím řekněte mi, o co se jedná.",
-		},
 		Connect: &twimlConnect{
 			Stream: twimlStream{
 				URL: mediaURL,

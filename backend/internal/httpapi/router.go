@@ -13,6 +13,9 @@ import (
 type RouterConfig struct {
 	PublicBaseURL string
 
+	// Twilio credentials
+	TwilioAuthToken string
+
 	// Voice AI providers
 	DeepgramAPIKey   string
 	OpenAIAPIKey     string
