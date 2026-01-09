@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -241,7 +242,8 @@ func (r *Router) handleVerifyCode(w http.ResponseWriter, req *http.Request) {
 	tokenHash := hashToken(token)
 	if err := r.store.CreateSession(req.Context(), user.ID, tokenHash, expiresAt); err != nil {
 		r.logger.Printf("auth: failed to store session: %v", err)
-		// Continue anyway - session will expire naturally
+		http.Error(w, `{"error": "failed to create session"}`, http.StatusInternalServerError)
+		return
 	}
 
 	r.logger.Printf("auth: user %s logged in (new: %v)", body.Phone, isNew)
@@ -271,10 +273,12 @@ func (r *Router) handleRefreshToken(w http.ResponseWriter, req *http.Request) {
 		return []byte(r.cfg.JWTSecret), nil
 	})
 
-	// Allow expired tokens (we're refreshing)
-	if err != nil && !strings.Contains(err.Error(), "token is expired") {
-		http.Error(w, `{"error": "invalid token"}`, http.StatusUnauthorized)
-		return
+	// Allow expired tokens (we're refreshing) but reject other errors
+	if err != nil {
+		if !errors.Is(err, jwt.ErrTokenExpired) {
+			http.Error(w, `{"error": "invalid token"}`, http.StatusUnauthorized)
+			return
+		}
 	}
 
 	claims, ok := token.Claims.(*JWTClaims)
@@ -379,6 +383,17 @@ func (r *Router) handleGetTenant(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// allowedTenantUpdateFields are the fields users can update on their tenant
+var allowedTenantUpdateFields = map[string]bool{
+	"name":            true,
+	"system_prompt":   true,
+	"greeting_text":   true,
+	"voice_id":        true,
+	"vip_names":       true,
+	"marketing_email": true,
+	"forward_number":  true,
+}
+
 // handleUpdateTenant updates the current user's tenant settings
 func (r *Router) handleUpdateTenant(w http.ResponseWriter, req *http.Request) {
 	authUser := getAuthUser(req.Context())
@@ -387,9 +402,22 @@ func (r *Router) handleUpdateTenant(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var updates map[string]any
-	if err := json.NewDecoder(req.Body).Decode(&updates); err != nil {
+	var rawUpdates map[string]any
+	if err := json.NewDecoder(req.Body).Decode(&rawUpdates); err != nil {
 		http.Error(w, `{"error": "invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Filter to only allowed fields
+	updates := make(map[string]any)
+	for key, value := range rawUpdates {
+		if allowedTenantUpdateFields[key] {
+			updates[key] = value
+		}
+	}
+
+	if len(updates) == 0 {
+		http.Error(w, `{"error": "no valid fields to update"}`, http.StatusBadRequest)
 		return
 	}
 

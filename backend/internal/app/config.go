@@ -57,7 +57,7 @@ func LoadConfigFromEnv() Config {
 		TwilioVerifyServiceID: getenv("TWILIO_VERIFY_SERVICE_SID", ""),
 
 		// JWT Authentication
-		JWTSecret: getenv("JWT_SECRET", "change-me-in-production"),
+		JWTSecret: os.Getenv("JWT_SECRET"), // Required - no fallback for security
 		JWTExpiry: jwtExpiry,
 	}
 }
