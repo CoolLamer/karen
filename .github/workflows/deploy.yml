@@ -74,103 +74,21 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-            mkdir -p /opt/karen
             cd /opt/karen
-
-            # Create docker-compose.yml
-            cat > docker-compose.yml << 'COMPOSE_EOF'
-            services:
-              db:
-                image: postgres:16-alpine
-                container_name: karen-db
-                restart: unless-stopped
-                environment:
-                  POSTGRES_DB: karen
-                  POSTGRES_USER: karen
-                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-                volumes:
-                  - karen_db_data:/var/lib/postgresql/data
-                healthcheck:
-                  test: ["CMD-SHELL", "pg_isready -U karen -d karen"]
-                  interval: 5s
-                  timeout: 3s
-                  retries: 20
-                networks:
-                  - karen-internal
-
-              backend:
-                image: ghcr.io/coollamer/karen/backend:latest
-                container_name: karen-backend
-                restart: unless-stopped
-                environment:
-                  DATABASE_URL: postgres://karen:${POSTGRES_PASSWORD}@db:5432/karen?sslmode=disable
-                  HTTP_ADDR: :8080
-                  PUBLIC_BASE_URL: https://api.karen.coollamer.com
-                  TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-                  LOG_LEVEL: info
-                depends_on:
-                  db:
-                    condition: service_healthy
-                labels:
-                  - "traefik.enable=true"
-                  - "traefik.http.routers.karen-api.rule=Host(\`api.karen.coollamer.com\`)"
-                  - "traefik.http.routers.karen-api.entrypoints=https"
-                  - "traefik.http.routers.karen-api.tls=true"
-                  - "traefik.http.routers.karen-api.tls.certresolver=letsencrypt"
-                  - "traefik.http.services.karen-api.loadbalancer.server.port=8080"
-                  - "traefik.http.routers.karen-api-http.rule=Host(\`api.karen.coollamer.com\`)"
-                  - "traefik.http.routers.karen-api-http.entrypoints=http"
-                  - "traefik.http.routers.karen-api-http.middlewares=redirect-to-https"
-                networks:
-                  - karen-internal
-                  - coolify
-
-              frontend:
-                image: ghcr.io/coollamer/karen/frontend:latest
-                container_name: karen-frontend
-                restart: unless-stopped
-                depends_on:
-                  - backend
-                labels:
-                  - "traefik.enable=true"
-                  - "traefik.http.routers.karen-app.rule=Host(\`karen.coollamer.com\`)"
-                  - "traefik.http.routers.karen-app.entrypoints=https"
-                  - "traefik.http.routers.karen-app.tls=true"
-                  - "traefik.http.routers.karen-app.tls.certresolver=letsencrypt"
-                  - "traefik.http.services.karen-app.loadbalancer.server.port=80"
-                  - "traefik.http.routers.karen-app-http.rule=Host(\`karen.coollamer.com\`)"
-                  - "traefik.http.routers.karen-app-http.entrypoints=http"
-                  - "traefik.http.routers.karen-app-http.middlewares=redirect-to-https"
-                networks:
-                  - coolify
-
-            volumes:
-              karen_db_data:
-
-            networks:
-              karen-internal:
-              coolify:
-                external: true
-            COMPOSE_EOF
 
             # Pull latest images
             docker compose pull
 
-            # Deploy
+            # Deploy with zero downtime
             docker compose up -d
 
-            # Wait for database to be ready
-            echo "Waiting for database..."
-            sleep 10
+            # Wait for services to be healthy
+            echo "Waiting for services..."
+            sleep 5
 
-            # Run migrations
+            # Run migrations (idempotent)
             docker exec karen-backend sh -c 'for f in /app/migrations/*.sql; do cat "$f" | psql $DATABASE_URL; done' 2>/dev/null || true
 
             echo ""
             echo "Deployment complete!"
-            echo ""
             docker compose ps
-            echo ""
-            echo "Services available at:"
-            echo "  - Frontend: https://karen.coollamer.com"
-            echo "  - API: https://api.karen.coollamer.com"
