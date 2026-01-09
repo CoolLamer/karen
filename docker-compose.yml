@@ -24,7 +24,10 @@ services:
       DATABASE_URL: postgres://karen:karen@db:5432/karen?sslmode=disable
       HTTP_ADDR: :8080
       PUBLIC_BASE_URL: http://localhost:8080
-      TWILIO_AUTH_TOKEN: dev
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-dev}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-prod}
       LOG_LEVEL: debug
     depends_on:
       db:
