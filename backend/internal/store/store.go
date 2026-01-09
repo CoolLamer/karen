@@ -520,6 +520,33 @@ func (s *Store) GetTenantPhoneNumbers(ctx context.Context, tenantID string) ([]T
 	return numbers, rows.Err()
 }
 
+// ClaimAvailablePhoneNumber atomically claims an available phone number from the pool
+// and assigns it to the given tenant. Returns the claimed phone number or nil if none available.
+func (s *Store) ClaimAvailablePhoneNumber(ctx context.Context, tenantID string) (*TenantPhoneNumber, error) {
+	var pn TenantPhoneNumber
+	err := s.db.QueryRow(ctx, `
+		UPDATE tenant_phone_numbers
+		SET tenant_id = $1, is_primary = true
+		WHERE id = (
+			SELECT id FROM tenant_phone_numbers
+			WHERE tenant_id IS NULL
+			ORDER BY created_at ASC
+			LIMIT 1
+			FOR UPDATE SKIP LOCKED
+		)
+		RETURNING id, tenant_id, twilio_number, twilio_sid, forwarding_source, is_primary, created_at
+	`, tenantID).Scan(&pn.ID, &pn.TenantID, &pn.TwilioNumber, &pn.TwilioSID,
+		&pn.ForwardingSource, &pn.IsPrimary, &pn.CreatedAt)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil // No available numbers
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &pn, nil
+}
+
 // ============================================================================
 // Session operations
 // ============================================================================

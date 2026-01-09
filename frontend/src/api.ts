@@ -69,6 +69,7 @@ export type OnboardingResponse = {
   tenant: Tenant;
   token: string;
   expires_at: string;
+  phone_number?: TenantPhoneNumber;
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string;

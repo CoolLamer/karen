@@ -28,7 +28,7 @@ import {
   IconConfetti,
   IconAlertCircle,
 } from "@tabler/icons-react";
-import { api, Tenant, TenantPhoneNumber } from "../api";
+import { api, Tenant, TenantPhoneNumber, setAuthToken } from "../api";
 import { useAuth } from "../AuthContext";
 
 type OnboardingStep = 1 | 2 | 3 | 4;
@@ -66,7 +66,7 @@ export function OnboardingPage() {
 
   const progress = (step / 4) * 100;
   const primaryPhone = phoneNumbers.find((p) => p.is_primary)?.twilio_number;
-  const karenNumber = primaryPhone || "Načítám...";
+  const hasPhoneNumber = !!primaryPhone;
 
   const handleCompleteOnboarding = async () => {
     if (!name.trim()) {
@@ -79,17 +79,25 @@ export function OnboardingPage() {
 
     try {
       const response = await api.completeOnboarding(name.trim());
+      // Save the new token that includes the tenant_id
+      setAuthToken(response.token);
       setTenantState(response.tenant);
       setTenant(response.tenant);
-      setStep(3);
 
-      // Load phone numbers
-      try {
-        const tenantData = await api.getTenant();
-        setPhoneNumbers(tenantData.phone_numbers || []);
-      } catch {
-        // Phone numbers might not be assigned yet
+      // Use phone number from onboarding response if available
+      if (response.phone_number) {
+        setPhoneNumbers([response.phone_number]);
+      } else {
+        // Fallback: Load phone numbers from API
+        try {
+          const tenantData = await api.getTenant();
+          setPhoneNumbers(tenantData.phone_numbers || []);
+        } catch {
+          // Phone numbers might not be assigned yet
+        }
       }
+
+      setStep(3);
     } catch (err) {
       setError("Nepodarilo se dokoncit registraci. Zkus to znovu.");
     } finally {
@@ -98,8 +106,9 @@ export function OnboardingPage() {
   };
 
   const getDialCode = () => {
+    if (!primaryPhone) return "";
     const carrier = CARRIER_CODES[selectedCarrier];
-    return carrier.noAnswer.replace("{number}", karenNumber.replace(/\s/g, ""));
+    return carrier.noAnswer.replace("{number}", primaryPhone.replace(/\s/g, ""));
   };
 
   const handleFinish = async () => {
@@ -212,106 +221,131 @@ export function OnboardingPage() {
           {step === 3 && (
             <Stack gap="xl">
               <Stack gap="xs" ta="center">
-                <Title order={2}>Tvoje Karen cislo</Title>
-                <Text c="dimmed">Na toto cislo presmerujes hovory kdyz budes nedostupny</Text>
+                <Title order={2}>{hasPhoneNumber ? "Tvoje Karen cislo" : "Skoro hotovo!"}</Title>
+                <Text c="dimmed">
+                  {hasPhoneNumber
+                    ? "Na toto cislo presmerujes hovory kdyz budes nedostupny"
+                    : "Cislo ti pridelime co nejdrive"}
+                </Text>
               </Stack>
 
-              {/* Karen number */}
-              <Paper p="lg" radius="md" bg="blue.0" ta="center">
-                <Text size="xl" fw={700} c="blue.8">
-                  {karenNumber}
-                </Text>
-                <CopyButton value={karenNumber.replace(/\s/g, "")}>
-                  {({ copied, copy }) => (
-                    <Button
-                      variant="subtle"
-                      size="xs"
-                      leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                      onClick={copy}
-                      mt="xs"
-                    >
-                      {copied ? "Skopirovano" : "Kopirovat"}
-                    </Button>
-                  )}
-                </CopyButton>
-              </Paper>
-
-              {/* Carrier selection */}
-              <Stack gap="xs">
-                <Text size="sm" fw={500}>
-                  Vyber sveho operatora:
-                </Text>
-                <SegmentedControl
-                  fullWidth
-                  value={selectedCarrier}
-                  onChange={setSelectedCarrier}
-                  data={[
-                    { label: "O2", value: "o2" },
-                    { label: "T-Mobile", value: "tmobile" },
-                    { label: "Vodafone", value: "vodafone" },
-                    { label: "Jiny", value: "other" },
-                  ]}
-                />
-              </Stack>
-
-              {/* Forwarding instructions */}
-              <Paper p="md" radius="md" withBorder>
-                <Stack gap="md">
-                  <Text size="sm" fw={500}>
-                    {CARRIER_CODES[selectedCarrier].description}
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    1. Otevri aplikaci Telefon
-                  </Text>
-                  <Group>
-                    <Text size="sm" c="dimmed">
-                      2. Vytoc:
+              {hasPhoneNumber ? (
+                <>
+                  {/* Karen number */}
+                  <Paper p="lg" radius="md" bg="blue.0" ta="center">
+                    <Text size="xl" fw={700} c="blue.8">
+                      {primaryPhone}
                     </Text>
-                    <Text size="sm" fw={600} ff="monospace">
-                      {getDialCode()}
-                    </Text>
-                    <CopyButton value={getDialCode()}>
+                    <CopyButton value={primaryPhone.replace(/\s/g, "")}>
                       {({ copied, copy }) => (
-                        <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
-                          <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            onClick={copy}
-                            color={copied ? "green" : "gray"}
-                          >
-                            {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                          </ActionIcon>
-                        </Tooltip>
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                          onClick={copy}
+                          mt="xs"
+                        >
+                          {copied ? "Skopirovano" : "Kopirovat"}
+                        </Button>
                       )}
                     </CopyButton>
-                  </Group>
-                  <Text size="sm" c="dimmed">
-                    3. Uslysite potvrzeni "Sluzba aktivovana"
-                  </Text>
-                </Stack>
-              </Paper>
+                  </Paper>
 
-              <Anchor
-                href={`tel:${getDialCode()}`}
-                style={{ textDecoration: "none" }}
-              >
-                <Button
-                  variant="light"
-                  fullWidth
-                  leftSection={<IconPhone size={18} />}
-                >
-                  Vytocit automaticky
-                </Button>
-              </Anchor>
+                  {/* Carrier selection */}
+                  <Stack gap="xs">
+                    <Text size="sm" fw={500}>
+                      Vyber sveho operatora:
+                    </Text>
+                    <SegmentedControl
+                      fullWidth
+                      value={selectedCarrier}
+                      onChange={setSelectedCarrier}
+                      data={[
+                        { label: "O2", value: "o2" },
+                        { label: "T-Mobile", value: "tmobile" },
+                        { label: "Vodafone", value: "vodafone" },
+                        { label: "Jiny", value: "other" },
+                      ]}
+                    />
+                  </Stack>
 
-              <Button
-                size="lg"
-                fullWidth
-                rightSection={<IconArrowRight size={18} />}
-                onClick={() => setStep(4)}
-              >
-                Hotovo, presmerovani funguje
-              </Button>
+                  {/* Forwarding instructions */}
+                  <Paper p="md" radius="md" withBorder>
+                    <Stack gap="md">
+                      <Text size="sm" fw={500}>
+                        {CARRIER_CODES[selectedCarrier].description}
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        1. Otevri aplikaci Telefon
+                      </Text>
+                      <Group>
+                        <Text size="sm" c="dimmed">
+                          2. Vytoc:
+                        </Text>
+                        <Text size="sm" fw={600} ff="monospace">
+                          {getDialCode()}
+                        </Text>
+                        <CopyButton value={getDialCode()}>
+                          {({ copied, copy }) => (
+                            <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
+                              <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                onClick={copy}
+                                color={copied ? "green" : "gray"}
+                              >
+                                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                        </CopyButton>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        3. Uslysite potvrzeni "Sluzba aktivovana"
+                      </Text>
+                    </Stack>
+                  </Paper>
+
+                  <Anchor
+                    href={`tel:${getDialCode()}`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <Button
+                      variant="light"
+                      fullWidth
+                      leftSection={<IconPhone size={18} />}
+                    >
+                      Vytocit automaticky
+                    </Button>
+                  </Anchor>
+
+                  <Button
+                    size="lg"
+                    fullWidth
+                    rightSection={<IconArrowRight size={18} />}
+                    onClick={() => setStep(4)}
+                  >
+                    Hotovo, presmerovani funguje
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {/* No phone number available */}
+                  <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
+                    Momentalne nemame volne cislo. Jakmile bude dostupne, priradime ti ho a oznamime ti to.
+                    Presmerovani nastavis v nastaveni.
+                  </Alert>
+
+                  <Button
+                    size="lg"
+                    fullWidth
+                    rightSection={<IconArrowRight size={18} />}
+                    onClick={() => setStep(4)}
+                  >
+                    Pokracovat
+                  </Button>
+                </>
+              )}
 
               {/* Step indicator */}
               <Group gap="xs" justify="center">

@@ -493,6 +493,30 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	// Auto-assign an available phone number from the pool (if tenant doesn't already have one)
+	var phoneNumber *store.TenantPhoneNumber
+	existingNumbers, err := r.store.GetTenantPhoneNumbers(req.Context(), tenant.ID)
+	if err != nil {
+		r.logger.Printf("auth: failed to get existing phone numbers: %v", err)
+	}
+
+	if len(existingNumbers) > 0 {
+		// Tenant already has a phone number (e.g., from a previous onboarding attempt)
+		phoneNumber = &existingNumbers[0]
+		r.logger.Printf("auth: tenant %s already has phone number %s", tenant.ID, phoneNumber.TwilioNumber)
+	} else {
+		// Claim a new phone number from the pool
+		phoneNumber, err = r.store.ClaimAvailablePhoneNumber(req.Context(), tenant.ID)
+		if err != nil {
+			r.logger.Printf("auth: failed to claim phone number: %v", err)
+			// Continue without phone number - not a fatal error
+		} else if phoneNumber != nil {
+			r.logger.Printf("auth: assigned phone number %s to tenant %s", phoneNumber.TwilioNumber, tenant.ID)
+		} else {
+			r.logger.Printf("auth: no available phone numbers for tenant %s", tenant.ID)
+		}
+	}
+
 	// Get updated user
 	user, _ := r.store.GetUserByID(req.Context(), authUser.ID)
 
@@ -510,12 +534,18 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 
 	r.logger.Printf("auth: onboarding complete for user %s, tenant %s", user.ID, tenant.ID)
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	// Include phone number in response if assigned
+	response := map[string]any{
 		"tenant":     tenant,
 		"user":       user,
 		"token":      token,
 		"expires_at": expiresAt.Format(time.RFC3339),
-	})
+	}
+	if phoneNumber != nil {
+		response["phone_number"] = phoneNumber
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }
 
 // generateDefaultSystemPrompt creates a default prompt for a new tenant
