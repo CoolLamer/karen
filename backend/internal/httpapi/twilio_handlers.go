@@ -61,8 +61,8 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 
 	resp := twimlResponse{
 		Say: &twimlSay{
-			Voice: "alice",
-			Text:  "Hi. Please tell me what this call is about.",
+			Voice: "Google.cs-CZ-Wavenet-A",
+			Text:  "Dobrý den, prosím řekněte mi, o co se jedná.",
 		},
 		Connect: &twimlConnect{
 			Stream: twimlStream{URL: mediaURL},

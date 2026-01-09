@@ -12,6 +12,15 @@ import (
 
 type RouterConfig struct {
 	PublicBaseURL string
+
+	// Voice AI providers
+	DeepgramAPIKey   string
+	OpenAIAPIKey     string
+	ElevenLabsAPIKey string
+
+	// Voice settings
+	GreetingText string
+	TTSVoiceID   string
 }
 
 type Router struct {

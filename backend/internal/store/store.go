@@ -134,6 +134,40 @@ func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error
 	return out, rows.Err()
 }
 
+// GetCallID retrieves the internal call ID for a provider call ID.
+func (s *Store) GetCallID(ctx context.Context, providerCallID string) (string, error) {
+	var callID string
+	err := s.db.QueryRow(ctx, `
+		SELECT id FROM calls WHERE provider='twilio' AND provider_call_id=$1
+	`, providerCallID).Scan(&callID)
+	return callID, err
+}
+
+// InsertUtterance inserts a new utterance for a call.
+func (s *Store) InsertUtterance(ctx context.Context, callID string, u Utterance) error {
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO call_utterances (id, call_id, speaker, text, sequence, started_at, ended_at, stt_confidence, interrupted)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)
+	`, callID, u.Speaker, u.Text, u.Sequence, u.StartedAt, u.EndedAt, u.STTConfidence, u.Interrupted)
+	return err
+}
+
+// InsertScreeningResult inserts a screening result for a call.
+func (s *Store) InsertScreeningResult(ctx context.Context, callID string, sr ScreeningResult) error {
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO call_screening_results (call_id, legitimacy_label, legitimacy_confidence, intent_category, intent_text, entities_json, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (call_id) DO UPDATE SET
+			legitimacy_label = EXCLUDED.legitimacy_label,
+			legitimacy_confidence = EXCLUDED.legitimacy_confidence,
+			intent_category = EXCLUDED.intent_category,
+			intent_text = EXCLUDED.intent_text,
+			entities_json = EXCLUDED.entities_json,
+			created_at = EXCLUDED.created_at
+	`, callID, sr.LegitimacyLabel, sr.LegitimacyConfidence, sr.IntentCategory, sr.IntentText, sr.EntitiesJSON, sr.CreatedAt)
+	return err
+}
+
 func (s *Store) GetCallDetail(ctx context.Context, providerCallID string) (CallDetail, error) {
 	var out CallDetail
 
