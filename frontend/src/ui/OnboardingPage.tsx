@@ -58,14 +58,15 @@ export function OnboardingPage() {
 
   const [step, setStep] = useState<OnboardingStep>(1);
   const [name, setName] = useState("");
-  const [tenant, setTenantState] = useState<Tenant | null>(null);
+  const [, setTenantState] = useState<Tenant | null>(null);
   const [phoneNumbers, setPhoneNumbers] = useState<TenantPhoneNumber[]>([]);
   const [selectedCarrier, setSelectedCarrier] = useState("o2");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const progress = (step / 4) * 100;
-  const karenNumber = phoneNumbers.find((p) => p.is_primary)?.twilio_number || "+420 228 883 XXX";
+  const primaryPhone = phoneNumbers.find((p) => p.is_primary)?.twilio_number;
+  const karenNumber = primaryPhone || "Načítám...";
 
   const handleCompleteOnboarding = async () => {
     if (!name.trim()) {
