@@ -97,36 +97,29 @@ type callSession struct {
 }
 
 func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
-	callSid := req.URL.Query().Get("callSid")
-	if callSid == "" {
-		http.Error(w, "missing callSid", http.StatusBadRequest)
-		return
-	}
-
 	// Check if we have required API keys
 	if r.cfg.DeepgramAPIKey == "" || r.cfg.OpenAIAPIKey == "" || r.cfg.ElevenLabsAPIKey == "" {
-		r.logger.Printf("media_ws: missing API keys for call %s", callSid)
+		r.logger.Printf("media_ws: missing API keys")
 		http.Error(w, "voice AI not configured", http.StatusServiceUnavailable)
 		return
 	}
 
 	conn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
-		r.logger.Printf("media_ws: upgrade failed for call %s: %v", callSid, err)
+		r.logger.Printf("media_ws: upgrade failed: %v", err)
 		return
 	}
 
 	ctx, cancel := context.WithCancel(req.Context())
 
 	session := &callSession{
-		callSid:   callSid,
-		conn:      conn,
-		store:     r.store,
-		logger:    r.logger,
-		cfg:       r.cfg,
-		messages:  []llm.Message{},
-		ctx:       ctx,
-		cancel:    cancel,
+		conn:     conn,
+		store:    r.store,
+		logger:   r.logger,
+		cfg:      r.cfg,
+		messages: []llm.Message{},
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 
 	// Create LLM client (doesn't require connection)
@@ -142,15 +135,7 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 		ModelID: "eleven_flash_v2_5",
 	})
 
-	// Get call ID from database
-	callID, err := r.store.GetCallID(ctx, callSid)
-	if err != nil {
-		r.logger.Printf("media_ws: failed to get call ID for %s: %v", callSid, err)
-		// Continue anyway, we just won't be able to store utterances
-	}
-	session.callID = callID
-
-	r.logger.Printf("media_ws: connection established for call %s", callSid)
+	r.logger.Printf("media_ws: connection established, waiting for start message")
 
 	// Handle the WebSocket connection
 	session.run()
@@ -216,7 +201,26 @@ func (s *callSession) handleStart(start *twilioStart) error {
 	}
 
 	s.streamSid = start.StreamSid
-	s.logger.Printf("media_ws: stream started - StreamSid: %s, CallSid: %s", start.StreamSid, start.CallSid)
+
+	// Get callSid from custom parameters or directly from start message
+	s.callSid = start.CallSid
+	if s.callSid == "" {
+		if cs, ok := start.CustomParams["callSid"]; ok {
+			s.callSid = cs
+		}
+	}
+
+	s.logger.Printf("media_ws: stream started - StreamSid: %s, CallSid: %s", start.StreamSid, s.callSid)
+
+	// Get call ID from database now that we have callSid
+	if s.callSid != "" {
+		callID, err := s.store.GetCallID(s.ctx, s.callSid)
+		if err != nil {
+			s.logger.Printf("media_ws: failed to get call ID for %s: %v", s.callSid, err)
+		} else {
+			s.callID = callID
+		}
+	}
 
 	// Connect to Deepgram STT
 	sttClient, err := stt.NewDeepgramClient(s.ctx, stt.DeepgramConfig{
