@@ -236,7 +236,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		Encoding:    "mulaw",
 		Channels:    1,
 		Punctuate:   true,
-		Endpointing: 500, // 500ms silence for turn detection
+		Endpointing: 1200, // 1200ms silence for turn detection (longer for natural Czech speech)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to Deepgram: %w", err)
