@@ -7,18 +7,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lukasbauer/karen/internal/app"
 	"github.com/lukasbauer/karen/internal/store"
 )
 
+type RouterConfig struct {
+	PublicBaseURL string
+}
+
 type Router struct {
-	cfg    app.Config
+	cfg    RouterConfig
 	logger *log.Logger
 	store  *store.Store
 	mux    *http.ServeMux
 }
 
-func NewRouter(cfg app.Config, logger *log.Logger, s *store.Store) http.Handler {
+func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store) http.Handler {
 	r := &Router{
 		cfg:    cfg,
 		logger: logger,

@@ -49,7 +49,10 @@ func New(cfg Config, logger *log.Logger) (*App, error) {
 }
 
 func (a *App) Router() http.Handler {
-	return httpapi.NewRouter(a.cfg, a.logger, a.store)
+	routerCfg := httpapi.RouterConfig{
+		PublicBaseURL: a.cfg.PublicBaseURL,
+	}
+	return httpapi.NewRouter(routerCfg, a.logger, a.store)
 }
 
 func (a *App) Close() error {
