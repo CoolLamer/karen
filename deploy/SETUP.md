@@ -1,18 +1,19 @@
-# Karen Deployment Setup Guide
+# Zvednu Deployment Setup Guide
 
 ## Prerequisites
 
 1. **Server**: Coolify running on 46.224.75.8 (coolify.mechant.cz)
-2. **Domain**: karen.coollamer.com pointed to 46.224.75.8
+2. **Domain**: zvednu.cz pointed to 46.224.75.8
 
 ## DNS Configuration
 
-Add these DNS records to coollamer.com:
+Add these DNS records to zvednu.cz:
 
 | Type | Name | Value |
 |------|------|-------|
-| A | karen | 46.224.75.8 |
-| A | api.karen | 46.224.75.8 |
+| A | @ | 46.224.75.8 |
+| A | www | 46.224.75.8 |
+| A | api | 46.224.75.8 |
 
 ## GitHub Repository Secrets
 
@@ -52,15 +53,15 @@ To manually trigger a deployment:
 ## URLs
 
 After deployment:
-- **Frontend**: https://karen.coollamer.com
-- **Backend API**: https://api.karen.coollamer.com
-- **Health check**: https://api.karen.coollamer.com/healthz
+- **Frontend**: https://zvednu.cz
+- **Backend API**: https://api.zvednu.cz
+- **Health check**: https://api.zvednu.cz/healthz
 
 ## Twilio Configuration
 
 Configure your Twilio phone number with:
-- **Voice webhook**: `https://api.karen.coollamer.com/telephony/inbound` (POST)
-- **Status callback**: `https://api.karen.coollamer.com/telephony/status` (POST)
+- **Voice webhook**: `https://api.zvednu.cz/telephony/inbound` (POST)
+- **Status callback**: `https://api.zvednu.cz/telephony/status` (POST)
 
 ## Logs
 
