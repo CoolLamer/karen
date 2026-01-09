@@ -1,18 +1,126 @@
 import React from "react";
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "./AuthContext";
+
+// Pages
+import { LandingPage } from "./ui/LandingPage";
+import { LoginPage } from "./ui/LoginPage";
+import { OnboardingPage } from "./ui/OnboardingPage";
 import { AppShellLayout } from "./ui/AppShellLayout";
 import { CallInboxPage } from "./ui/CallInboxPage";
 import { CallDetailPage } from "./ui/CallDetailPage";
+import { SettingsPage } from "./ui/SettingsPage";
+
+// Protected route wrapper - requires authentication
+function ProtectedRoute() {
+  const { isLoading, isAuthenticated, needsOnboarding } = useAuth();
+
+  if (isLoading) {
+    return null; // Or a loading spinner
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <Outlet />;
+}
+
+// Onboarding route - requires auth but not completed onboarding
+function OnboardingRoute() {
+  const { isLoading, isAuthenticated, needsOnboarding } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!needsOnboarding) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <OnboardingPage />;
+}
+
+// Public route - redirects to app if already authenticated
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isLoading, isAuthenticated, needsOnboarding } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    if (needsOnboarding) {
+      return <Navigate to="/onboarding" replace />;
+    }
+    return <Navigate to="/inbox" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Home route - shows landing for unauthenticated, inbox for authenticated
+function HomeRoute() {
+  const { isLoading, isAuthenticated, needsOnboarding } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <LandingPage />;
+  }
+
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <Navigate to="/inbox" replace />;
+}
 
 export const router = createBrowserRouter([
+  // Home - landing or redirect to inbox
   {
     path: "/",
-    element: <AppShellLayout />,
+    element: <HomeRoute />,
+  },
+
+  // Login - public only
+  {
+    path: "/login",
+    element: (
+      <PublicRoute>
+        <LoginPage />
+      </PublicRoute>
+    ),
+  },
+
+  // Onboarding - authenticated but needs setup
+  {
+    path: "/onboarding",
+    element: <OnboardingRoute />,
+  },
+
+  // Protected app routes
+  {
+    element: <ProtectedRoute />,
     children: [
-      { index: true, element: <CallInboxPage /> },
-      { path: "calls/:providerCallId", element: <CallDetailPage /> },
+      {
+        element: <AppShellLayout />,
+        children: [
+          { path: "/inbox", element: <CallInboxPage /> },
+          { path: "/calls/:providerCallId", element: <CallDetailPage /> },
+        ],
+      },
+      { path: "/settings", element: <SettingsPage /> },
     ],
   },
 ]);
-
-

@@ -14,16 +14,22 @@ type RouterConfig struct {
 	PublicBaseURL string
 
 	// Twilio credentials
-	TwilioAuthToken string
+	TwilioAuthToken       string
+	TwilioAccountSID      string
+	TwilioVerifyServiceID string
 
 	// Voice AI providers
 	DeepgramAPIKey   string
 	OpenAIAPIKey     string
 	ElevenLabsAPIKey string
 
-	// Voice settings
+	// Voice settings (defaults, can be overridden by tenant)
 	GreetingText string
 	TTSVoiceID   string
+
+	// JWT Authentication
+	JWTSecret string
+	JWTExpiry time.Duration
 }
 
 type Router struct {
@@ -46,12 +52,29 @@ func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store) http.Handle
 }
 
 func (r *Router) routes() {
+	// Health check
 	r.mux.HandleFunc("GET /healthz", r.handleHealthz)
+
+	// Twilio webhooks (no auth - signature verified)
 	r.mux.HandleFunc("POST /telephony/inbound", r.handleTwilioInbound)
 	r.mux.HandleFunc("POST /telephony/status", r.handleTwilioStatus)
-	r.mux.HandleFunc("GET /api/calls", r.handleListCalls)
-	r.mux.HandleFunc("GET /api/calls/", r.handleGetCall)
 	r.mux.HandleFunc("GET /media", r.handleMediaWS)
+
+	// Auth endpoints (public)
+	r.mux.HandleFunc("POST /auth/send-code", r.handleSendCode)
+	r.mux.HandleFunc("POST /auth/verify-code", r.handleVerifyCode)
+	r.mux.HandleFunc("POST /auth/refresh", r.handleRefreshToken)
+	r.mux.HandleFunc("POST /auth/logout", r.withAuth(r.handleLogout))
+
+	// Protected API endpoints
+	r.mux.HandleFunc("GET /api/me", r.withAuth(r.handleGetMe))
+	r.mux.HandleFunc("GET /api/calls", r.withAuth(r.handleListCalls))
+	r.mux.HandleFunc("GET /api/calls/", r.withAuth(r.handleGetCall))
+	r.mux.HandleFunc("GET /api/tenant", r.withAuth(r.handleGetTenant))
+	r.mux.HandleFunc("PATCH /api/tenant", r.withAuth(r.handleUpdateTenant))
+
+	// Onboarding (protected)
+	r.mux.HandleFunc("POST /api/onboarding/complete", r.withAuth(r.handleCompleteOnboarding))
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {

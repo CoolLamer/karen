@@ -15,15 +15,17 @@ const openaiAPIURL = "https://api.openai.com/v1/chat/completions"
 
 // OpenAIClient implements the Client interface using OpenAI's API.
 type OpenAIClient struct {
-	apiKey     string
-	model      string
-	httpClient *http.Client
+	apiKey       string
+	model        string
+	systemPrompt string
+	httpClient   *http.Client
 }
 
 // OpenAIConfig holds configuration for the OpenAI client.
 type OpenAIConfig struct {
-	APIKey string
-	Model  string // e.g., "gpt-4o-mini"
+	APIKey       string
+	Model        string // e.g., "gpt-4o-mini"
+	SystemPrompt string // Optional custom system prompt
 }
 
 // NewOpenAIClient creates a new OpenAI client.
@@ -32,11 +34,28 @@ func NewOpenAIClient(cfg OpenAIConfig) *OpenAIClient {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
-	return &OpenAIClient{
-		apiKey:     cfg.APIKey,
-		model:      model,
-		httpClient: &http.Client{},
+	systemPrompt := cfg.SystemPrompt
+	if systemPrompt == "" {
+		systemPrompt = SystemPromptCzech
 	}
+	return &OpenAIClient{
+		apiKey:       cfg.APIKey,
+		model:        model,
+		systemPrompt: systemPrompt,
+		httpClient:   &http.Client{},
+	}
+}
+
+// SetSystemPrompt sets a custom system prompt for this client.
+func (c *OpenAIClient) SetSystemPrompt(prompt string) {
+	if prompt != "" {
+		c.systemPrompt = prompt
+	}
+}
+
+// GetSystemPrompt returns the current system prompt.
+func (c *OpenAIClient) GetSystemPrompt() string {
+	return c.systemPrompt
 }
 
 // chatRequest represents an OpenAI chat completion request.
@@ -69,7 +88,7 @@ type chatResponse struct {
 func (c *OpenAIClient) AnalyzeCall(ctx context.Context, messages []Message) (*ScreeningResult, error) {
 	// Build messages with system prompt and analysis request
 	chatMsgs := []chatMessage{
-		{Role: "system", Content: SystemPromptCzech},
+		{Role: "system", Content: c.systemPrompt},
 	}
 
 	for _, m := range messages {
@@ -143,7 +162,7 @@ func (c *OpenAIClient) AnalyzeCall(ctx context.Context, messages []Message) (*Sc
 func (c *OpenAIClient) GenerateResponse(ctx context.Context, messages []Message) (<-chan string, error) {
 	// Build messages with system prompt
 	chatMsgs := []chatMessage{
-		{Role: "system", Content: SystemPromptCzech},
+		{Role: "system", Content: c.systemPrompt},
 	}
 
 	for _, m := range messages {

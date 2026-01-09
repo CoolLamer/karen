@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"net/http"
 	"strings"
@@ -11,8 +12,8 @@ import (
 // Minimal TwiML (enough to start Media Streams).
 // Twilio expects Content-Type: text/xml.
 type twimlResponse struct {
-	XMLName xml.Name `xml:"Response"`
-	Say     *twimlSay `xml:"Say,omitempty"`
+	XMLName xml.Name      `xml:"Response"`
+	Say     *twimlSay     `xml:"Say,omitempty"`
 	Connect *twimlConnect `xml:"Connect,omitempty"`
 }
 
@@ -26,8 +27,8 @@ type twimlConnect struct {
 }
 
 type twimlStream struct {
-	URL       string           `xml:"url,attr"`
-	Parameter *twimlParameter  `xml:"Parameter,omitempty"`
+	URL        string            `xml:"url,attr"`
+	Parameters []twimlParameter  `xml:"Parameter,omitempty"`
 }
 
 type twimlParameter struct {
@@ -45,37 +46,76 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 	callSid := req.FormValue("CallSid")
 	from := req.FormValue("From")
 	to := req.FormValue("To")
+	forwardedFrom := req.FormValue("ForwardedFrom")
 
 	if callSid == "" {
 		http.Error(w, "missing CallSid", http.StatusBadRequest)
 		return
 	}
 
-	// Store call record (id = provider_call_id for MVP simplicity).
-	_ = r.store.UpsertCall(req.Context(), store.Call{
-		Provider:        "twilio",
-		ProviderCallID:  callSid,
-		FromNumber:      from,
-		ToNumber:        to,
-		Status:          "in_progress",
-		StartedAt:       nowUTC(),
+	// Look up tenant by Twilio number
+	var tenant *store.Tenant
+	var err error
+
+	// Primary lookup: by "To" number (the Twilio number that received the call)
+	tenant, err = r.store.GetTenantByTwilioNumber(req.Context(), to)
+	if err != nil && forwardedFrom != "" {
+		// Fallback: try forwarding source lookup
+		tenant, err = r.store.GetTenantByForwardingSource(req.Context(), forwardedFrom)
+	}
+
+	// Determine tenant ID for the call record
+	var tenantID *string
+	if tenant != nil {
+		tenantID = &tenant.ID
+		r.logger.Printf("inbound: call %s routed to tenant %s (%s)", callSid, tenant.ID, tenant.Name)
+	} else {
+		r.logger.Printf("inbound: call %s has no tenant (to=%s, forwardedFrom=%s)", callSid, to, forwardedFrom)
+	}
+
+	// Store call record with tenant ID
+	_ = r.store.UpsertCallWithTenant(req.Context(), store.Call{
+		TenantID:       tenantID,
+		Provider:       "twilio",
+		ProviderCallID: callSid,
+		FromNumber:     from,
+		ToNumber:       to,
+		Status:         "in_progress",
+		StartedAt:      nowUTC(),
 	})
 
 	// Start a media stream to our websocket.
-	// Note: Twilio Stream URL does not support query params, use Parameter instead.
 	wsBase := wsURLFromPublicBase(r.cfg.PublicBaseURL)
 	mediaURL := strings.TrimRight(wsBase, "/") + "/media"
 
-	// Note: We don't use <Say> here - greeting is spoken via ElevenLabs TTS
-	// in the media websocket handler for voice consistency
+	// Build stream parameters
+	params := []twimlParameter{
+		{Name: "callSid", Value: callSid},
+	}
+
+	// Pass tenant config to media stream if tenant found
+	if tenant != nil {
+		params = append(params, twimlParameter{Name: "tenantId", Value: tenant.ID})
+
+		// Pass tenant config as JSON for the call session
+		tenantConfig := map[string]any{
+			"system_prompt":   tenant.SystemPrompt,
+			"greeting_text":   tenant.GreetingText,
+			"voice_id":        tenant.VoiceID,
+			"language":        tenant.Language,
+			"vip_names":       tenant.VIPNames,
+			"marketing_email": tenant.MarketingEmail,
+			"forward_number":  tenant.ForwardNumber,
+		}
+		configJSON, _ := json.Marshal(tenantConfig)
+		params = append(params, twimlParameter{Name: "tenantConfig", Value: string(configJSON)})
+	}
+
 	resp := twimlResponse{
 		Connect: &twimlConnect{
 			Stream: twimlStream{
-				URL: mediaURL,
-				Parameter: &twimlParameter{
-					Name:  "callSid",
-					Value: callSid,
-				},
+				URL:        mediaURL,
+				Parameters: params,
 			},
 		},
 	}

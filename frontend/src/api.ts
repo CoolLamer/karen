@@ -32,17 +32,147 @@ export type CallDetail = CallListItem & {
   utterances: Utterance[];
 };
 
+export type User = {
+  id: string;
+  phone: string;
+  name?: string;
+  tenant_id?: string;
+};
+
+export type Tenant = {
+  id: string;
+  name: string;
+  system_prompt: string;
+  greeting_text?: string;
+  voice_id?: string;
+  language: string;
+  vip_names?: string[];
+  marketing_email?: string;
+  forward_number?: string;
+  plan: string;
+  status: string;
+};
+
+export type TenantPhoneNumber = {
+  id: string;
+  twilio_number: string;
+  is_primary: boolean;
+};
+
+export type AuthResponse = {
+  token: string;
+  expires_at: string;
+  user: User;
+};
+
+export type OnboardingResponse = {
+  tenant: Tenant;
+  token: string;
+  expires_at: string;
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
 
-async function http<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+let authToken: string | null = localStorage.getItem("karen_token");
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+  if (token) {
+    localStorage.setItem("karen_token", token);
+  } else {
+    localStorage.removeItem("karen_token");
+  }
+}
+
+export function getAuthToken(): string | null {
+  return authToken;
+}
+
+export function isAuthenticated(): boolean {
+  return authToken !== null;
+}
+
+class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function http<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string>),
+  };
+
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      setAuthToken(null);
+    }
+    const text = await res.text();
+    throw new ApiError(res.status, text || `HTTP ${res.status}`);
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return (await res.json()) as T;
 }
 
 export const api = {
+  // Calls
   listCalls: () => http<CallListItem[]>("/api/calls"),
-  getCall: (providerCallId: string) => http<CallDetail>(`/api/calls/${encodeURIComponent(providerCallId)}`),
+  getCall: (providerCallId: string) =>
+    http<CallDetail>(`/api/calls/${encodeURIComponent(providerCallId)}`),
+
+  // Auth
+  sendCode: (phone: string) =>
+    http<{ success: boolean }>("/auth/send-code", {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    }),
+
+  verifyCode: (phone: string, code: string) =>
+    http<AuthResponse>("/auth/verify-code", {
+      method: "POST",
+      body: JSON.stringify({ phone, code }),
+    }),
+
+  refreshToken: () =>
+    http<AuthResponse>("/auth/refresh", {
+      method: "POST",
+    }),
+
+  logout: () =>
+    http<void>("/auth/logout", {
+      method: "POST",
+    }),
+
+  // User & Tenant
+  getMe: () => http<{ user: User; tenant?: Tenant }>("/api/me"),
+
+  getTenant: () => http<{ tenant: Tenant; phone_numbers: TenantPhoneNumber[] }>("/api/tenant"),
+
+  updateTenant: (data: Partial<Tenant>) =>
+    http<{ tenant: Tenant }>("/api/tenant", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  // Onboarding
+  completeOnboarding: (name: string) =>
+    http<OnboardingResponse>("/api/onboarding/complete", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
 };
-
-

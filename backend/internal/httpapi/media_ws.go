@@ -70,6 +70,18 @@ type twilioMark struct {
 	} `json:"mark"`
 }
 
+// TenantConfig holds tenant-specific settings for the call
+type TenantConfig struct {
+	TenantID       string   `json:"tenant_id,omitempty"`
+	SystemPrompt   string   `json:"system_prompt,omitempty"`
+	GreetingText   *string  `json:"greeting_text,omitempty"`
+	VoiceID        *string  `json:"voice_id,omitempty"`
+	Language       string   `json:"language,omitempty"`
+	VIPNames       []string `json:"vip_names,omitempty"`
+	MarketingEmail *string  `json:"marketing_email,omitempty"`
+	ForwardNumber  *string  `json:"forward_number,omitempty"`
+}
+
 // callSession manages a single call's voice AI session
 type callSession struct {
 	callSid    string
@@ -89,6 +101,9 @@ type callSession struct {
 	cfg        RouterConfig
 	httpClient *http.Client
 
+	// Tenant-specific configuration
+	tenantCfg TenantConfig
+
 	// Conversation state
 	messages     []llm.Message
 	utteranceSeq int
@@ -96,8 +111,8 @@ type callSession struct {
 	speakingMu   sync.Mutex
 
 	// Goodbye handling
-	pendingGoodbye bool           // True when waiting for goodbye audio to finish
-	goodbyeDone    chan struct{}  // Signaled when goodbye mark is received
+	pendingGoodbye bool          // True when waiting for goodbye audio to finish
+	goodbyeDone    chan struct{} // Signaled when goodbye mark is received
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -228,7 +243,23 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		}
 	}
 
-	s.logger.Printf("media_ws: stream started - StreamSid: %s, CallSid: %s", start.StreamSid, s.callSid)
+	// Parse tenant config from custom parameters
+	if tenantID, ok := start.CustomParams["tenantId"]; ok {
+		s.tenantCfg.TenantID = tenantID
+	}
+	if configJSON, ok := start.CustomParams["tenantConfig"]; ok {
+		if err := json.Unmarshal([]byte(configJSON), &s.tenantCfg); err != nil {
+			s.logger.Printf("media_ws: failed to parse tenant config: %v", err)
+		}
+	}
+
+	if s.tenantCfg.TenantID != "" {
+		s.logger.Printf("media_ws: stream started - StreamSid: %s, CallSid: %s, TenantID: %s",
+			start.StreamSid, s.callSid, s.tenantCfg.TenantID)
+	} else {
+		s.logger.Printf("media_ws: stream started - StreamSid: %s, CallSid: %s (no tenant)",
+			start.StreamSid, s.callSid)
+	}
 
 	// Get call ID from database now that we have callSid
 	if s.callSid != "" {
@@ -240,10 +271,16 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		}
 	}
 
+	// Determine language for STT (from tenant config or default)
+	language := "cs"
+	if s.tenantCfg.Language != "" {
+		language = s.tenantCfg.Language
+	}
+
 	// Connect to Deepgram STT
 	sttClient, err := stt.NewDeepgramClient(s.ctx, stt.DeepgramConfig{
 		APIKey:      s.cfg.DeepgramAPIKey,
-		Language:    "cs", // Czech
+		Language:    language,
 		Model:       "nova-3",
 		SampleRate:  8000,
 		Encoding:    "mulaw",
@@ -255,6 +292,21 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		return fmt.Errorf("failed to connect to Deepgram: %w", err)
 	}
 	s.sttClient = sttClient
+
+	// Update TTS client with tenant's voice ID if specified
+	if s.tenantCfg.VoiceID != nil && *s.tenantCfg.VoiceID != "" {
+		s.ttsClient = tts.NewElevenLabsClient(tts.ElevenLabsConfig{
+			APIKey:  s.cfg.ElevenLabsAPIKey,
+			VoiceID: *s.tenantCfg.VoiceID,
+			ModelID: "eleven_flash_v2_5",
+		})
+	}
+
+	// Set tenant's custom system prompt if available
+	if s.tenantCfg.SystemPrompt != "" {
+		s.llmClient.SetSystemPrompt(s.tenantCfg.SystemPrompt)
+		s.logger.Printf("media_ws: using tenant's custom system prompt")
+	}
 
 	// Start processing STT results
 	go s.processSTTResults()
@@ -492,8 +544,13 @@ func (s *callSession) speakGreeting() {
 		s.speakingMu.Unlock()
 	}()
 
-	greeting := s.cfg.GreetingText
-	if greeting == "" {
+	// Use tenant's greeting if available, otherwise fall back to config default
+	var greeting string
+	if s.tenantCfg.GreetingText != nil && *s.tenantCfg.GreetingText != "" {
+		greeting = *s.tenantCfg.GreetingText
+	} else if s.cfg.GreetingText != "" {
+		greeting = s.cfg.GreetingText
+	} else {
 		greeting = "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"
 	}
 
@@ -537,19 +594,25 @@ func stripForwardMarker(text string) string {
 	return strings.ReplaceAll(text, "[PŘEPOJIT] ", "")
 }
 
-// forwardCall forwards the call to Lukáš's phone number
+// forwardCall forwards the call to the tenant's forward number
 func (s *callSession) forwardCall() {
 	if s.callSid == "" || s.accountSid == "" || s.cfg.TwilioAuthToken == "" {
 		s.logger.Printf("media_ws: cannot forward - missing callSid, accountSid, or auth token")
 		return
 	}
 
+	// Determine the forward number (tenant config or default)
+	forwardNumber := "+420724794686" // Default fallback
+	if s.tenantCfg.ForwardNumber != nil && *s.tenantCfg.ForwardNumber != "" {
+		forwardNumber = *s.tenantCfg.ForwardNumber
+	}
+
 	// Wait for the forwarding message to finish playing
 	select {
 	case <-s.goodbyeDone:
-		s.logger.Printf("media_ws: forward audio finished, forwarding call")
+		s.logger.Printf("media_ws: forward audio finished, forwarding call to %s", forwardNumber)
 	case <-time.After(10 * time.Second):
-		s.logger.Printf("media_ws: timeout waiting for forward audio, forwarding anyway")
+		s.logger.Printf("media_ws: timeout waiting for forward audio, forwarding anyway to %s", forwardNumber)
 	case <-s.ctx.Done():
 		return
 	}
@@ -557,12 +620,12 @@ func (s *callSession) forwardCall() {
 	// Small delay to ensure audio is flushed
 	time.Sleep(500 * time.Millisecond)
 
-	// Forward to Lukáš's number using TwiML
+	// Forward to the configured number using TwiML
 	apiURL := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Calls/%s.json",
 		s.accountSid, s.callSid)
 
-	// TwiML to dial Lukáš
-	twiml := `<Response><Dial>+420724794686</Dial></Response>`
+	// TwiML to dial the forward number
+	twiml := fmt.Sprintf(`<Response><Dial>%s</Dial></Response>`, forwardNumber)
 
 	data := url.Values{}
 	data.Set("Twiml", twiml)
@@ -584,7 +647,7 @@ func (s *callSession) forwardCall() {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		s.logger.Printf("media_ws: call %s forwarded successfully to +420724794686", s.callSid)
+		s.logger.Printf("media_ws: call %s forwarded successfully to %s", s.callSid, forwardNumber)
 	} else {
 		s.logger.Printf("media_ws: forward returned status %d", resp.StatusCode)
 	}
