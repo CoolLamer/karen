@@ -10,6 +10,15 @@ type Config struct {
 	DatabaseURL   string
 	TwilioAuthTok string
 	LogLevel      string
+
+	// Voice AI providers
+	DeepgramAPIKey   string
+	OpenAIAPIKey     string
+	ElevenLabsAPIKey string
+
+	// Voice settings
+	GreetingText string
+	TTSVoiceID   string // ElevenLabs voice ID
 }
 
 func LoadConfigFromEnv() Config {
@@ -19,6 +28,15 @@ func LoadConfigFromEnv() Config {
 		DatabaseURL:   getenv("DATABASE_URL", ""),
 		TwilioAuthTok: getenv("TWILIO_AUTH_TOKEN", ""),
 		LogLevel:      getenv("LOG_LEVEL", "info"),
+
+		// Voice AI providers
+		DeepgramAPIKey:   getenv("DEEPGRAM_API_KEY", ""),
+		OpenAIAPIKey:     getenv("OPENAI_API_KEY", ""),
+		ElevenLabsAPIKey: getenv("ELEVENLABS_API_KEY", ""),
+
+		// Voice settings
+		GreetingText: getenv("GREETING_TEXT", "Dobrý den, prosím řekněte mi, o co se jedná."),
+		TTSVoiceID:   getenv("TTS_VOICE_ID", ""), // ElevenLabs voice ID
 	}
 }
 

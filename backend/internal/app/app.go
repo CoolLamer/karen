@@ -50,7 +50,12 @@ func New(cfg Config, logger *log.Logger) (*App, error) {
 
 func (a *App) Router() http.Handler {
 	routerCfg := httpapi.RouterConfig{
-		PublicBaseURL: a.cfg.PublicBaseURL,
+		PublicBaseURL:    a.cfg.PublicBaseURL,
+		DeepgramAPIKey:   a.cfg.DeepgramAPIKey,
+		OpenAIAPIKey:     a.cfg.OpenAIAPIKey,
+		ElevenLabsAPIKey: a.cfg.ElevenLabsAPIKey,
+		GreetingText:     a.cfg.GreetingText,
+		TTSVoiceID:       a.cfg.TTSVoiceID,
 	}
 	return httpapi.NewRouter(routerCfg, a.logger, a.store)
 }
