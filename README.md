@@ -2,6 +2,18 @@
 
 Single-repo project for a **Twilio-forwarded call screener** that captures **intent + legitimacy label** and stores results in **Postgres**, with an **admin web app** to review calls.
 
+## Product Vision
+
+Transform Karen into a **multi-tenant SaaS** phone assistant:
+- Each user gets their own phone number with a customized AI assistant
+- Handles calls when you're unavailable (like a smart voicemail)
+- Captures caller intent, screens spam/marketing, forwards VIP calls
+- Web app first, mobile apps (Android + iOS) planned
+
+**Documentation:**
+- [docs/PRODUCTIZATION.md](docs/PRODUCTIZATION.md) - Product roadmap & architecture
+- [docs/UX.md](docs/UX.md) - User flows & screen designs
+
 ## Repo Structure
 - `backend/` Go API (Twilio webhooks + WebSocket media endpoint + DB)
 - `frontend/` Vite + React + TypeScript admin app

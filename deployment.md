@@ -12,16 +12,19 @@
 
 ## Twilio Routing: Can we recognize from which number the call was redirected?
 **Yes for the important parts**:
-- **`From`**: the caller’s phone number (the real person/spammer calling).
+- **`From`**: the caller's phone number (the real person/spammer calling).
 - **`To` / `Called`**: the Twilio number that received the call.
+- **`ForwardedFrom`**: The original number before forwarding (when carrier provides it).
 
-**About the “original number before forwarding”** (the number your user dialed that then forwarded to Twilio):
+**About the "original number before forwarding"** (the number your user dialed that then forwarded to Twilio):
 - On regular PSTN call forwarding, **it is not reliably available**—many carriers do not pass the original called number end-to-end.
 - Sometimes it can be inferred only if you use **SIP trunks** and the carrier provides headers like `Diversion`/`History-Info`, but you should not depend on that for an MVP.
+- Twilio provides `ForwardedFrom` when available - use as fallback, not primary routing.
 
-**Reliable solution (recommended)**:
-- Give each destination/user a **unique Twilio number** (or at least per prompt/routing).
-- Then route by **`To`** (the Twilio number) → map to the right “specified prompt” / tenant / settings in your DB.
+**Reliable solution (recommended for multi-tenant)**:
+- Give each destination/user a **unique Twilio number** (~$1/month per number).
+- Route by **`To`** (the Twilio number) → map to tenant's prompt/settings in DB.
+- Use `ForwardedFrom` as optional fallback for shared-number scenarios.
 
 ---
 
@@ -161,5 +164,40 @@ For your use case (call list + filters + detail view), Mantine is often the quic
   - LLM time-to-first-token
   - TTS time-to-first-byte
 - Confirm DB writes on call end (transcript + screening result).
+
+---
+
+## Infrastructure Alternatives (for Scale/Productization)
+
+### Current: Coolify
+- Good for MVP and small scale (< 100 tenants)
+- Simple Docker-based deployment
+- Manual scaling
+
+### Alternative: Railway
+- Better DX, built-in PostgreSQL with backups
+- Auto-scaling, native WebSocket support
+- $5-20/month for this workload
+- Good middle ground between simplicity and scale
+
+### Alternative: Render
+- Similar to Railway
+- Competitive pricing, auto-scaling
+- Good for teams
+
+### Alternative: Fly.io
+- Edge deployment = lower latency
+- Good for globally distributed users
+- More complex setup
+
+### Future: Kubernetes (when needed)
+- For 1000+ tenants
+- Managed K8s (GKE, EKS, DigitalOcean)
+- Horizontal pod autoscaling
+- Per-tenant isolation if needed
+
+**Recommendation**: Stay on Coolify for initial productization. Add database-level multi-tenancy first. Migrate to Railway or K8s when you need horizontal scaling (likely at 100+ concurrent calls).
+
+See [docs/PRODUCTIZATION.md](docs/PRODUCTIZATION.md) for the full scaling roadmap.
 
 

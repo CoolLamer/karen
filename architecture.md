@@ -408,6 +408,47 @@ Observability:
 - Do you need call recording storage, and what retention period?
 - What legitimacy labels do you want beyond `legitimate|marketing|spam|unknown`?
 - Should the system **hang up after collecting intent**, or **transfer to you** for legit calls?
-- What “specified prompt” format do you want (markdown, JSON, UI builder)?
+- What "specified prompt" format do you want (markdown, JSON, UI builder)?
+
+---
+
+## Productization Roadmap
+
+The goal is to evolve Karen into a **multi-tenant SaaS** phone assistant.
+
+### Target Use Case
+Users forward their phone to Karen when unavailable (busy, DND, no answer). Karen:
+1. Answers the call with a personalized greeting
+2. Captures why the caller is calling
+3. Classifies the call (legitimate/marketing/spam)
+4. Forwards VIP callers immediately
+5. Stores the call summary for later review
+
+### Multi-Tenancy Model
+Each tenant (user) has:
+- **Dedicated Twilio number**: reliable routing via `To` field
+- **Custom system prompt**: personalized assistant personality
+- **Custom voice**: ElevenLabs voice ID selection
+- **VIP list**: names/numbers to forward immediately
+- **Marketing redirect**: email for marketing callers
+
+### Phone Number Routing
+**Primary method**: Dedicated Twilio number per tenant
+- Twilio number → tenant lookup → apply tenant's config
+- Most reliable, ~$1/month per number
+
+**Secondary method**: Call forwarding detection
+- Detect `ForwardedFrom` header from Twilio
+- Less reliable (carrier-dependent), useful as fallback
+
+### Infrastructure Evolution
+1. **MVP (current)**: Coolify, single tenant, hardcoded prompt
+2. **Phase 1**: Multi-tenant DB, phone auth (Twilio Verify), routing by number
+3. **Phase 2**: Web app (landing, onboarding, dashboard, settings)
+4. **Phase 3**: Billing (Stripe), usage metering, horizontal scaling
+5. **Phase 4**: Mobile apps (Android + iOS with push notifications)
+
+See [docs/PRODUCTIZATION.md](docs/PRODUCTIZATION.md) for detailed implementation plan.
+See [docs/UX.md](docs/UX.md) for user flows and screen designs.
 
 
