@@ -409,9 +409,20 @@ func (s *callSession) generateAndSpeak() {
 		})
 	}
 
-	// Synthesize and send audio
-	if err := s.speakText(responseText); err != nil {
+	// Synthesize and send audio (strip forward marker if present)
+	ttsText := stripForwardMarker(responseText)
+	if err := s.speakText(ttsText); err != nil {
 		s.logger.Printf("media_ws: TTS error: %v", err)
+	}
+
+	// Check for forwarding (emergency/VIP)
+	if isForward(responseText) {
+		s.logger.Printf("media_ws: detected forward request, will forward after audio finishes")
+		s.speakingMu.Lock()
+		s.pendingGoodbye = true // reuse same mechanism
+		s.speakingMu.Unlock()
+		go s.forwardCall()
+		return
 	}
 
 	// If this was a goodbye, mark pending and hang up after audio finishes
@@ -501,8 +512,6 @@ func isGoodbye(text string) bool {
 		"nashledanou",
 		"mějte se",
 		"hezký den",
-		"ahoj",
-		"čau",
 	}
 	for _, phrase := range goodbyePhrases {
 		if strings.Contains(lower, phrase) {
@@ -510,6 +519,69 @@ func isGoodbye(text string) bool {
 		}
 	}
 	return false
+}
+
+// isForward checks if the response contains the forward marker
+func isForward(text string) bool {
+	return strings.Contains(text, "[PŘEPOJIT]")
+}
+
+// stripForwardMarker removes the [PŘEPOJIT] marker from text for TTS
+func stripForwardMarker(text string) string {
+	return strings.ReplaceAll(text, "[PŘEPOJIT] ", "")
+}
+
+// forwardCall forwards the call to Lukáš's phone number
+func (s *callSession) forwardCall() {
+	if s.callSid == "" || s.accountSid == "" || s.cfg.TwilioAuthToken == "" {
+		s.logger.Printf("media_ws: cannot forward - missing callSid, accountSid, or auth token")
+		return
+	}
+
+	// Wait for the forwarding message to finish playing
+	select {
+	case <-s.goodbyeDone:
+		s.logger.Printf("media_ws: forward audio finished, forwarding call")
+	case <-time.After(10 * time.Second):
+		s.logger.Printf("media_ws: timeout waiting for forward audio, forwarding anyway")
+	case <-s.ctx.Done():
+		return
+	}
+
+	// Small delay to ensure audio is flushed
+	time.Sleep(500 * time.Millisecond)
+
+	// Forward to Lukáš's number using TwiML
+	apiURL := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Calls/%s.json",
+		s.accountSid, s.callSid)
+
+	// TwiML to dial Lukáš
+	twiml := `<Response><Dial>+420724794686</Dial></Response>`
+
+	data := url.Values{}
+	data.Set("Twiml", twiml)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		s.logger.Printf("media_ws: failed to create forward request: %v", err)
+		return
+	}
+
+	req.SetBasicAuth(s.accountSid, s.cfg.TwilioAuthToken)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to forward call: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		s.logger.Printf("media_ws: call %s forwarded successfully to +420724794686", s.callSid)
+	} else {
+		s.logger.Printf("media_ws: forward returned status %d", resp.StatusCode)
+	}
 }
 
 // hangUpCall terminates the call via Twilio REST API
