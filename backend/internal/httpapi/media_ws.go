@@ -95,6 +95,10 @@ type callSession struct {
 	speaking     bool // True when TTS is playing
 	speakingMu   sync.Mutex
 
+	// Goodbye handling
+	pendingGoodbye bool           // True when waiting for goodbye audio to finish
+	goodbyeDone    chan struct{}  // Signaled when goodbye mark is received
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -116,14 +120,15 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithCancel(req.Context())
 
 	session := &callSession{
-		conn:       conn,
-		store:      r.store,
-		logger:     r.logger,
-		cfg:        r.cfg,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
-		messages:   []llm.Message{},
-		ctx:        ctx,
-		cancel:     cancel,
+		conn:        conn,
+		store:       r.store,
+		logger:      r.logger,
+		cfg:         r.cfg,
+		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		messages:    []llm.Message{},
+		goodbyeDone: make(chan struct{}),
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 
 	// Create LLM client (doesn't require connection)
@@ -194,6 +199,14 @@ func (s *callSession) run() {
 			// Audio playback completed
 			s.speakingMu.Lock()
 			s.speaking = false
+			// Signal goodbye completion if we're waiting
+			if s.pendingGoodbye {
+				s.pendingGoodbye = false
+				select {
+				case s.goodbyeDone <- struct{}{}:
+				default:
+				}
+			}
 			s.speakingMu.Unlock()
 		}
 	}
@@ -401,9 +414,12 @@ func (s *callSession) generateAndSpeak() {
 		s.logger.Printf("media_ws: TTS error: %v", err)
 	}
 
-	// If this was a goodbye, hang up the call
+	// If this was a goodbye, mark pending and hang up after audio finishes
 	if isGoodbye(responseText) {
-		s.logger.Printf("media_ws: detected goodbye, hanging up call")
+		s.logger.Printf("media_ws: detected goodbye, will hang up after audio finishes")
+		s.speakingMu.Lock()
+		s.pendingGoodbye = true
+		s.speakingMu.Unlock()
 		go s.hangUpCall()
 	}
 }
@@ -503,8 +519,19 @@ func (s *callSession) hangUpCall() {
 		return
 	}
 
-	// Wait for the TTS audio to finish playing (goodbye message takes ~4-5 seconds)
-	time.Sleep(5 * time.Second)
+	// Wait for the goodbye audio to finish playing (signaled by mark event)
+	// Use timeout as fallback in case mark never arrives
+	select {
+	case <-s.goodbyeDone:
+		s.logger.Printf("media_ws: goodbye audio finished, hanging up")
+	case <-time.After(10 * time.Second):
+		s.logger.Printf("media_ws: timeout waiting for goodbye audio, hanging up anyway")
+	case <-s.ctx.Done():
+		return
+	}
+
+	// Small additional delay to ensure Twilio has flushed all audio
+	time.Sleep(500 * time.Millisecond)
 
 	apiURL := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Calls/%s.json",
 		s.accountSid, s.callSid)
