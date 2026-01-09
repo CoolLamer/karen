@@ -503,8 +503,8 @@ func (s *callSession) hangUpCall() {
 		return
 	}
 
-	// Wait a moment for the TTS audio to finish playing
-	time.Sleep(2 * time.Second)
+	// Wait for the TTS audio to finish playing (goodbye message takes ~4-5 seconds)
+	time.Sleep(5 * time.Second)
 
 	apiURL := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Calls/%s.json",
 		s.accountSid, s.callSid)
