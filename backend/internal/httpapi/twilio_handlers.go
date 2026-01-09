@@ -26,7 +26,13 @@ type twimlConnect struct {
 }
 
 type twimlStream struct {
-	URL string `xml:"url,attr"`
+	URL       string           `xml:"url,attr"`
+	Parameter *twimlParameter  `xml:"Parameter,omitempty"`
+}
+
+type twimlParameter struct {
+	Name  string `xml:"name,attr"`
+	Value string `xml:"value,attr"`
 }
 
 func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
@@ -56,8 +62,9 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 	})
 
 	// Start a media stream to our websocket.
+	// Note: Twilio Stream URL does not support query params, use Parameter instead.
 	wsBase := wsURLFromPublicBase(r.cfg.PublicBaseURL)
-	mediaURL := strings.TrimRight(wsBase, "/") + "/media?callSid=" + callSid
+	mediaURL := strings.TrimRight(wsBase, "/") + "/media"
 
 	resp := twimlResponse{
 		Say: &twimlSay{
@@ -65,7 +72,13 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 			Text:  "Dobrý den, prosím řekněte mi, o co se jedná.",
 		},
 		Connect: &twimlConnect{
-			Stream: twimlStream{URL: mediaURL},
+			Stream: twimlStream{
+				URL: mediaURL,
+				Parameter: &twimlParameter{
+					Name:  "callSid",
+					Value: callSid,
+				},
+			},
 		},
 	}
 
