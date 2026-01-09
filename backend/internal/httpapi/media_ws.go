@@ -249,7 +249,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		Encoding:    "mulaw",
 		Channels:    1,
 		Punctuate:   true,
-		Endpointing: 1200, // 1200ms silence for turn detection (longer for natural Czech speech)
+		Endpointing: 1200, // 1200ms silence for turn detection
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to Deepgram: %w", err)
@@ -567,7 +567,11 @@ func (s *callSession) analyzeCall() {
 		return
 	}
 
-	result, err := s.llmClient.AnalyzeCall(s.ctx, s.messages)
+	// Use background context since call context may be cancelled
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := s.llmClient.AnalyzeCall(ctx, s.messages)
 	if err != nil {
 		s.logger.Printf("media_ws: analysis error: %v", err)
 		return
