@@ -49,12 +49,12 @@
   - Only if you add background jobs, caching, rate-limit counters, etc.
 
 ### Networking / Domains
-- `api.yourdomain.com` → backend
-- `app.yourdomain.com` → frontend
+- `api.zvednu.cz` → backend
+- `zvednu.cz` / `www.zvednu.cz` → frontend
 
 **Important for Twilio Media Streams**:
 - WebSockets must be supported end-to-end (reverse proxy + TLS).
-- Use **`wss://api.yourdomain.com/media`** (TLS required for production).
+- Use **`wss://api.zvednu.cz/media`** (TLS required for production).
 
 ---
 
@@ -74,8 +74,8 @@ Recommended deployment style:
 
 In Coolify:
 - Create a new service from your Git repo (Dockerfile or Buildpack).
-- Set the service domain to `api.yourdomain.com`.
-- Ensure “WebSocket support” is enabled (Coolify’s proxy typically supports it; still validate).
+- Set the service domain to `api.zvednu.cz`.
+- Ensure "WebSocket support" is enabled (Coolify's proxy typically supports it; still validate).
 
 ### 4) Deploy Frontend (Vite)
 Recommended:
@@ -84,8 +84,8 @@ Recommended:
 
 In Coolify:
 - Create a second service from the same repo (or separate repo) for the frontend.
-- Set domain to `app.yourdomain.com`.
-- Configure env var for API base URL (e.g., `VITE_API_BASE_URL=https://api.yourdomain.com`).
+- Set domain to `zvednu.cz`.
+- Configure env var for API base URL (e.g., `VITE_API_BASE_URL=https://api.zvednu.cz`).
 
 ### 5) HTTPS
 - Enable Let’s Encrypt certificates via Coolify for both domains.
@@ -97,7 +97,7 @@ In Coolify:
 ### Phone Numbers
 For each Twilio number you buy:
 - Set **Voice webhook** (A CALL COMES IN) to:
-  - `https://api.yourdomain.com/telephony/inbound` (POST)
+  - `https://api.zvednu.cz/telephony/inbound` (POST)
 
 ### Webhook Security
 - Validate Twilio signatures on incoming webhooks (recommended).
@@ -105,7 +105,7 @@ For each Twilio number you buy:
 
 ### Media Streams
 On inbound webhook response, instruct Twilio to start a stream to:
-- `wss://api.yourdomain.com/media`
+- `wss://api.zvednu.cz/media`
 
 Notes:
 - Expect 8kHz μ-law frames commonly; decode/normalize as needed for STT.
@@ -118,7 +118,7 @@ Minimum set:
 - **`DATABASE_URL`**: Postgres connection string
 - **`TWILIO_AUTH_TOKEN`**: used to validate webhook signatures
 - **`TWILIO_ACCOUNT_SID`**: optional (if you call Twilio APIs)
-- **`PUBLIC_BASE_URL`**: e.g. `https://api.yourdomain.com` (for constructing stream URLs)
+- **`PUBLIC_BASE_URL`**: e.g. `https://api.zvednu.cz` (for constructing stream URLs)
 - **`STT_PROVIDER` / `STT_API_KEY`**: streaming speech-to-text
 - **`TTS_PROVIDER` / `TTS_API_KEY`**: text-to-speech (if not using prerecorded prompts)
 - **`LLM_API_KEY`**: for classification + short dialog prompts
@@ -131,7 +131,7 @@ Optional:
 ---
 
 ## Environment Variables (Frontend)
-- **`VITE_API_BASE_URL`**: e.g. `https://api.yourdomain.com`
+- **`VITE_API_BASE_URL`**: e.g. `https://api.zvednu.cz`
 
 ---
 

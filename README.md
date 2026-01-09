@@ -1,10 +1,12 @@
-# karen (Call Screener)
+# Zvednu (zvednu.cz)
 
-Single-repo project for a **Twilio-forwarded call screener** that captures **intent + legitimacy label** and stores results in **Postgres**, with an **admin web app** to review calls.
+**"Zvednu to za tebe"** - Czech AI phone assistant that answers calls when you can't.
+
+Single-repo project for a **Twilio-forwarded call screener** that captures **intent + legitimacy label** and stores results in **Postgres**, with a **web app** to review calls.
 
 ## Product Vision
 
-Transform Karen into a **multi-tenant SaaS** phone assistant:
+**Zvednu** is a **multi-tenant SaaS** phone assistant with AI assistant **Karen**:
 - Each user gets their own phone number with a customized AI assistant
 - Handles calls when you're unavailable (like a smart voicemail)
 - Captures caller intent, screens spam/marketing, forwards VIP calls
@@ -13,6 +15,7 @@ Transform Karen into a **multi-tenant SaaS** phone assistant:
 **Documentation:**
 - [docs/PRODUCTIZATION.md](docs/PRODUCTIZATION.md) - Product roadmap & architecture
 - [docs/UX.md](docs/UX.md) - User flows & screen designs
+- [docs/MARKETING_CZ.md](docs/MARKETING_CZ.md) - Czech marketing strategy
 
 ## Repo Structure
 - `backend/` Go API (Twilio webhooks + WebSocket media endpoint + DB)
@@ -37,12 +40,14 @@ docker compose up --build
 ## Coolify Deployment (Recommended)
 Import `deploy/docker-compose.coolify.yml` into Coolify (or create services from the Dockerfiles).
 
-You’ll need:
-- `api.yourdomain.com` → backend service
-- `app.yourdomain.com` → frontend service
+Production domains:
+- `api.zvednu.cz` → backend service
+- `zvednu.cz` / `www.zvednu.cz` → frontend service
 
 Then configure Twilio:
-- Voice webhook for your Twilio number: `https://api.yourdomain.com/telephony/inbound` (POST)
-- Media stream URL used by backend: `wss://api.yourdomain.com/media`
+- Voice webhook for your Twilio number: `https://api.zvednu.cz/telephony/inbound` (POST)
+- Media stream URL used by backend: `wss://api.zvednu.cz/media`
+
+See [deploy/SETUP.md](deploy/SETUP.md) for detailed deployment instructions.
 
 

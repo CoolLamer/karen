@@ -57,7 +57,7 @@ jobs:
             ${{ steps.image.outputs.frontend }}:latest
             ${{ steps.image.outputs.frontend }}:${{ github.sha }}
           build-args: |
-            VITE_API_BASE_URL=https://api.karen.coollamer.com
+            VITE_API_BASE_URL=https://api.zvednu.cz
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
