@@ -392,11 +392,6 @@ func (s *callSession) generateAndSpeak() {
 	if err := s.speakText(responseText); err != nil {
 		s.logger.Printf("media_ws: TTS error: %v", err)
 	}
-
-	// After a few exchanges, analyze the call
-	if len(s.messages) >= 4 {
-		go s.analyzeCall()
-	}
 }
 
 func (s *callSession) speakText(text string) error {
@@ -486,6 +481,11 @@ func (s *callSession) cleanup() {
 	s.connMu.Lock()
 	s.conn.Close()
 	s.connMu.Unlock()
+
+	// Analyze the call at the end (only if we had a conversation)
+	if len(s.messages) >= 2 {
+		s.analyzeCall()
+	}
 
 	s.logger.Printf("media_ws: session cleaned up for call %s", s.callSid)
 }
