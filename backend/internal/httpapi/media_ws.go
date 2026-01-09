@@ -499,6 +499,12 @@ func (s *callSession) speakGreeting() {
 
 	s.logger.Printf("media_ws: speaking greeting: %s", greeting)
 
+	// Add greeting to conversation history so LLM knows it was already said
+	s.messages = append(s.messages, llm.Message{
+		Role:    "assistant",
+		Content: greeting,
+	})
+
 	if err := s.speakText(greeting); err != nil {
 		s.logger.Printf("media_ws: greeting TTS error: %v", err)
 	}
