@@ -21,6 +21,7 @@ type DeepgramClient struct {
 	done       chan struct{}
 	closeOnce  sync.Once
 	mu         sync.Mutex
+	wg         sync.WaitGroup // Wait for readLoop to finish
 }
 
 // DeepgramConfig holds configuration for the Deepgram client.
@@ -83,6 +84,7 @@ func NewDeepgramClient(ctx context.Context, cfg DeepgramConfig) (*DeepgramClient
 	}
 
 	// Start reading responses
+	client.wg.Add(1)
 	go client.readLoop()
 
 	return client, nil
@@ -125,6 +127,9 @@ func (c *DeepgramClient) Close() error {
 		c.mu.Unlock()
 
 		err = c.conn.Close()
+
+		// Wait for readLoop to finish before closing channels
+		c.wg.Wait()
 		close(c.results)
 		close(c.errors)
 	})
@@ -133,6 +138,8 @@ func (c *DeepgramClient) Close() error {
 
 // readLoop reads responses from Deepgram and sends them to the results channel.
 func (c *DeepgramClient) readLoop() {
+	defer c.wg.Done()
+
 	for {
 		select {
 		case <-c.done:
