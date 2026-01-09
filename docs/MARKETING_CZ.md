@@ -1,8 +1,8 @@
-# Karen - Marketingová strategie pro český trh
+# Zvednu - Marketingová strategie pro český trh
 
 ## Executive Summary
 
-Karen je AI telefonní asistentka, která přijímá hovory místo uživatele, identifikuje volajícího a důvod volání, a filtruje spam/marketing. Cílem je vstoupit na český trh jako první lokalizovaný produkt tohoto typu.
+**Zvednu** (zvednu.cz) je AI telefonní asistentka, která přijímá hovory místo uživatele, identifikuje volajícího a důvod volání, a filtruje spam/marketing. Cílem je vstoupit na český trh jako první lokalizovaný produkt tohoto typu.
 
 ---
 
@@ -162,7 +162,7 @@ Karen je AI telefonní asistentka, která přijímá hovory místo uživatele, i
 - Garance vrácení peněz
 
 **Aha moment:**
-> "Karen právě zvedla spam hovor o pojištění a já jsem to ani nemusel řešit."
+> "Zvednu právě zvedlo spam hovor o pojištění a já jsem to ani nemusel řešit."
 
 ### Fáze 4: Retention (Udržení)
 
@@ -177,7 +177,7 @@ Karen je AI telefonní asistentka, která přijímá hovory místo uživatele, i
 - Technické problémy → frustrace
 
 **Retence strategie:**
-- Týdenní/měsíční report "Karen zachytila"
+- Týdenní/měsíční report "Zvednu zachytilo"
 - Notifikace o zachyceném spamu
 - Vylepšování na základě feedbacku
 
@@ -194,7 +194,7 @@ Karen je AI telefonní asistentka, která přijímá hovory místo uživatele, i
 | Sekretářka (člověk) | 25-40k/měsíc | Plný servis |
 | Virtuální recepce | 2-5k/měsíc | Sdílená, omezená |
 
-### Karen pricing tiers
+### Zvednu pricing tiers
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -272,7 +272,7 @@ Karen je AI telefonní asistentka, která přijímá hovory místo uživatele, i
 
 ### Hlavní value proposition
 
-> **"Když nezvedneš, Karen zvedne za tebe."**
+> **"Když nezvedneš, Zvednu zvedne za tebe."**
 
 ### Alternativní taglines
 
@@ -286,136 +286,34 @@ Karen je AI telefonní asistentka, která přijímá hovory místo uživatele, i
 ### Key messages podle segmentu
 
 **OSVČ:**
-> "Pracuješ u klienta a někdo volá. Karen zvedne, zjistí o co jde, a ty pak víš, jestli se jedná o zakázku nebo spam."
+> "Pracuješ u klienta a někdo volá. Zvednu zvedne, zjistí o co jde, a ty pak víš, jestli se jedná o zakázku nebo spam."
 
 **Lékaři/Právníci:**
-> "Jste v ordinaci a pacient volá. Karen zjistí, jestli je to urgentní, a důležité hovory vám přepojí."
+> "Jste v ordinaci a pacient volá. Zvednu zjistí, jestli je to urgentní, a důležité hovory vám přepojí."
 
 **Obchodníci:**
-> "Každý zmeškaný hovor je potenciální ztracený deal. Karen zachytí každý lead a vy zavoláte zpět s plným kontextem."
+> "Každý zmeškaný hovor je potenciální ztracený deal. Zvednu zachytí každý lead a vy zavoláte zpět s plným kontextem."
 
 **Anti-spam:**
-> "Karen přijme ten hovor od 'O2' co vám volá popáté dnes. A vy máte klid."
+> "Zvednu přijme ten hovor od 'O2' co vám volá popáté dnes. A vy máte klid."
 
 ---
 
-## 6. Naming - Alternativy pro český trh
+## 6. Brand: Zvednu.cz
 
-### Problém s "Karen"
+### Vybraná doména
+**zvednu.cz**
 
-Doména `karen.cz` je obsazená. Potřebujeme alternativu.
-
-**Proč "Karen" funguje:**
-- Lidské, přátelské jméno
-- Evokuje asistentku/sekretářku
-- Krátké, zapamatovatelné
-- Mezinárodní (funguje i v angličtině)
-
-**Potenciální problém:**
-- "Karen" meme (demanding customer) - ale v ČR méně známý
-
-### Doporučené alternativy
-
-#### Variace na Karen
-
-| Název | Doména | Poznámka |
-|-------|--------|----------|
-| **Karenka** | karenka.cz | České zdrobnělina, přátelštější |
-| MojeKaren | mojekaren.cz | "Moje asistentka Karen" |
-| HeyKaren | heykaren.cz | Moderní, app-style |
-| Karen.ai | karen.ai | Premium, mezinárodní |
-| AskKaren | askkaren.cz | Akční, jako "zeptej se Karen" |
-
-#### Česká ženská jména
-
-| Název | Doména | Poznámka |
-|-------|--------|----------|
-| **Petra** | petra.cz (pravděpodobně obsazeno) | Nejběžnější české jméno |
-| Lenka | lenka.cz | Přátelské, běžné |
-| **Anička** | anicka.cz | Zdrobnělina, velmi přátelské |
-| Katka | katka.cz | Moderní, krátké |
-| Lucka | lucka.cz | Přátelské |
-
-#### Funkční názvy (co to dělá)
-
-| Název | Doména | Význam |
-|-------|--------|--------|
-| **Zvednu** | zvednu.cz | "Já zvednu" - akční |
-| Přijmu | prijmu.cz | "Já přijmu hovor" |
-| Hlídám | hlidam.cz | "Hlídám tvoje hovory" |
-| Recepce | recepce.cz | Profesionální positioning |
-| Sekretářka | sekretarka.cz | Popisné |
-
-#### Kreativní/brandové názvy
-
-| Název | Doména | Poznámka |
-|-------|--------|----------|
-| **Hallo** | hallo.cz | Mezinárodní pozdrav, phone-related |
-| Volej | volej.cz | "Volej mi" |
-| Telefie | telefie.cz | Telefon + bestie |
-| Asist | asist.cz | Zkratka asistentka |
-| Vox | vox.cz | Hlas (latinsky) |
-
-#### Slovní hříčky
-
-| Název | Doména | Význam |
-|-------|--------|--------|
-| **Nezmeškej** | nezmeskej.cz | "Nezmeškej hovor" |
-| Kdobyl | kdobyl.cz | "Kdo to byl?" |
-| Zvedáme | zvedame.cz | "My zvedáme za tebe" |
-| Provas | provas.cz | "Pro vás zvednu" |
-
-### Ověřená dostupnost domén (leden 2025)
-
-| Doména | Status | Poznámka |
-|--------|--------|----------|
-| karen.cz | ❌ Obsazeno | - |
-| **karenka.cz** | ✅ **VOLNÉ** | Top volba! |
-| **mojekaren.cz** | ✅ **VOLNÉ** | Dobrá alternativa |
-| **heykaren.cz** | ✅ **VOLNÉ** | Moderní |
-| **volajkaren.cz** | ✅ **VOLNÉ** | Akční |
-| **zvednu.cz** | ✅ **VOLNÉ** | Popisné |
-| **prijmu.cz** | ✅ **VOLNÉ** | Popisné |
-| **kdobyl.cz** | ✅ **VOLNÉ** | Vtipné |
-| hallo.cz | ❌ Obsazeno | Od 2014 |
-| anicka.cz | ❌ Obsazeno | Od 2005 |
-| nezmeskej.cz | ❌ Obsazeno | Od 2002 |
-| zvedame.cz | ❌ Obsazeno | Od 2013 |
-| sekretarka.cz | ❌ Obsazeno | Od 2002 |
-| asistentka.cz | ❌ Obsazeno | Od 2004 |
-| recepce.cz | ❌ Obsazeno | Od 1998 |
-| telefonka.cz | ❌ Obsazeno | Od 2025 (čerstvě!) |
-
-### TOP 3 Doporučení (ověřená dostupnost)
-
-#### 1. **Karenka.cz** ⭐ TOP VOLBA
-- ✅ Doména volná
-- Zachovává brand equity "Karen"
-- Česká zdrobnělina = přátelštější, důvěryhodnější
-- Unikátní, snadno zapamatovatelné
-- Funguje i mezinárodně
-- *Tagline: "Karenka zvedne, když ty nemůžeš"*
-
-#### 2. **Zvednu.cz**
-- ✅ Doména volná
-- Přímočaré, akční
-- Jasně komunikuje, co produkt dělá
-- Kratší než většina alternativ
+### Proč Zvednu
+- Přímočaré, akční - jasně říká co produkt dělá
+- Krátké, snadno zapamatovatelné
+- České slovo = důvěryhodné pro lokální trh
 - *Tagline: "Zvednu to za tebe"*
 
-#### 3. **MojeKaren.cz**
-- ✅ Doména volná
-- Zachovává "Karen" brand
-- Personální, vlastnické ("moje")
-- Jasně říká, že je to tvoje asistentka
-- *Tagline: "Moje Karen, moje asistentka"*
-
-### Další kroky pro finální rozhodnutí
-
-- [ ] Ověřit dostupnost .com variant (karenka.com, zvednu.com)
-- [ ] Trademark search (EUIPO, ÚPV ČR)
-- [ ] Social media handles (@karenka na Instagramu, Facebooku, X)
-- [ ] Registrovat vybranou doménu ihned
+### Brand voice
+- Přátelský, ale profesionální
+- První osoba ("Zvednu", "Zjistím", "Předám")
+- Sebevědomý - "Já to vyřídím"
 
 ---
 
@@ -552,7 +450,7 @@ Doména `karen.cz` je obsazená. Potřebujeme alternativu.
 - "Polovina hovorů je spam"
 - "Nemám čas zjišťovat, kdo volal"
 
-**Jak Karen pomůže:**
+**Jak Zvednu pomůže:**
 - Zvedne, když je u zákazníka
 - Zjistí, jestli je to zakázka nebo spam
 - Večer vidí přehled s prioritami
@@ -577,7 +475,7 @@ Doména `karen.cz` je obsazená. Potřebujeme alternativu.
 - "Sestra stojí 35 tisíc měsíčně"
 - "Po ordinaci mám 15 zmeškaných"
 
-**Jak Karen pomůže:**
+**Jak Zvednu pomůže:**
 - Zjistí závažnost (urgentní → přepojí)
 - Marketing/spam odfiltruje
 - Po ordinaci vidí strukturovaný přehled
@@ -602,7 +500,7 @@ Doména `karen.cz` je obsazená. Potřebujeme alternativu.
 - "Když zavolám zpět za hodinu, už mají jiného makléře"
 - "Potřebuju vědět, jak moc je lead horký"
 
-**Jak Karen pomůže:**
+**Jak Zvednu pomůže:**
 - Zachytí každý lead
 - Zjistí budget a urgenci
 - Hot leads přepojí ihned
