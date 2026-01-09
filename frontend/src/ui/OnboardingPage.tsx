@@ -28,7 +28,7 @@ import {
   IconConfetti,
   IconAlertCircle,
 } from "@tabler/icons-react";
-import { api, Tenant, TenantPhoneNumber } from "../api";
+import { api, Tenant, TenantPhoneNumber, setAuthToken } from "../api";
 import { useAuth } from "../AuthContext";
 
 type OnboardingStep = 1 | 2 | 3 | 4;
@@ -79,6 +79,8 @@ export function OnboardingPage() {
 
     try {
       const response = await api.completeOnboarding(name.trim());
+      // Save the new token that includes the tenant_id
+      setAuthToken(response.token);
       setTenantState(response.tenant);
       setTenant(response.tenant);
       setStep(3);
