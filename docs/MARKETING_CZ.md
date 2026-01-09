@@ -2,7 +2,10 @@
 
 ## Executive Summary
 
-**Zvednu** (zvednu.cz) je AI telefonní asistentka, která přijímá hovory místo uživatele, identifikuje volajícího a důvod volání, a filtruje spam/marketing. Cílem je vstoupit na český trh jako první lokalizovaný produkt tohoto typu.
+**Zvednu** je služba s AI telefonní asistentkou **Karen**, která přijímá hovory místo uživatele, identifikuje volajícího a důvod volání, a filtruje spam/marketing. Cílem je vstoupit na český trh jako první lokalizovaný produkt tohoto typu.
+
+**Služba:** Zvednu (zvednu.cz)
+**Asistentka:** Karen
 
 ---
 
@@ -272,16 +275,16 @@
 
 ### Hlavní value proposition
 
-> **"Když nezvedneš, Zvednu zvedne za tebe."**
+> **"Zvednu to za tebe. Když nezvedneš, Karen zvedne."**
 
 ### Alternativní taglines
 
 | Segment | Tagline |
 |---------|---------|
-| Obecný | "Tvoje AI asistentka na telefonu" |
-| Anti-spam | "Konec se spam hovory" |
-| Business | "Nikdy nepropásni důležitý hovor" |
-| Profesionálové | "Profesionální přijetí, i když nejsi dostupný" |
+| Obecný | "Zvednu - tvoje AI asistentka na telefonu" |
+| Anti-spam | "Zvednu - konec se spam hovory" |
+| Business | "Zvednu - nikdy nepropásni důležitý hovor" |
+| Profesionálové | "Zvednu - profesionální přijetí, i když nejsi dostupný" |
 
 ### Key messages podle segmentu
 
@@ -299,21 +302,45 @@
 
 ---
 
-## 6. Brand: Zvednu.cz
+## 6. Branding
 
-### Vybraná doména
-**zvednu.cz**
+### Finální rozhodnutí
 
-### Proč Zvednu
+| Prvek | Hodnota |
+|-------|---------|
+| **Název služby** | Zvednu |
+| **Doména** | zvednu.cz |
+| **Jméno asistentky** | Karen |
+| **Tagline** | "Zvednu to za tebe" |
+
+### Proč tato kombinace funguje
+
+**Služba "Zvednu":**
 - Přímočaré, akční - jasně říká co produkt dělá
 - Krátké, snadno zapamatovatelné
-- České slovo = důvěryhodné pro lokální trh
-- *Tagline: "Zvednu to za tebe"*
+- Česky nativní, bez cizích slov
+- Doména volná a registrovaná
+
+**Asistentka "Karen":**
+- Lidské, přátelské jméno
+- Evokuje asistentku/sekretářku
+- Mezinárodní (funguje i v angličtině)
+- Uživatelé mluví s "Karen", ne s "robotem"
 
 ### Brand voice
-- Přátelský, ale profesionální
-- První osoba ("Zvednu", "Zjistím", "Předám")
-- Sebevědomý - "Já to vyřídím"
+
+**Jak Karen mluví:**
+> "Dobrý den, tady Karen, asistentka pana Lukáše. Lukáš teď nemůže přijmout hovor. Jak vám mohu pomoct?"
+
+**Jak komunikujeme službu:**
+> "Zvednu to za tebe. Když nezvedneš, Karen zvedne."
+
+### Brand assets (TODO)
+
+- [ ] Logo Zvednu
+- [ ] Avatar/ilustrace Karen
+- [ ] Barevná paleta
+- [ ] Social media handles (@zvednu)
 
 ---
 
@@ -347,9 +374,7 @@
 - "Zvednout to?" = Caller ID + spam blocker (jako Truecaller)
 - "Zvednu" = **AI asistentka** která aktivně mluví s volajícím
 
-**Riziko záměny jména:** Názvy jsou podobné (zvednu vs zvednout). Zvážit:
-- Jiný název úplně
-- Nebo naopak využít asociaci s existující kategorií
+**Poznámka k podobnosti jmen:** Názvy jsou podobné (Zvednu vs Zvednout to?), ale produkty jsou zásadně odlišné - Zvednu aktivně mluví s volajícím, Zvednout to? pouze identifikuje čísla.
 
 ### Proč Zvednu vs. konkurence
 
