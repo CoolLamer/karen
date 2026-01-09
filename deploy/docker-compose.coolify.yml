@@ -1,36 +1,83 @@
+# Docker Compose for production deployment with Traefik (Coolify)
+# Domain: karen.coollamer.com (frontend), api.karen.coollamer.com (backend)
+#
+# Required environment variables:
+#   POSTGRES_PASSWORD - Database password
+#   TWILIO_AUTH_TOKEN - Twilio webhook auth token
+#
 services:
   db:
     image: postgres:16-alpine
+    container_name: karen-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: karen
       POSTGRES_USER: karen
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - karen_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U karen -d karen"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - karen-internal
 
   backend:
-    build:
-      context: ..
-      dockerfile: backend/Dockerfile
+    image: ghcr.io/coollamer/karen/backend:latest
+    container_name: karen-backend
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgres://karen:${POSTGRES_PASSWORD}@db:5432/karen?sslmode=disable
       HTTP_ADDR: :8080
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      PUBLIC_BASE_URL: https://api.karen.coollamer.com
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       LOG_LEVEL: info
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      # HTTPS
+      - "traefik.http.routers.karen-api.rule=Host(`api.karen.coollamer.com`)"
+      - "traefik.http.routers.karen-api.entrypoints=https"
+      - "traefik.http.routers.karen-api.tls=true"
+      - "traefik.http.routers.karen-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.karen-api.loadbalancer.server.port=8080"
+      # HTTP redirect
+      - "traefik.http.routers.karen-api-http.rule=Host(`api.karen.coollamer.com`)"
+      - "traefik.http.routers.karen-api-http.entrypoints=http"
+      - "traefik.http.routers.karen-api-http.middlewares=redirect-to-https"
+    networks:
+      - karen-internal
+      - coolify
 
   frontend:
-    build:
-      context: ..
-      dockerfile: frontend/Dockerfile
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    image: ghcr.io/coollamer/karen/frontend:latest
+    container_name: karen-frontend
+    restart: unless-stopped
     depends_on:
       - backend
+    labels:
+      - "traefik.enable=true"
+      # HTTPS
+      - "traefik.http.routers.karen-app.rule=Host(`karen.coollamer.com`)"
+      - "traefik.http.routers.karen-app.entrypoints=https"
+      - "traefik.http.routers.karen-app.tls=true"
+      - "traefik.http.routers.karen-app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.karen-app.loadbalancer.server.port=80"
+      # HTTP redirect
+      - "traefik.http.routers.karen-app-http.rule=Host(`karen.coollamer.com`)"
+      - "traefik.http.routers.karen-app-http.entrypoints=http"
+      - "traefik.http.routers.karen-app-http.middlewares=redirect-to-https"
+    networks:
+      - coolify
 
 volumes:
-  db_data:
+  karen_db_data:
 
-
+networks:
+  karen-internal:
+  coolify:
+    external: true

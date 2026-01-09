@@ -1,0 +1,127 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          build-args: |
+            VITE_API_BASE_URL=https://api.karen.coollamer.com
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: root
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy/docker-compose.coolify.yml,backend/migrations/"
+          target: "/opt/karen"
+          strip_components: 0
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: root
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/karen
+
+            # Move compose file to correct location
+            mv deploy/docker-compose.coolify.yml docker-compose.yml 2>/dev/null || true
+            rm -rf deploy 2>/dev/null || true
+
+            # Create .env if it doesn't exist
+            if [ ! -f .env ]; then
+              cat > .env << 'EOF'
+            POSTGRES_PASSWORD=CHANGE_ME_$(openssl rand -hex 16)
+            TWILIO_AUTH_TOKEN=your_twilio_auth_token
+            EOF
+              echo "WARNING: Created default .env file at /opt/karen/.env"
+              echo "Please update POSTGRES_PASSWORD and TWILIO_AUTH_TOKEN with real values!"
+            fi
+
+            # Pull latest images
+            docker compose pull
+
+            # Deploy
+            docker compose up -d
+
+            # Wait for database to be ready
+            echo "Waiting for database..."
+            sleep 5
+
+            # Run migrations
+            if [ -d backend/migrations ]; then
+              for f in backend/migrations/*.sql; do
+                echo "Running migration: $f"
+                docker exec karen-backend sh -c "cat /app/migrations/$(basename $f) | psql \$DATABASE_URL" || true
+              done
+            fi
+
+            echo ""
+            echo "Deployment complete!"
+            echo ""
+            docker compose ps
+            echo ""
+            echo "Services available at:"
+            echo "  - Frontend: https://karen.coollamer.com"
+            echo "  - API: https://api.karen.coollamer.com"
