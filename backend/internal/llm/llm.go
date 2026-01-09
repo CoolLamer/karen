@@ -27,4 +27,10 @@ type Client interface {
 	// GenerateResponse generates a response based on the conversation.
 	// Returns the response text streamed through the channel.
 	GenerateResponse(ctx context.Context, messages []Message) (<-chan string, error)
+
+	// SetSystemPrompt sets a custom system prompt for this client.
+	SetSystemPrompt(prompt string)
+
+	// GetSystemPrompt returns the current system prompt.
+	GetSystemPrompt() string
 }
