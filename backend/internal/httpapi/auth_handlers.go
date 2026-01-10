@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lukasbauer/karen/internal/store"
 )
@@ -229,6 +230,7 @@ func (r *Router) handleVerifyCode(w http.ResponseWriter, req *http.Request) {
 	user, isNew, err := r.store.FindOrCreateUser(req.Context(), body.Phone)
 	if err != nil {
 		r.logger.Printf("auth: failed to find/create user for %s: %v", body.Phone, err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "database error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -237,6 +239,7 @@ func (r *Router) handleVerifyCode(w http.ResponseWriter, req *http.Request) {
 	token, expiresAt, err := r.generateJWT(user)
 	if err != nil {
 		r.logger.Printf("auth: failed to generate JWT: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to create session"}`, http.StatusInternalServerError)
 		return
 	}
@@ -245,6 +248,7 @@ func (r *Router) handleVerifyCode(w http.ResponseWriter, req *http.Request) {
 	tokenHash := hashToken(token)
 	if err := r.store.CreateSession(req.Context(), user.ID, tokenHash, expiresAt); err != nil {
 		r.logger.Printf("auth: failed to store session: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to create session"}`, http.StatusInternalServerError)
 		return
 	}
@@ -486,6 +490,7 @@ func (r *Router) handleUpdateTenant(w http.ResponseWriter, req *http.Request) {
 	// Apply updates
 	if err := r.store.UpdateTenant(req.Context(), *authUser.TenantID, updates); err != nil {
 		r.logger.Printf("auth: failed to update tenant %s: %v", *authUser.TenantID, err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to update tenant"}`, http.StatusInternalServerError)
 		return
 	}
@@ -539,6 +544,7 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 	tenant, err := r.store.CreateTenant(req.Context(), body.Name, systemPrompt)
 	if err != nil {
 		r.logger.Printf("auth: failed to create tenant: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to create tenant"}`, http.StatusInternalServerError)
 		return
 	}
@@ -546,11 +552,13 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 	// Update user name
 	if err := r.store.UpdateUserName(req.Context(), authUser.ID, body.Name); err != nil {
 		r.logger.Printf("auth: failed to update user name: %v", err)
+		sentry.CaptureException(err)
 	}
 
 	// Assign user to tenant
 	if err := r.store.AssignUserToTenant(req.Context(), authUser.ID, tenant.ID); err != nil {
 		r.logger.Printf("auth: failed to assign user to tenant: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to assign tenant"}`, http.StatusInternalServerError)
 		return
 	}
@@ -560,6 +568,7 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 	existingNumbers, err := r.store.GetTenantPhoneNumbers(req.Context(), tenant.ID)
 	if err != nil {
 		r.logger.Printf("auth: failed to get existing phone numbers: %v", err)
+		sentry.CaptureException(err)
 	}
 
 	if len(existingNumbers) > 0 {
@@ -571,6 +580,7 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 		phoneNumber, err = r.store.ClaimAvailablePhoneNumber(req.Context(), tenant.ID)
 		if err != nil {
 			r.logger.Printf("auth: failed to claim phone number: %v", err)
+			sentry.CaptureException(err)
 			// Continue without phone number - not a fatal error
 		} else if phoneNumber != nil {
 			r.logger.Printf("auth: assigned phone number %s to tenant %s", phoneNumber.TwilioNumber, tenant.ID)
@@ -586,6 +596,7 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 	token, expiresAt, err := r.generateJWT(user)
 	if err != nil {
 		r.logger.Printf("auth: failed to generate JWT: %v", err)
+		sentry.CaptureException(err)
 	}
 
 	// Store new session
