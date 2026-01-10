@@ -4,60 +4,60 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
   technicians: {
     key: "technicians",
     urlPath: "/pro-techniky",
-    selectorLabel: "Technik / Remeslnik",
+    selectorLabel: "Technik / Řemeslník",
     selectorIcon: "IconTool",
     hero: {
-      title: "AI asistentka pro techniky v terenu",
+      title: "AI asistentka pro techniky v terénu",
       tagline:
-        "Jsi na zakazce a nekdo vola. Zvednu zvedne, zjisti o co jde, a ty vis, jestli je to nova prace nebo spam.",
-      ctaText: "Vyzkouset zdarma",
+        "Jsi na zakázce a někdo volá. Zvednu zvedne, zjistí o co jde, a ty víš, jestli je to nová práce nebo spam.",
+      ctaText: "Vyzkoušet zdarma",
     },
     painPoints: {
-      title: "Znate to?",
+      title: "Znáte to?",
       items: [
         {
           icon: "IconPhoneOff",
-          title: "Zmeskane hovory = ztracene zakazky",
-          description: "Kazdy nezvednuty hovor muze byt nova zakazka za desitky tisic.",
+          title: "Zmeškané hovory = ztracené zakázky",
+          description: "Každý nezvednutý hovor může být nová zakázka za desítky tisíc.",
         },
         {
           icon: "IconHandStop",
-          title: "Nejde zvednout behem prace",
-          description: "Spinave ruce, hlucne prostredi, jste u klienta - proste to nejde.",
+          title: "Nejde zvednout během práce",
+          description: "Špinavé ruce, hlučné prostředí, jste u klienta - prostě to nejde.",
         },
         {
           icon: "IconMailOff",
-          title: "Spam rusi praci",
-          description: "Polovina hovoru jsou marketingove nabidky energie a pojisteni.",
+          title: "Spam ruší práci",
+          description: "Polovina hovorů jsou marketingové nabídky energie a pojištění.",
         },
         {
           icon: "IconClipboardList",
-          title: "Dotazy na stav zakazky",
+          title: "Dotazy na stav zakázky",
           description:
-            "Zakaznik vola ohledne stavu objednavky - vy to vidite a zavolate az budete u pocitace.",
+            "Zákazník volá ohledně stavu objednávky - vy to vidíte a zavoláte až budete u počítače.",
         },
       ],
     },
     exampleCall: {
-      scenario: "Technik Belix je na sanaci, vola zakaznik ohledne stavu zakazky",
+      scenario: "Technik Belix je na sanaci, volá zákazník ohledně stavu zakázky",
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobry den, tady Karen, asistentka pana Petra. Petr je momentalne na zakazce. Jak vam mohu pomoct?",
+          text: "Dobrý den, tady Karen, asistentka pana Petra. Petr je momentálně na zakázce. Jak vám mohu pomoct?",
         },
         {
           speaker: "caller",
-          text: "Dobry den, chtela jsem se zeptat, jak to vypada s nasi zakazkou - meli jste prijit vysuset sklep.",
+          text: "Dobrý den, chtěla jsem se zeptat, jak to vypadá s naší zakázkou - měli jste přijít vysušit sklep.",
         },
         {
           speaker: "karen",
-          text: "Rozumim, dotaz na stav zakazky ohledne vysuseni sklepa. Petr se vam ozve jakmile bude mit pristup k systemu. Mohu potvrdit vase cislo?",
+          text: "Rozumím, dotaz na stav zakázky ohledně vysušení sklepa. Petr se vám ozve jakmile bude mít přístup k systému. Mohu potvrdit vaše číslo?",
         },
       ],
       result: {
-        label: "Dotaz na zakazku",
+        label: "Dotaz na zakázku",
         color: "blue",
-        summary: "Stav zakazky vysuseni sklepa - zavolat zpet s info",
+        summary: "Stav zakázky vysušení sklepa - zavolat zpět s info",
       },
     },
     featurePriority: ["context", "spam_filter", "never_miss", "transcript"],
@@ -66,54 +66,54 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
   professionals: {
     key: "professionals",
     urlPath: "/pro-lekare",
-    selectorLabel: "Lekar / Pravnik",
+    selectorLabel: "Lékař / Právník",
     selectorIcon: "IconStethoscope",
     hero: {
-      title: "AI asistentka pro profesionaly",
+      title: "AI asistentka pro profesionály",
       tagline:
-        "Jste v ordinaci a pacient vola. Zvednu zjisti, jestli je to urgentni, a dulezite hovory vam prepoji.",
-      ctaText: "Vyzkouset zdarma",
+        "Jste v ordinaci a pacient volá. Zvednu zjistí, jestli je to urgentní, a důležité hovory vám přepojí.",
+      ctaText: "Vyzkoušet zdarma",
     },
     painPoints: {
-      title: "Znate to?",
+      title: "Znáte to?",
       items: [
         {
           icon: "IconAlertTriangle",
-          title: "Urgentni vs. bezne",
-          description: "Potrebujete vedet, co je akutni a co muze pockat na dalsi den.",
+          title: "Urgentní vs. běžné",
+          description: "Potřebujete vědět, co je akutní a co může počkat na další den.",
         },
         {
           icon: "IconCurrencyDollar",
-          title: "Sekretarka je draha",
-          description: "Plny uvazek sekretarky stoji 25-40 tisic mesicne.",
+          title: "Sekretářka je drahá",
+          description: "Plný úvazek sekretářky stojí 25-40 tisíc měsíčně.",
         },
         {
           icon: "IconPhoneIncoming",
-          title: "Hovory behem ordinace",
-          description: "Pacienti a klienti volaji, kdyz mate jine pacienty.",
+          title: "Hovory během ordinace",
+          description: "Pacienti a klienti volají, když máte jiné pacienty.",
         },
       ],
     },
     exampleCall: {
-      scenario: "Dr. Martina ma ordinaci, vola pacient s akutnim problemem",
+      scenario: "Dr. Martina má ordinaci, volá pacient s akutním problémem",
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobry den, ordinace doktorky Martiny. Doktorka ma prave pacienta. Jak vam mohu pomoct?",
+          text: "Dobrý den, ordinace doktorky Martiny. Doktorka má právě pacienta. Jak vám mohu pomoct?",
         },
         {
           speaker: "caller",
-          text: "Mam silne bolesti zubu uz od vcera, nemuzhu spat.",
+          text: "Mám silné bolesti zubů už od včera, nemůžu spát.",
         },
         {
           speaker: "karen",
-          text: "Rozumim, silne bolesti zubu. Dovolte, abych vas prepojila na doktorku - jde o akutni pripad.",
+          text: "Rozumím, silné bolesti zubů. Dovolte, abych vás přepojila na doktorku - jde o akutní případ.",
         },
       ],
       result: {
-        label: "Urgentni - prepojeno",
+        label: "Urgentní - přepojeno",
         color: "red",
-        summary: "Akutni bolest - pacient prepojen",
+        summary: "Akutní bolest - pacient přepojen",
       },
     },
     featurePriority: ["forward", "context", "professional", "transcript"],
@@ -122,48 +122,48 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
   sales: {
     key: "sales",
     urlPath: "/pro-maklere",
-    selectorLabel: "Obchodnik / Makler",
+    selectorLabel: "Obchodník / Makléř",
     selectorIcon: "IconBuildingSkyscraper",
     hero: {
-      title: "AI asistentka pro obchodniky",
+      title: "AI asistentka pro obchodníky",
       tagline:
-        "Kazdy zmeskany hovor je potencialni ztraceny deal. Zvednu zachyti kazdy lead a vy zavolate zpet s plnym kontextem.",
-      ctaText: "Vyzkouset zdarma",
+        "Každý zmeškaný hovor je potenciální ztracený deal. Zvednu zachytí každý lead a vy zavoláte zpět s plným kontextem.",
+      ctaText: "Vyzkoušet zdarma",
     },
     painPoints: {
-      title: "Znate to?",
+      title: "Znáte to?",
       items: [
         {
           icon: "IconUserOff",
-          title: "Leady utikaji ke konkurenci",
-          description: "Kdyz nezvednes do hodiny, klient uz ma jineho maklere.",
+          title: "Leady utíkají ke konkurenci",
+          description: "Když nezvedneš do hodiny, klient už má jiného makléře.",
         },
         {
           icon: "IconHome",
-          title: "Na prohlidce nelze zvedat",
-          description: "Behem prohlidek prichazite o nove potencialni klienty.",
+          title: "Na prohlídce nelze zvedat",
+          description: "Během prohlídek přicházíte o nové potenciální klienty.",
         },
         {
           icon: "IconQuestionMark",
-          title: "Chybi kontext pred volanim zpet",
-          description: "Nevite, jak moc je lead horky, nez zavolate.",
+          title: "Chybí kontext před voláním zpět",
+          description: "Nevíte, jak moc je lead horký, než zavoláte.",
         },
       ],
     },
     exampleCall: {
-      scenario: "Tomas (realitni makler) je na prohlidce, vola novy zajemce o byt",
+      scenario: "Tomáš (realitní makléř) je na prohlídce, volá nový zájemce o byt",
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobry den, kancelar pana Tomase. Tomas je momentalne na prohlidce. S cim vam mohu pomoct?",
+          text: "Dobrý den, kancelář pana Tomáše. Tomáš je momentálně na prohlídce. S čím vám mohu pomoct?",
         },
         {
           speaker: "caller",
-          text: "Hledam 2+kk v Praze, do 6 milionu, nejlepe se zahradou.",
+          text: "Hledám 2+kk v Praze, do 6 milionů, nejlépe se zahradou.",
         },
         {
           speaker: "karen",
-          text: "Skvele, 2+kk v Praze do 6 milionu se zahradou. Mohu vas pozadat o cislo a Tomas se vam ozve dnes vecer?",
+          text: "Skvělé, 2+kk v Praze do 6 milionů se zahradou. Mohu vás požádat o číslo a Tomáš se vám ozve dnes večer?",
         },
       ],
       result: {
@@ -178,54 +178,54 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
   managers: {
     key: "managers",
     urlPath: "/pro-manazery",
-    selectorLabel: "Manazer / Vedouci",
+    selectorLabel: "Manažer / Vedoucí",
     selectorIcon: "IconBriefcase",
     hero: {
-      title: "AI asistentka pro manazery",
+      title: "AI asistentka pro manažery",
       tagline:
-        "Delegujte filtrovani hovoru. Vidite kontext pred tim, nez zavolate zpet.",
-      ctaText: "Vyzkouset zdarma",
+        "Delegujte filtrování hovorů. Vidíte kontext před tím, než zavoláte zpět.",
+      ctaText: "Vyzkoušet zdarma",
     },
     painPoints: {
-      title: "Znate to?",
+      title: "Znáte to?",
       items: [
         {
           icon: "IconPhone",
-          title: "8-10 hovoru denne",
-          description: "Vetsina neni urgentni, ale nevite to dopredu.",
+          title: "8-10 hovorů denně",
+          description: "Většina není urgentní, ale nevíte to dopředu.",
         },
         {
           icon: "IconUsers",
-          title: "Sdilena nebo zadna asistentka",
-          description: "Nemuzete se spolehnout, ze nekdo zvedne.",
+          title: "Sdílená nebo žádná asistentka",
+          description: "Nemůžete se spolehnout, že někdo zvedne.",
         },
         {
           icon: "IconArrowBack",
-          title: "Volani zpet bez kontextu",
-          description: "Nevite, o cem bude hovor, dokud nezavolate.",
+          title: "Volání zpět bez kontextu",
+          description: "Nevíte, o čem bude hovor, dokud nezavoláte.",
         },
       ],
     },
     exampleCall: {
-      scenario: "Jan (vedouci oddeleni) ma meeting, vola kolega z jine pobocky",
+      scenario: "Jan (vedoucí oddělení) má meeting, volá kolega z jiné pobočky",
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobry den, kancelar pana Jana. Jan je momentalne na jednani. Jak vam mohu pomoct?",
+          text: "Dobrý den, kancelář pana Jana. Jan je momentálně na jednání. Jak vám mohu pomoct?",
         },
         {
           speaker: "caller",
-          text: "Potrebuju s nim probrat rozpocet na Q2, neni to urgentni ale chtel bych to stihnout tento tyden.",
+          text: "Potřebuju s ním probrat rozpočet na Q2, není to urgentní ale chtěl bych to stihnout tento týden.",
         },
         {
           speaker: "karen",
-          text: "Rozumim, rozpocet na Q2, neni urgentni, idealne tento tyden. Predam Janovi a ozve se vam.",
+          text: "Rozumím, rozpočet na Q2, není urgentní, ideálně tento týden. Předám Janovi a ozve se vám.",
         },
       ],
       result: {
-        label: "Interni",
+        label: "Interní",
         color: "blue",
-        summary: "Rozpocet Q2 - zavolat tento tyden",
+        summary: "Rozpočet Q2 - zavolat tento týden",
       },
     },
     featurePriority: ["context", "spam_filter", "rules", "transcript"],

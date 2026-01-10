@@ -26,7 +26,7 @@ interface FeaturesProps {
   title?: string;
 }
 
-export function Features({ features, title = "Proc Zvednu?" }: FeaturesProps) {
+export function Features({ features, title = "Proč Zvednu?" }: FeaturesProps) {
   return (
     <Box py={60} bg="gray.0">
       <Container size="lg">

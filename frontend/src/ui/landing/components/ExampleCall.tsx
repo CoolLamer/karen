@@ -1,5 +1,5 @@
-import { Container, Group, Paper, Stack, Text, ThemeIcon, Title, Badge } from "@mantine/core";
-import { IconRobot, IconPhone } from "@tabler/icons-react";
+import { Container, Paper, Stack, Text, ThemeIcon, Title, Badge, Box, Group } from "@mantine/core";
+import { IconRobot, IconUser } from "@tabler/icons-react";
 import { DialogueLine, ExampleCallResult } from "../content/index";
 import { SHARED_CONTENT } from "../content/shared";
 
@@ -12,22 +12,22 @@ interface ExampleCallProps {
 const defaultDialogue: DialogueLine[] = [
   {
     speaker: "karen",
-    text: "Dobry den, tady Karen, asistentka pana Lukase. Lukas ted nemuze prijmout hovor. Jak vam mohu pomoct?",
+    text: "Dobrý den, tady Karen, asistentka pana Lukáše. Lukáš teď nemůže přijmout hovor. Jak vám mohu pomoct?",
   },
   {
     speaker: "caller",
-    text: "Dobry den, volam ohledne nabidky elektricke energie...",
+    text: "Dobrý den, volám ohledně nabídky elektrické energie...",
   },
   {
     speaker: "karen",
-    text: "Dekuji za zavolani. Lukas nema zajem o marketingove nabidky. Pokud chcete, poslete nabidku na email. Na shledanou.",
+    text: "Děkuji za zavolání. Lukáš nemá zájem o marketingové nabídky. Pokud chcete, pošlete nabídku na email. Na shledanou.",
   },
 ];
 
 const defaultResult: ExampleCallResult = {
   label: "Marketing",
   color: "yellow",
-  summary: "Nabidka energie - ignorovat",
+  summary: "Nabídka energie - ignorovat",
 };
 
 export function ExampleCall({
@@ -38,39 +38,70 @@ export function ExampleCall({
   return (
     <Container size="md" py={60}>
       <Title order={2} ta="center" mb="md">
-        Ukazka hovoru
+        Ukázka hovoru
       </Title>
       {scenario && (
         <Text c="dimmed" ta="center" mb={40}>
           {scenario}
         </Text>
       )}
-      <Paper p="xl" radius="md" withBorder>
+
+      {/* Phone frame */}
+      <Paper
+        p="xl"
+        radius="lg"
+        withBorder
+        style={{
+          background: "linear-gradient(180deg, var(--mantine-color-gray-0) 0%, #fff 100%)",
+          maxWidth: 500,
+          margin: "0 auto",
+        }}
+      >
         <Stack gap="md">
           {dialogue.map((line, index) => (
-            <div key={index}>
-              <Group gap="xs">
-                <ThemeIcon
-                  size="sm"
-                  color={line.speaker === "karen" ? "blue" : "gray"}
-                  variant="light"
-                >
-                  {line.speaker === "karen" ? <IconRobot size={14} /> : <IconPhone size={14} />}
-                </ThemeIcon>
-                <Text size="sm" fw={500}>
-                  {line.speaker === "karen" ? SHARED_CONTENT.brand.assistantName : "Volajici"}:
+            <Box
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent: line.speaker === "karen" ? "flex-end" : "flex-start",
+              }}
+            >
+              <Paper
+                p="sm"
+                radius="md"
+                style={{
+                  maxWidth: "85%",
+                  backgroundColor:
+                    line.speaker === "karen"
+                      ? "var(--mantine-color-teal-0)"
+                      : "var(--mantine-color-gray-1)",
+                  borderBottomRightRadius: line.speaker === "karen" ? 4 : undefined,
+                  borderBottomLeftRadius: line.speaker === "caller" ? 4 : undefined,
+                }}
+              >
+                <Group gap="xs" mb={4}>
+                  <ThemeIcon
+                    size="xs"
+                    color={line.speaker === "karen" ? "teal" : "gray"}
+                    variant="transparent"
+                  >
+                    {line.speaker === "karen" ? <IconRobot size={12} /> : <IconUser size={12} />}
+                  </ThemeIcon>
+                  <Text size="xs" fw={500} c={line.speaker === "karen" ? "teal.7" : "gray.7"}>
+                    {line.speaker === "karen" ? SHARED_CONTENT.brand.assistantName : "Volající"}
+                  </Text>
+                </Group>
+                <Text size="sm" c="dark">
+                  {line.text}
                 </Text>
-              </Group>
-              <Text c="dimmed" size="sm" pl={28}>
-                "{line.text}"
-              </Text>
-            </div>
+              </Paper>
+            </Box>
           ))}
 
-          <Paper p="md" radius="sm" bg="gray.0" mt="md">
-            <Group justify="space-between">
+          <Paper p="md" radius="md" bg="gray.0" mt="md" withBorder>
+            <Group justify="space-between" mb="xs">
               <Text size="sm" fw={500}>
-                Vysledek:
+                Výsledek:
               </Text>
               <Badge color={result.color} variant="light">
                 {result.label}

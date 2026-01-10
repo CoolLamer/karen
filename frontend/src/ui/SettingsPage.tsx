@@ -19,6 +19,7 @@ import {
   TagsInput,
   Alert,
   Modal,
+  ThemeIcon,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -28,6 +29,9 @@ import {
   IconAlertCircle,
   IconSettings,
   IconPhone,
+  IconUser,
+  IconRobot,
+  IconCreditCard,
 } from "@tabler/icons-react";
 import { api, Tenant, TenantPhoneNumber } from "../api";
 import { useAuth } from "../AuthContext";
@@ -70,7 +74,7 @@ export function SettingsPage() {
         setMarketingEmail(data.tenant.marketing_email || "");
       }
     } catch {
-      setError("Nepodarilo se nacist data");
+      setError("Nepodařilo se načíst data");
     } finally {
       setIsLoading(false);
     }
@@ -90,12 +94,12 @@ export function SettingsPage() {
       });
 
       setTenant(response.tenant);
-      setSuccess("Zmeny byly ulozeny");
+      setSuccess("Změny byly uloženy");
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch {
-      setError("Nepodarilo se ulozit zmeny");
+      setError("Nepodařilo se uložit změny");
     } finally {
       setIsSaving(false);
     }
@@ -122,7 +126,7 @@ export function SettingsPage() {
   if (isLoading) {
     return (
       <Container size="sm" py="xl">
-        <Text c="dimmed">Nacitam...</Text>
+        <Text c="dimmed">Načítám...</Text>
       </Container>
     );
   }
@@ -139,9 +143,9 @@ export function SettingsPage() {
               onClick={() => navigate("/")}
               px={0}
             >
-              Zpet
+              Zpět
             </Button>
-            <Title order={2}>Nastaveni</Title>
+            <Title order={2}>Nastavení</Title>
             <Box w={80} /> {/* Spacer for centering */}
           </Group>
 
@@ -160,9 +164,14 @@ export function SettingsPage() {
           {/* Profile section */}
           <Paper p="lg" radius="md" withBorder>
             <Stack gap="md">
-              <Text size="sm" fw={600} tt="uppercase" c="dimmed">
-                Profil
-              </Text>
+              <Group gap="xs">
+                <ThemeIcon size="sm" variant="light" color="teal">
+                  <IconUser size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={600} tt="uppercase" c="dimmed">
+                  Profil
+                </Text>
+              </Group>
 
               <Group justify="space-between">
                 <Text size="sm">Telefon</Text>
@@ -172,7 +181,7 @@ export function SettingsPage() {
               </Group>
 
               <TextInput
-                label="Jmeno"
+                label="Jméno"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -182,9 +191,14 @@ export function SettingsPage() {
           {/* Karen number section */}
           <Paper p="lg" radius="md" withBorder>
             <Stack gap="md">
-              <Text size="sm" fw={600} tt="uppercase" c="dimmed">
-                Zvednu cislo
-              </Text>
+              <Group gap="xs">
+                <ThemeIcon size="sm" variant="light" color="teal">
+                  <IconPhone size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={600} tt="uppercase" c="dimmed">
+                  Zvednu číslo
+                </Text>
+              </Group>
 
               {karenNumber ? (
                 <>
@@ -194,7 +208,7 @@ export function SettingsPage() {
                     </Text>
                     <CopyButton value={karenNumber.replace(/\s/g, "")}>
                       {({ copied, copy }) => (
-                        <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
+                        <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
                           <ActionIcon
                             variant="subtle"
                             onClick={copy}
@@ -208,12 +222,12 @@ export function SettingsPage() {
                   </Group>
 
                   <Button variant="light" size="xs" onClick={() => setForwardingModalOpen(true)}>
-                    Jak nastavit presmerovani
+                    Jak nastavit přesměrování
                   </Button>
                 </>
               ) : (
                 <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
-                  Zatim ti nebylo prirazeno telefonni cislo. Jakmile bude dostupne, oznamime ti to.
+                  Zatím ti nebylo přiřazeno telefonní číslo. Jakmile bude dostupné, oznámíme ti to.
                 </Alert>
               )}
             </Stack>
@@ -222,14 +236,19 @@ export function SettingsPage() {
           {/* Assistant settings */}
           <Paper p="lg" radius="md" withBorder>
             <Stack gap="md">
-              <Text size="sm" fw={600} tt="uppercase" c="dimmed">
-                Asistentka
-              </Text>
+              <Group gap="xs">
+                <ThemeIcon size="sm" variant="light" color="teal">
+                  <IconRobot size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={600} tt="uppercase" c="dimmed">
+                  Asistentka
+                </Text>
+              </Group>
 
               <Textarea
                 label="Pozdrav"
-                description="Text, kterym Karen zacina hovor"
-                placeholder="Dobry den, tady Karen, asistentka..."
+                description="Text, kterým Karen začíná hovor"
+                placeholder="Dobrý den, tady Karen, asistentka..."
                 value={greetingText}
                 onChange={(e) => setGreetingText(e.target.value)}
                 minRows={2}
@@ -237,15 +256,15 @@ export function SettingsPage() {
 
               <TagsInput
                 label="VIP kontakty"
-                description="Jmena osob, ktere Karen vzdy prepoji (napr. rodina)"
-                placeholder="Pridej jmeno a stiskni Enter"
+                description="Jména osob, které Karen vždy přepojí (např. rodina)"
+                placeholder="Přidej jméno a stiskni Enter"
                 value={vipNames}
                 onChange={setVipNames}
               />
 
               <TextInput
                 label="Marketing email"
-                description="Email, kam Karen odkaze marketingove volajici"
+                description="Email, kam Karen odkáže marketingové volající"
                 placeholder="nabidky@email.cz"
                 type="email"
                 value={marketingEmail}
@@ -253,8 +272,8 @@ export function SettingsPage() {
               />
 
               <TextInput
-                label="Cislo pro presmerovani"
-                description="Hovory budou presmerovany na vase registrovane cislo"
+                label="Číslo pro přesměrování"
+                description="Hovory budou přesměrovány na vaše registrované číslo"
                 type="tel"
                 value={user?.phone || ""}
                 disabled
@@ -270,19 +289,24 @@ export function SettingsPage() {
 
           {/* Save button */}
           <Button size="lg" onClick={handleSave} loading={isSaving}>
-            Ulozit zmeny
+            Uložit změny
           </Button>
 
           {/* Subscription */}
           <Paper p="lg" radius="md" withBorder>
             <Stack gap="md">
-              <Text size="sm" fw={600} tt="uppercase" c="dimmed">
-                Predplatne
-              </Text>
+              <Group gap="xs">
+                <ThemeIcon size="sm" variant="light" color="teal">
+                  <IconCreditCard size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={600} tt="uppercase" c="dimmed">
+                  Předplatné
+                </Text>
+              </Group>
 
               <Group justify="space-between">
                 <Group gap="xs">
-                  <Text size="sm">Plan:</Text>
+                  <Text size="sm">Plán:</Text>
                   <Badge variant="light">{planLabel}</Badge>
                 </Group>
                 <Button variant="light" size="xs">
@@ -313,7 +337,7 @@ export function SettingsPage() {
             leftSection={<IconLogout size={16} />}
             onClick={() => setLogoutModalOpen(true)}
           >
-            Odhlasit se
+            Odhlásit se
           </Button>
         </Stack>
       </Container>
@@ -322,28 +346,28 @@ export function SettingsPage() {
       <Modal
         opened={forwardingModalOpen}
         onClose={() => setForwardingModalOpen(false)}
-        title="Jak nastavit presmerovani"
+        title="Jak nastavit přesměrování"
         centered
       >
         <Stack gap="md">
           <Paper p="md" radius="md" withBorder>
             <Stack gap="md">
               <Text size="sm" fw={500}>
-                Presmerovani kdyz nezvednes (po 20s)
+                Přesměrování když nezvedneš (po 20s)
               </Text>
               <Text size="sm" c="dimmed">
-                1. Otevri aplikaci Telefon
+                1. Otevři aplikaci Telefon
               </Text>
               <Group>
                 <Text size="sm" c="dimmed">
-                  2. Vytoc:
+                  2. Vytoč:
                 </Text>
                 <Text size="sm" fw={600} ff="monospace">
                   {getDialCode()}
                 </Text>
                 <CopyButton value={getDialCode()}>
                   {({ copied, copy }) => (
-                    <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
+                    <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
                       <ActionIcon
                         size="sm"
                         variant="subtle"
@@ -357,7 +381,7 @@ export function SettingsPage() {
                 </CopyButton>
               </Group>
               <Text size="sm" c="dimmed">
-                3. Uslysite potvrzeni "Sluzba aktivovana"
+                3. Uslyšíte potvrzení „Služba aktivována"
               </Text>
             </Stack>
           </Paper>
@@ -371,7 +395,7 @@ export function SettingsPage() {
               window.location.href = `tel:${getDialCode()}`;
             }}
           >
-            Vytocit automaticky
+            Vytočit automaticky
           </Button>
         </Stack>
       </Modal>
@@ -380,17 +404,17 @@ export function SettingsPage() {
       <Modal
         opened={logoutModalOpen}
         onClose={() => setLogoutModalOpen(false)}
-        title="Odhlasit se?"
+        title="Odhlásit se?"
         centered
       >
         <Stack gap="md">
-          <Text size="sm">Opravdu se chces odhlasit?</Text>
+          <Text size="sm">Opravdu se chceš odhlásit?</Text>
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setLogoutModalOpen(false)}>
-              Zrusit
+              Zrušit
             </Button>
             <Button color="red" onClick={handleLogout}>
-              Odhlasit
+              Odhlásit
             </Button>
           </Group>
         </Stack>
