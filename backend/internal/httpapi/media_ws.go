@@ -220,6 +220,7 @@ type callSession struct {
 
 	// Goodbye handling
 	goodbyeDone    chan struct{} // Signaled when goodbye mark is received
+	agentHungUp    bool          // True if agent initiated the hangup (prevents overwrite by caller)
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -321,10 +322,11 @@ func (s *callSession) run() {
 			}
 
 		case "stop":
-			s.logger.Printf("media_ws: stream stopped for call %s (caller hung up)", s.callSid)
+			s.logger.Printf("media_ws: stream stopped for call %s", s.callSid)
 
-			// Mark call as ended by caller
-			if s.callID != "" && s.callSid != "" {
+			// Mark call as ended by caller (only if agent didn't initiate the hangup)
+			if s.callID != "" && s.callSid != "" && !s.agentHungUp {
+				s.logger.Printf("media_ws: caller hung up")
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				if err := s.store.UpdateCallEndedBy(ctx, s.callSid, "caller"); err != nil {
@@ -1320,6 +1322,9 @@ func (s *callSession) forwardCall(ctx context.Context) {
 
 // hangUpCall terminates the call via Twilio REST API
 func (s *callSession) hangUpCall(ctx context.Context) {
+	// Mark that agent is initiating hangup (prevents "caller" overwrite in stop handler)
+	s.agentHungUp = true
+
 	if s.callSid == "" || s.accountSid == "" || s.cfg.TwilioAuthToken == "" {
 		s.logger.Printf("media_ws: cannot hang up - missing callSid, accountSid, or auth token")
 		return
