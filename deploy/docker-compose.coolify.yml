@@ -55,6 +55,9 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
+      # Ensure Traefik routes via the external 'coolify' network.
+      # Without this, Traefik may pick the internal network IP (db network) and time out.
+      - "traefik.docker.network=coolify"
       # HTTPS
       - "traefik.http.routers.karen-api.rule=Host(`api.zvednu.cz`)"
       - "traefik.http.routers.karen-api.entrypoints=https"
