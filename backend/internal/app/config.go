@@ -23,7 +23,8 @@ type Config struct {
 	ElevenLabsAPIKey string
 
 	// STT settings
-	STTEndpointingMs int // Deepgram endpointing in ms (silence threshold)
+	STTEndpointingMs   int // Deepgram endpointing in ms (silence threshold)
+	STTUtteranceEndMs  int // Hard timeout after last speech, regardless of noise
 
 	// Voice settings (defaults, overridden by tenant config)
 	GreetingText   string
@@ -68,6 +69,10 @@ func LoadConfigFromEnv() Config {
 		// Deepgram endpointing controls how quickly we decide the caller finished speaking.
 		// Too low -> fragmented utterances and interruptive back-and-forth; too high -> sluggish turns.
 		STTEndpointingMs: getenvIntClamped("STT_ENDPOINTING_MS", 800, 200, 4000),
+		// Utterance end is a hard timeout after last speech detected, regardless of background noise.
+		// This prevents noisy environments from keeping turns open indefinitely.
+		// Default 1500ms is a good balance between responsiveness and noise tolerance.
+		STTUtteranceEndMs: getenvIntClamped("STT_UTTERANCE_END_MS", 1500, 500, 5000),
 
 		// Voice settings (defaults, overridden by tenant config)
 		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),

@@ -26,14 +26,15 @@ type DeepgramClient struct {
 
 // DeepgramConfig holds configuration for the Deepgram client.
 type DeepgramConfig struct {
-	APIKey      string
-	Language    string // e.g., "cs" for Czech
-	Model       string // e.g., "nova-3"
-	SampleRate  int    // e.g., 8000 for Twilio μ-law
-	Encoding    string // e.g., "mulaw" for Twilio
-	Channels    int    // e.g., 1 for mono
-	Punctuate   bool
-	Endpointing int // milliseconds of silence for endpointing, 0 for default
+	APIKey         string
+	Language       string // e.g., "cs" for Czech
+	Model          string // e.g., "nova-3"
+	SampleRate     int    // e.g., 8000 for Twilio μ-law
+	Encoding       string // e.g., "mulaw" for Twilio
+	Channels       int    // e.g., 1 for mono
+	Punctuate      bool
+	Endpointing    int // milliseconds of silence for endpointing, 0 for default
+	UtteranceEndMs int // hard timeout after last speech, regardless of noise (0 for default)
 }
 
 // deepgramResponse represents a Deepgram WebSocket response.
@@ -64,6 +65,10 @@ func NewDeepgramClient(ctx context.Context, cfg DeepgramConfig) (*DeepgramClient
 
 	if cfg.Endpointing > 0 {
 		url += fmt.Sprintf("&endpointing=%d", cfg.Endpointing)
+	}
+
+	if cfg.UtteranceEndMs > 0 {
+		url += fmt.Sprintf("&utterance_end_ms=%d", cfg.UtteranceEndMs)
 	}
 
 	// Set up headers with API key
