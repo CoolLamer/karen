@@ -7,6 +7,7 @@ type AuthState = {
   user: User | null;
   tenant: Tenant | null;
   needsOnboarding: boolean;
+  isAdmin: boolean;
 };
 
 type AuthContextType = AuthState & {
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: null,
     tenant: null,
     needsOnboarding: false,
+    isAdmin: false,
   });
 
   const loadUser = async () => {
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: null,
         tenant: null,
         needsOnboarding: false,
+        isAdmin: false,
       });
       return;
     }
@@ -48,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: data.user,
         tenant: data.tenant ?? null,
         needsOnboarding: !data.tenant,
+        isAdmin: data.is_admin ?? false,
       });
     } catch {
       setAuthToken(null);
@@ -57,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: null,
         tenant: null,
         needsOnboarding: false,
+        isAdmin: false,
       });
     }
   };
@@ -72,8 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: true,
       user,
       needsOnboarding: !user.tenant_id,
+      isAdmin: false, // Will be set correctly when loadUser completes
     }));
-    // Load full user data including tenant
+    // Load full user data including tenant and admin status
     loadUser();
   };
 
@@ -90,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: null,
       tenant: null,
       needsOnboarding: false,
+      isAdmin: false,
     });
   };
 

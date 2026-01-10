@@ -15,6 +15,7 @@ import {
   Alert,
 } from "@mantine/core";
 import { IconArrowLeft, IconAlertCircle } from "@tabler/icons-react";
+import { useMediaQuery } from "@mantine/hooks";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
 
@@ -23,6 +24,7 @@ type Step = "phone" | "otp";
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const isMobile = useMediaQuery("(max-width: 480px)");
 
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
@@ -137,7 +139,7 @@ export function LoginPage() {
 
   return (
     <Box mih="100vh" bg="gray.0">
-      <Container size="xs" py={60}>
+      <Container size="xs" py={{ base: 20, sm: 60 }}>
         <Paper p="xl" radius="md" withBorder>
           <Stack gap="lg">
             {/* Back button */}
@@ -211,7 +213,7 @@ export function LoginPage() {
                 <Group justify="center">
                   <PinInput
                     length={6}
-                    size="xl"
+                    size={isMobile ? "md" : "xl"}
                     value={code}
                     onChange={setCode}
                     onComplete={handleVerifyCode}
