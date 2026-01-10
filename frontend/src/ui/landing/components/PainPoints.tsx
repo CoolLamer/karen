@@ -1,4 +1,4 @@
-import { Container, SimpleGrid, Paper, Text, ThemeIcon, Title } from "@mantine/core";
+import { Container, SimpleGrid, Paper, Text, ThemeIcon, Title, Box } from "@mantine/core";
 import {
   IconPhoneOff,
   IconHandStop,
@@ -45,16 +45,28 @@ export function PainPoints({ title, items }: PainPointsProps) {
       </Title>
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl">
         {items.map((item) => (
-          <Paper key={item.title} p="xl" radius="md" withBorder>
-            <ThemeIcon size={48} radius="md" variant="light" color="red" mb="md">
-              {iconMap[item.icon] || <IconPhone size={24} />}
-            </ThemeIcon>
-            <Text size="lg" fw={600} mb="xs">
-              {item.title}
-            </Text>
-            <Text c="dimmed" size="sm">
-              {item.description}
-            </Text>
+          <Paper
+            key={item.title}
+            p="xl"
+            radius="md"
+            withBorder
+            style={{
+              borderLeft: "4px solid var(--mantine-color-orange-5)",
+            }}
+          >
+            <Box style={{ display: "flex", gap: 16 }}>
+              <ThemeIcon size={48} radius="md" variant="light" color="orange">
+                {iconMap[item.icon] || <IconPhone size={24} />}
+              </ThemeIcon>
+              <Box>
+                <Text size="lg" fw={600} mb="xs">
+                  {item.title}
+                </Text>
+                <Text c="dimmed" size="sm">
+                  {item.description}
+                </Text>
+              </Box>
+            </Box>
           </Paper>
         ))}
       </SimpleGrid>

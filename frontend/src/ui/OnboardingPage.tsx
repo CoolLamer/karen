@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -6,7 +6,6 @@ import {
   Container,
   Group,
   Paper,
-  Progress,
   Stack,
   Text,
   TextInput,
@@ -18,6 +17,7 @@ import {
   Tooltip,
   Alert,
   Anchor,
+  Stepper,
 } from "@mantine/core";
 import {
   IconRobot,
@@ -27,36 +27,38 @@ import {
   IconPhone,
   IconConfetti,
   IconAlertCircle,
+  IconUser,
+  IconDeviceMobile,
 } from "@tabler/icons-react";
 import { api, Tenant, TenantPhoneNumber, setAuthToken } from "../api";
 import { useAuth } from "../AuthContext";
 
-type OnboardingStep = 1 | 2 | 3 | 4;
+type OnboardingStep = 0 | 1 | 2 | 3;
 
 const CARRIER_CODES: Record<string, { noAnswer: string; description: string }> = {
   o2: {
     noAnswer: "**61*{number}#",
-    description: "Presmerovani kdyz nezvednes (po 20s)",
+    description: "Přesměrování když nezvedneš (po 20s)",
   },
   tmobile: {
     noAnswer: "**61*{number}#",
-    description: "Presmerovani kdyz nezvednes (po 20s)",
+    description: "Přesměrování když nezvedneš (po 20s)",
   },
   vodafone: {
     noAnswer: "**61*{number}#",
-    description: "Presmerovani kdyz nezvednes (po 20s)",
+    description: "Přesměrování když nezvedneš (po 20s)",
   },
   other: {
     noAnswer: "**61*{number}#",
-    description: "Presmerovani kdyz nezvednes (standardni kod)",
+    description: "Přesměrování když nezvedneš (standardní kód)",
   },
 };
 
 export function OnboardingPage() {
   const navigate = useNavigate();
-  const { setTenant, refreshUser, user } = useAuth();
+  const { setTenant, refreshUser } = useAuth();
 
-  const [step, setStep] = useState<OnboardingStep>(1);
+  const [step, setStep] = useState<OnboardingStep>(0);
   const [name, setName] = useState("");
   const [, setTenantState] = useState<Tenant | null>(null);
   const [phoneNumbers, setPhoneNumbers] = useState<TenantPhoneNumber[]>([]);
@@ -64,13 +66,12 @@ export function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const progress = (step / 4) * 100;
   const primaryPhone = phoneNumbers.find((p) => p.is_primary)?.twilio_number;
   const hasPhoneNumber = !!primaryPhone;
 
   const handleCompleteOnboarding = async () => {
     if (!name.trim()) {
-      setError("Zadej sve jmeno");
+      setError("Zadej své jméno");
       return;
     }
 
@@ -79,16 +80,13 @@ export function OnboardingPage() {
 
     try {
       const response = await api.completeOnboarding(name.trim());
-      // Save the new token that includes the tenant_id
       setAuthToken(response.token);
       setTenantState(response.tenant);
       setTenant(response.tenant);
 
-      // Use phone number from onboarding response if available
       if (response.phone_number) {
         setPhoneNumbers([response.phone_number]);
       } else {
-        // Fallback: Load phone numbers from API
         try {
           const tenantData = await api.getTenant();
           setPhoneNumbers(tenantData.phone_numbers || []);
@@ -97,9 +95,9 @@ export function OnboardingPage() {
         }
       }
 
-      setStep(3);
-    } catch (err) {
-      setError("Nepodarilo se dokoncit registraci. Zkus to znovu.");
+      setStep(2);
+    } catch {
+      setError("Nepodařilo se dokončit registraci. Zkus to znovu.");
     } finally {
       setIsLoading(false);
     }
@@ -119,21 +117,26 @@ export function OnboardingPage() {
   return (
     <Box mih="100vh" bg="gray.0">
       <Container size="sm" py={40}>
-        {/* Progress bar */}
-        <Progress value={progress} size="sm" mb="xl" radius="xl" />
+        {/* Stepper */}
+        <Stepper active={step} mb="xl" size="sm">
+          <Stepper.Step label="Vítej" icon={<IconRobot size={18} />} />
+          <Stepper.Step label="Jméno" icon={<IconUser size={18} />} />
+          <Stepper.Step label="Číslo" icon={<IconDeviceMobile size={18} />} />
+          <Stepper.Step label="Hotovo" icon={<IconCheck size={18} />} />
+        </Stepper>
 
         <Paper p="xl" radius="md" withBorder>
-          {/* Step 1: Welcome */}
-          {step === 1 && (
+          {/* Step 0: Welcome */}
+          {step === 0 && (
             <Stack gap="xl" align="center" ta="center">
-              <ThemeIcon size={80} radius="xl" variant="light" color="blue">
+              <ThemeIcon size={80} radius="xl" variant="light" color="teal">
                 <IconRobot size={40} />
               </ThemeIcon>
 
               <Stack gap="xs">
-                <Title order={2}>Vitej!</Title>
+                <Title order={2}>Vítej!</Title>
                 <Text c="dimmed" maw={400}>
-                  Jsem Karen, tvoje nova telefonni asistentka. Za chvili te provedu nastavenim.
+                  Jsem Karen, tvoje nová telefonní asistentka. Za chvíli tě provedu nastavením.
                   Bude to trvat asi 2 minuty.
                 </Text>
               </Stack>
@@ -141,32 +144,19 @@ export function OnboardingPage() {
               <Button
                 size="lg"
                 rightSection={<IconArrowRight size={18} />}
-                onClick={() => setStep(2)}
+                onClick={() => setStep(1)}
               >
-                Pojdme na to
+                Pojďme na to
               </Button>
-
-              {/* Step indicator */}
-              <Group gap="xs">
-                {[1, 2, 3, 4].map((s) => (
-                  <Box
-                    key={s}
-                    w={8}
-                    h={8}
-                    style={{ borderRadius: "50%" }}
-                    bg={s === step ? "blue" : "gray.3"}
-                  />
-                ))}
-              </Group>
             </Stack>
           )}
 
-          {/* Step 2: Name */}
-          {step === 2 && (
+          {/* Step 1: Name */}
+          {step === 1 && (
             <Stack gap="xl">
               <Stack gap="xs" ta="center">
-                <Title order={2}>Jak se jmenujes?</Title>
-                <Text c="dimmed">Karen bude oslovovat volajici tvym jmenem</Text>
+                <Title order={2}>Jak se jmenuješ?</Title>
+                <Text c="dimmed">Karen bude oslovovat volající tvým jménem</Text>
               </Stack>
 
               {error && (
@@ -177,7 +167,7 @@ export function OnboardingPage() {
 
               <TextInput
                 size="lg"
-                placeholder="Lukas"
+                placeholder="Lukáš"
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -186,9 +176,9 @@ export function OnboardingPage() {
                 autoFocus
               />
 
-              <Paper p="md" radius="sm" bg="gray.0">
+              <Paper p="md" radius="md" bg="gray.0">
                 <Text size="sm" c="dimmed">
-                  Karen bude rikat: "{name || "Lukas"} ted nemuze prijmout hovor, mohu vam pomoct?"
+                  Karen bude říkat: „{name || "Lukáš"} teď nemůže přijmout hovor, mohu vám pomoct?"
                 </Text>
               </Paper>
 
@@ -199,41 +189,28 @@ export function OnboardingPage() {
                 onClick={handleCompleteOnboarding}
                 loading={isLoading}
               >
-                Pokracovat
+                Pokračovat
               </Button>
-
-              {/* Step indicator */}
-              <Group gap="xs" justify="center">
-                {[1, 2, 3, 4].map((s) => (
-                  <Box
-                    key={s}
-                    w={8}
-                    h={8}
-                    style={{ borderRadius: "50%" }}
-                    bg={s <= step ? "blue" : "gray.3"}
-                  />
-                ))}
-              </Group>
             </Stack>
           )}
 
-          {/* Step 3: Phone number & forwarding */}
-          {step === 3 && (
+          {/* Step 2: Phone number & forwarding */}
+          {step === 2 && (
             <Stack gap="xl">
               <Stack gap="xs" ta="center">
-                <Title order={2}>{hasPhoneNumber ? "Tvoje Zvednu cislo" : "Skoro hotovo!"}</Title>
+                <Title order={2}>{hasPhoneNumber ? "Tvoje Zvednu číslo" : "Skoro hotovo!"}</Title>
                 <Text c="dimmed">
                   {hasPhoneNumber
-                    ? "Na toto cislo presmerujes hovory kdyz budes nedostupny"
-                    : "Cislo ti pridelime co nejdrive"}
+                    ? "Na toto číslo přesměruješ hovory když budeš nedostupný"
+                    : "Číslo ti přidělíme co nejdříve"}
                 </Text>
               </Stack>
 
               {hasPhoneNumber ? (
                 <>
                   {/* Karen number */}
-                  <Paper p="lg" radius="md" bg="blue.0" ta="center">
-                    <Text size="xl" fw={700} c="blue.8">
+                  <Paper p="lg" radius="md" style={{ backgroundColor: "var(--mantine-color-teal-0)" }} ta="center">
+                    <Text size="xl" fw={700} c="teal.8">
                       {primaryPhone}
                     </Text>
                     <CopyButton value={primaryPhone.replace(/\s/g, "")}>
@@ -245,7 +222,7 @@ export function OnboardingPage() {
                           onClick={copy}
                           mt="xs"
                         >
-                          {copied ? "Skopirovano" : "Kopirovat"}
+                          {copied ? "Zkopírováno" : "Kopírovat"}
                         </Button>
                       )}
                     </CopyButton>
@@ -254,7 +231,7 @@ export function OnboardingPage() {
                   {/* Carrier selection */}
                   <Stack gap="xs">
                     <Text size="sm" fw={500}>
-                      Vyber sveho operatora:
+                      Vyber svého operátora:
                     </Text>
                     <SegmentedControl
                       fullWidth
@@ -264,7 +241,7 @@ export function OnboardingPage() {
                         { label: "O2", value: "o2" },
                         { label: "T-Mobile", value: "tmobile" },
                         { label: "Vodafone", value: "vodafone" },
-                        { label: "Jiny", value: "other" },
+                        { label: "Jiný", value: "other" },
                       ]}
                     />
                   </Stack>
@@ -276,18 +253,18 @@ export function OnboardingPage() {
                         {CARRIER_CODES[selectedCarrier].description}
                       </Text>
                       <Text size="sm" c="dimmed">
-                        1. Otevri aplikaci Telefon
+                        1. Otevři aplikaci Telefon
                       </Text>
                       <Group>
                         <Text size="sm" c="dimmed">
-                          2. Vytoc:
+                          2. Vytoč:
                         </Text>
                         <Text size="sm" fw={600} ff="monospace">
                           {getDialCode()}
                         </Text>
                         <CopyButton value={getDialCode()}>
                           {({ copied, copy }) => (
-                            <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
+                            <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
                               <ActionIcon
                                 size="sm"
                                 variant="subtle"
@@ -301,7 +278,7 @@ export function OnboardingPage() {
                         </CopyButton>
                       </Group>
                       <Text size="sm" c="dimmed">
-                        3. Uslysite potvrzeni "Sluzba aktivovana"
+                        3. Uslyšíte potvrzení „Služba aktivována"
                       </Text>
                     </Stack>
                   </Paper>
@@ -315,7 +292,7 @@ export function OnboardingPage() {
                       fullWidth
                       leftSection={<IconPhone size={18} />}
                     >
-                      Vytocit automaticky
+                      Vytočit automaticky
                     </Button>
                   </Anchor>
 
@@ -323,47 +300,34 @@ export function OnboardingPage() {
                     size="lg"
                     fullWidth
                     rightSection={<IconArrowRight size={18} />}
-                    onClick={() => setStep(4)}
+                    onClick={() => setStep(3)}
                   >
-                    Hotovo, presmerovani funguje
+                    Hotovo, přesměrování funguje
                   </Button>
                 </>
               ) : (
                 <>
                   {/* No phone number available */}
                   <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
-                    Momentalne nemame volne cislo. Jakmile bude dostupne, priradime ti ho a oznamime ti to.
-                    Presmerovani nastavis v nastaveni.
+                    Momentálně nemáme volné číslo. Jakmile bude dostupné, přiřadíme ti ho a oznámíme ti to.
+                    Přesměrování nastavíš v nastavení.
                   </Alert>
 
                   <Button
                     size="lg"
                     fullWidth
                     rightSection={<IconArrowRight size={18} />}
-                    onClick={() => setStep(4)}
+                    onClick={() => setStep(3)}
                   >
-                    Pokracovat
+                    Pokračovat
                   </Button>
                 </>
               )}
-
-              {/* Step indicator */}
-              <Group gap="xs" justify="center">
-                {[1, 2, 3, 4].map((s) => (
-                  <Box
-                    key={s}
-                    w={8}
-                    h={8}
-                    style={{ borderRadius: "50%" }}
-                    bg={s <= step ? "blue" : "gray.3"}
-                  />
-                ))}
-              </Group>
             </Stack>
           )}
 
-          {/* Step 4: Test & Complete */}
-          {step === 4 && (
+          {/* Step 3: Test & Complete */}
+          {step === 3 && (
             <Stack gap="xl" align="center" ta="center">
               <ThemeIcon size={80} radius="xl" variant="light" color="green">
                 <IconConfetti size={40} />
@@ -372,8 +336,8 @@ export function OnboardingPage() {
               <Stack gap="xs">
                 <Title order={2}>Hotovo!</Title>
                 <Text c="dimmed" maw={400}>
-                  Karen je pripravena prijimat hovory. Az nekdo zavola a ty nezvednes, Karen to
-                  vyridi za tebe.
+                  Karen je připravená přijímat hovory. Až někdo zavolá a ty nezvedneš, Karen to
+                  vyřídí za tebe.
                 </Text>
               </Stack>
 
@@ -383,8 +347,8 @@ export function OnboardingPage() {
                     Tip: Otestuj to!
                   </Text>
                   <Text size="sm" c="dimmed">
-                    Zavolej na sve cislo z jineho telefonu a nech to vyzvanet. Karen by mela
-                    zvednout po 20 sekundach.
+                    Zavolej na své číslo z jiného telefonu a nech to vyzvánět. Karen by měla
+                    zvednout po 20 sekundách.
                   </Text>
                 </Stack>
               </Paper>
@@ -395,21 +359,8 @@ export function OnboardingPage() {
                 rightSection={<IconArrowRight size={18} />}
                 onClick={handleFinish}
               >
-                Jit do prehledu hovoru
+                Jít do přehledu hovorů
               </Button>
-
-              {/* Step indicator */}
-              <Group gap="xs">
-                {[1, 2, 3, 4].map((s) => (
-                  <Box
-                    key={s}
-                    w={8}
-                    h={8}
-                    style={{ borderRadius: "50%" }}
-                    bg={s <= step ? "blue" : "gray.3"}
-                  />
-                ))}
-              </Group>
             </Stack>
           )}
         </Paper>

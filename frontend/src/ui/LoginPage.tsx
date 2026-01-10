@@ -13,8 +13,9 @@ import {
   Title,
   Anchor,
   Alert,
+  ThemeIcon,
 } from "@mantine/core";
-import { IconArrowLeft, IconAlertCircle } from "@tabler/icons-react";
+import { IconArrowLeft, IconAlertCircle, IconPhone } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
@@ -53,7 +54,7 @@ export function LoginPage() {
 
   const handleSendCode = async () => {
     if (!phone || phone.length < 10) {
-      setError("Zadej platne telefonni cislo");
+      setError("Zadej platné telefonní číslo");
       return;
     }
 
@@ -64,8 +65,8 @@ export function LoginPage() {
       await api.sendCode(phone);
       setStep("otp");
       startResendTimer();
-    } catch (err) {
-      setError("Nepodarilo se odeslat kod. Zkontroluj cislo a zkus to znovu.");
+    } catch {
+      setError("Nepodařilo se odeslat kód. Zkontroluj číslo a zkus to znovu.");
     } finally {
       setIsLoading(false);
     }
@@ -96,8 +97,8 @@ export function LoginPage() {
     try {
       await api.sendCode(phone);
       startResendTimer();
-    } catch (err) {
-      setError("Nepodarilo se odeslat kod.");
+    } catch {
+      setError("Nepodařilo se odeslat kód.");
     } finally {
       setIsLoading(false);
     }
@@ -119,8 +120,8 @@ export function LoginPage() {
       } else {
         navigate("/onboarding");
       }
-    } catch (err) {
-      setError("Neplatny kod. Zkus to znovu.");
+    } catch {
+      setError("Neplatný kód. Zkus to znovu.");
       setCode("");
     } finally {
       setIsLoading(false);
@@ -150,14 +151,17 @@ export function LoginPage() {
               style={{ alignSelf: "flex-start" }}
               px={0}
             >
-              Zpet
+              Zpět
             </Button>
 
             {step === "phone" && (
               <>
-                <Stack gap="xs" ta="center">
-                  <Title order={2}>Prihlaseni</Title>
-                  <Text c="dimmed">Zadej sve telefonni cislo</Text>
+                <Stack gap="md" ta="center" align="center">
+                  <ThemeIcon size={60} radius="xl" variant="light" color="teal">
+                    <IconPhone size={30} />
+                  </ThemeIcon>
+                  <Title order={2}>Přihlášení</Title>
+                  <Text c="dimmed">Zadej své telefonní číslo</Text>
                 </Stack>
 
                 {error && (
@@ -183,11 +187,11 @@ export function LoginPage() {
                   onClick={handleSendCode}
                   loading={isLoading}
                 >
-                  Poslat overovaci kod
+                  Poslat ověřovací kód
                 </Button>
 
                 <Text size="xs" c="dimmed" ta="center">
-                  Pokracovanim souhlasite s podminkami sluzby
+                  Pokračováním souhlasíte s podmínkami služby
                 </Text>
               </>
             )}
@@ -195,7 +199,7 @@ export function LoginPage() {
             {step === "otp" && (
               <>
                 <Stack gap="xs" ta="center">
-                  <Title order={2}>Overovaci kod</Title>
+                  <Title order={2}>Ověřovací kód</Title>
                   <Text c="dimmed">
                     Poslali jsme SMS na{" "}
                     <Text span fw={500}>
@@ -224,7 +228,7 @@ export function LoginPage() {
                 </Group>
 
                 <Text size="sm" c="dimmed" ta="center">
-                  Neprisel kod?{" "}
+                  Nepřišel kód?{" "}
                   {canResend ? (
                     <Anchor component="button" onClick={handleResendCode} disabled={isLoading}>
                       Poslat znovu

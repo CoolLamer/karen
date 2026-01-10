@@ -8,7 +8,7 @@ interface HowItWorksProps {
 
 export function HowItWorks({ steps }: HowItWorksProps) {
   return (
-    <Container size="lg" py={60}>
+    <Container size="lg" py={60} id="how-it-works">
       <Title order={2} ta="center" mb={40}>
         Jak to funguje
       </Title>

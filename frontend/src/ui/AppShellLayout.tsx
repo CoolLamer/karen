@@ -9,14 +9,14 @@ export function AppShellLayout() {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Group gap="md">
-            <Title order={4} c="blue">
+            <Title order={4} c="teal">
               Zvednu
             </Title>
             <Anchor component={Link} to="/inbox" underline="never" size="sm">
               Hovory
             </Anchor>
           </Group>
-          <Tooltip label="Nastaveni">
+          <Tooltip label="Nastavení">
             <ActionIcon component={Link} to="/settings" variant="subtle" size="lg">
               <IconSettings size={20} />
             </ActionIcon>

@@ -34,7 +34,7 @@ export function SegmentSelector() {
         Jsem:
       </Title>
       <Text c="dimmed" ta="center" mb={40}>
-        Vyber svuj obor a zjisti, jak ti Zvednu pomuze
+        Vyber svůj obor a zjisti, jak ti Zvednu pomůže
       </Text>
 
       <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">
@@ -53,7 +53,7 @@ export function SegmentSelector() {
                 transition: "all 0.2s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#228be6";
+                e.currentTarget.style.borderColor = "var(--mantine-color-teal-5)";
                 e.currentTarget.style.transform = "translateY(-2px)";
               }}
               onMouseLeave={(e) => {
@@ -62,7 +62,7 @@ export function SegmentSelector() {
               }}
             >
               <Group justify="space-between" mb="md">
-                <ThemeIcon size={48} radius="md" variant="light" color="blue">
+                <ThemeIcon size={48} radius="md" variant="light" color="teal">
                   {iconMap[segment.selectorIcon]}
                 </ThemeIcon>
                 <IconChevronRight size={20} color="gray" />

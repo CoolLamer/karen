@@ -9,62 +9,62 @@ export const SHARED_CONTENT: SharedContent = {
   howItWorks: [
     {
       step: 1,
-      title: "Presmeruj hovory",
-      description: "Nastav presmerovani na sve Zvednu cislo, kdyz nezvedas.",
+      title: "Přesměruj hovory",
+      description: "Nastav přesměrování na své Zvednu číslo, když nezvedáš.",
     },
     {
       step: 2,
       title: "Karen zvedne",
-      description: "Karen prijme hovor a zepta se volajiciho, o co jde.",
+      description: "Karen přijme hovor a zeptá se volajícího, o co jde.",
     },
     {
       step: 3,
-      title: "Vidis prehled",
-      description: "V aplikaci vidis kdo volal, proc a zda stoji za to zavolat zpet.",
+      title: "Vidíš přehled",
+      description: "V aplikaci vidíš kdo volal, proč a zda stojí za to zavolat zpět.",
     },
   ],
   features: {
     spam_filter: {
       icon: "IconShieldCheck",
       title: "Filtruje spam",
-      description: "Karen rozpozna marketingove hovory a spam. Ty vidis jen dulezite hovory.",
+      description: "Karen rozpozná marketingové hovory a spam. Ty vidíš jen důležité hovory.",
     },
     context: {
       icon: "IconMessage",
-      title: "Zjisti kontext",
-      description: "Karen se zepta proc volaji a shrne to pro tebe. Vis o cem hovor bude.",
+      title: "Zjistí kontext",
+      description: "Karen se zeptá proč volají a shrne to pro tebe. Víš o čem hovor bude.",
     },
     professional: {
       icon: "IconRobot",
-      title: "Prirozeny hlas",
+      title: "Přirozený hlas",
       description:
-        "Karen mluvi cesky s prirozene znejicim hlasem. Volajici nemaji pocit ze mluvi s robotem.",
+        "Karen mluví česky s přirozeně znějícím hlasem. Volající nemají pocit že mluví s robotem.",
     },
     never_miss: {
       icon: "IconPhone",
-      title: "Nikdy nepropasnes",
-      description: "Dulezite hovory ti Karen preposle nebo zanecha podrobnou zpravu.",
+      title: "Nikdy nepromeškáš",
+      description: "Důležité hovory ti Karen přepošle nebo zanechá podrobnou zprávu.",
     },
     transcript: {
       icon: "IconListCheck",
-      title: "Prepis hovoru",
-      description: "Kazdy hovor ma kompletni prepis. Muzes si ho precist misto poslechu.",
+      title: "Přepis hovoru",
+      description: "Každý hovor má kompletní přepis. Můžeš si ho přečíst místo poslechu.",
     },
     rules: {
       icon: "IconSettings",
       title: "Tvoje pravidla",
-      description: "Nastav si VIP kontakty, zpusoby osloveni a vlastni instrukce.",
+      description: "Nastav si VIP kontakty, způsoby oslovení a vlastní instrukce.",
     },
     forward: {
       icon: "IconPhoneCall",
-      title: "VIP prepojeni",
-      description: "Urgentni hovory ti Karen prepoji okamzite na tvuj telefon.",
+      title: "VIP přepojení",
+      description: "Urgentní hovory ti Karen přepojí okamžitě na tvůj telefon.",
     },
   },
   cta: {
-    title: "Zacni pouzivat Zvednu jeste dnes",
-    subtitle: "Registrace je zdarma. Za 2 minuty budes mit svoji asistentku.",
-    buttonText: "Vyzkouset zdarma",
+    title: "Začni používat Zvednu ještě dnes",
+    subtitle: "Registrace je zdarma. Za 2 minuty budeš mít svoji asistentku.",
+    buttonText: "Vyzkoušet zdarma",
   },
   footer: {
     tagline: "Zvednu - tvoje AI asistentka na telefonu",

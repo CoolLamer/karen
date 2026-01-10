@@ -1,33 +1,20 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Alert, Badge, Group, Paper, Stack, Table, Text, Title } from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { Alert, Badge, Group, Paper, Stack, Table, Text, Title, ThemeIcon } from "@mantine/core";
+import { IconAlertCircle, IconCheck, IconX, IconQuestionMark, IconMail, IconPhone } from "@tabler/icons-react";
 import { api, CallListItem, TenantPhoneNumber } from "../api";
 
-function labelColor(label: string | undefined) {
+function getLegitimacyConfig(label: string | undefined) {
   switch (label) {
     case "legitimate":
     case "legitimní":
-      return "green";
+      return { color: "green", label: "Legitimní", icon: <IconCheck size={12} /> };
     case "marketing":
-      return "yellow";
+      return { color: "yellow", label: "Marketing", icon: <IconMail size={12} /> };
     case "spam":
-      return "red";
-    case "unknown":
-      return "gray";
+      return { color: "red", label: "Spam", icon: <IconX size={12} /> };
     default:
-      return "gray";
-  }
-}
-
-function formatLabel(label: string) {
-  switch (label) {
-    case "legitimate":
-      return "legitimní";
-    case "unknown":
-      return "neznámé";
-    default:
-      return label;
+      return { color: "gray", label: "Neznámé", icon: <IconQuestionMark size={12} /> };
   }
 }
 
@@ -44,6 +31,20 @@ function formatStatus(status: string) {
     default:
       return status;
   }
+}
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Právě teď";
+  if (diffMins < 60) return `Před ${diffMins} min`;
+  if (diffHours < 24) return `Před ${diffHours} h`;
+  if (diffDays < 7) return `Před ${diffDays} dny`;
+  return date.toLocaleDateString("cs-CZ");
 }
 
 export function CallInboxPage() {
@@ -92,7 +93,10 @@ export function CallInboxPage() {
       {!calls && !error && <Text c="dimmed">Načítání…</Text>}
 
       {calls && calls.length === 0 && (
-        <Paper p="xl" withBorder ta="center">
+        <Paper p="xl" withBorder ta="center" radius="md">
+          <ThemeIcon size={60} radius="xl" variant="light" color="gray" mb="md" mx="auto">
+            <IconPhone size={30} />
+          </ThemeIcon>
           <Text c="dimmed" size="lg">
             Zatím žádné hovory
           </Text>
@@ -103,7 +107,7 @@ export function CallInboxPage() {
       )}
 
       {calls && calls.length > 0 && (
-        <Paper withBorder>
+        <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
@@ -116,33 +120,52 @@ export function CallInboxPage() {
             </Table.Thead>
             <Table.Tbody>
               {calls.map((c) => {
-                const label = c.screening?.legitimacy_label ?? "unknown";
+                const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
                 const intent = c.screening?.intent_text ?? "";
                 return (
-                  <Table.Tr key={c.provider_call_id}>
+                  <Table.Tr
+                    key={c.provider_call_id}
+                    style={{
+                      borderLeft: `4px solid var(--mantine-color-${legitimacy.color}-5)`,
+                    }}
+                  >
                     <Table.Td>
-                      <Text size="sm">{new Date(c.started_at).toLocaleString("cs-CZ")}</Text>
+                      <Text size="sm">{formatRelativeTime(new Date(c.started_at))}</Text>
+                      <Text size="xs" c="dimmed">
+                        {new Date(c.started_at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" fw={600}>
-                        <Link to={`/calls/${encodeURIComponent(c.provider_call_id)}`}>{c.from_number}</Link>
+                        <Link
+                          to={`/calls/${encodeURIComponent(c.provider_call_id)}`}
+                          style={{ color: "inherit", textDecoration: "none" }}
+                        >
+                          {c.from_number}
+                        </Link>
                       </Text>
                       <Text size="xs" c="dimmed">
                         na {c.to_number}
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Badge color={labelColor(label)} variant="light">
-                        {formatLabel(label)}
+                      <Badge
+                        color={legitimacy.color}
+                        variant="light"
+                        leftSection={legitimacy.icon}
+                      >
+                        {legitimacy.label}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm" lineClamp={2}>
+                      <Text size="sm" lineClamp={2} maw={200}>
                         {intent || "—"}
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm">{formatStatus(c.status)}</Text>
+                      <Badge variant="light" color="gray" size="sm">
+                        {formatStatus(c.status)}
+                      </Badge>
                     </Table.Td>
                   </Table.Tr>
                 );

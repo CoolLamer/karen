@@ -16,7 +16,7 @@ export function Header({ showBackToMain }: HeaderProps) {
           <Text
             size="xl"
             fw={700}
-            c="blue"
+            c="teal"
             style={{ cursor: "pointer" }}
             onClick={() => navigate("/")}
           >
@@ -25,11 +25,11 @@ export function Header({ showBackToMain }: HeaderProps) {
           <Group gap="sm">
             {showBackToMain && (
               <Button variant="subtle" onClick={() => navigate("/")}>
-                Zpet
+                Zpět
               </Button>
             )}
             <Button variant="subtle" onClick={() => navigate("/login")}>
-              Prihlasit se
+              Přihlásit se
             </Button>
           </Group>
         </Group>
