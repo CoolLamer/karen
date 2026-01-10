@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Alert, Badge, Box, Group, Paper, Stack, Table, Text, Title, ThemeIcon, UnstyledButton } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { IconAlertCircle, IconCheck, IconX, IconQuestionMark, IconMail, IconPhone, IconChevronRight } from "@tabler/icons-react";
@@ -200,8 +200,10 @@ export function CallInboxPage() {
                 return (
                   <Table.Tr
                     key={c.provider_call_id}
+                    onClick={() => handleCallClick(c.provider_call_id)}
                     style={{
                       borderLeft: `4px solid var(--mantine-color-${legitimacy.color}-5)`,
+                      cursor: "pointer",
                     }}
                   >
                     <Table.Td>
@@ -212,12 +214,7 @@ export function CallInboxPage() {
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" fw={600}>
-                        <Link
-                          to={`/calls/${encodeURIComponent(c.provider_call_id)}`}
-                          style={{ color: "inherit", textDecoration: "none" }}
-                        >
-                          {c.from_number}
-                        </Link>
+                        {c.from_number}
                       </Text>
                       <Text size="xs" c="dimmed">
                         na {c.to_number}
