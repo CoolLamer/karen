@@ -9,7 +9,7 @@ interface StepCardProps {
 export function StepCard({ step, title, description }: StepCardProps) {
   return (
     <Stack gap="xs" align="center" ta="center">
-      <ThemeIcon size={48} radius="xl" variant="filled" color="blue">
+      <ThemeIcon size={48} radius="xl" variant="filled" color="teal">
         <Text fw={700} size="lg">
           {step}
         </Text>

@@ -9,7 +9,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
     hero: {
       title: "AI asistentka pro techniky v terénu",
       tagline:
-        "Jsi na zakázce a někdo volá. Zvednu zvedne, zjistí o co jde, a ty víš, jestli je to nová práce nebo spam.",
+        "Jste na zakázce a někdo volá. Zvednu to zvedne, zjistí, o co jde, a vy hned víte, jestli jde o novou práci, nebo spam.",
       ctaText: "Vyzkoušet zdarma",
     },
     painPoints: {
@@ -23,7 +23,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
         {
           icon: "IconHandStop",
           title: "Nejde zvednout během práce",
-          description: "Špinavé ruce, hlučné prostředí, jste u klienta - prostě to nejde.",
+          description: "Špinavé ruce, hlučné prostředí, jste u klienta – prostě to nejde.",
         },
         {
           icon: "IconMailOff",
@@ -34,7 +34,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
           icon: "IconClipboardList",
           title: "Dotazy na stav zakázky",
           description:
-            "Zákazník volá ohledně stavu objednávky - vy to vidíte a zavoláte až budete u počítače.",
+            "Zákazník volá ohledně stavu objednávky – vy to vidíte a zavoláte, až budete u počítače.",
         },
       ],
     },
@@ -43,15 +43,15 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobrý den, tady Karen, asistentka pana Petra. Petr je momentálně na zakázce. Jak vám mohu pomoct?",
+          text: "Dobrý den, tady Karen, asistentka pana Petra. Petr je momentálně na zakázce. Jak vám mohu pomoci?",
         },
         {
           speaker: "caller",
-          text: "Dobrý den, chtěla jsem se zeptat, jak to vypadá s naší zakázkou - měli jste přijít vysušit sklep.",
+          text: "Dobrý den, chtěla jsem se zeptat, jak to vypadá s naší zakázkou – měli jste přijít vysušit sklep.",
         },
         {
           speaker: "karen",
-          text: "Rozumím, dotaz na stav zakázky ohledně vysušení sklepa. Petr se vám ozve jakmile bude mít přístup k systému. Mohu potvrdit vaše číslo?",
+          text: "Rozumím, dotaz na stav zakázky ohledně vysušení sklepa. Petr se vám ozve, jakmile bude mít přístup k systému. Můžete mi potvrdit své číslo?",
         },
       ],
       result: {
@@ -99,7 +99,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobrý den, ordinace doktorky Martiny. Doktorka má právě pacienta. Jak vám mohu pomoct?",
+          text: "Dobrý den, ordinace doktorky Martiny. Doktorka má právě pacienta. Jak vám mohu pomoci?",
         },
         {
           speaker: "caller",
@@ -107,7 +107,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
         },
         {
           speaker: "karen",
-          text: "Rozumím, silné bolesti zubů. Dovolte, abych vás přepojila na doktorku - jde o akutní případ.",
+          text: "Rozumím, silné bolesti zubů. Dovolte, abych vás přepojila na doktorku – jde o akutní případ.",
         },
       ],
       result: {
@@ -127,7 +127,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
     hero: {
       title: "AI asistentka pro obchodníky",
       tagline:
-        "Každý zmeškaný hovor je potenciální ztracený deal. Zvednu zachytí každý lead a vy zavoláte zpět s plným kontextem.",
+        "Každý zmeškaný hovor je potenciálně ztracený obchod. Zvednu zachytí každou poptávku a vy zavoláte zpět s plným kontextem.",
       ctaText: "Vyzkoušet zdarma",
     },
     painPoints: {
@@ -135,8 +135,8 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
       items: [
         {
           icon: "IconUserOff",
-          title: "Leady utíkají ke konkurenci",
-          description: "Když nezvedneš do hodiny, klient už má jiného makléře.",
+          title: "Poptávky utíkají ke konkurenci",
+          description: "Když nezvednete do hodiny, klient už má jiného makléře.",
         },
         {
           icon: "IconHome",
@@ -146,7 +146,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
         {
           icon: "IconQuestionMark",
           title: "Chybí kontext před voláním zpět",
-          description: "Nevíte, jak moc je lead horký, než zavoláte.",
+          description: "Nevíte, jak moc je poptávka horká, než zavoláte.",
         },
       ],
     },
@@ -155,7 +155,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobrý den, kancelář pana Tomáše. Tomáš je momentálně na prohlídce. S čím vám mohu pomoct?",
+          text: "Dobrý den, kancelář pana Tomáše. Tomáš je momentálně na prohlídce. S čím vám mohu pomoci?",
         },
         {
           speaker: "caller",
@@ -163,7 +163,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
         },
         {
           speaker: "karen",
-          text: "Skvělé, 2+kk v Praze do 6 milionů se zahradou. Mohu vás požádat o číslo a Tomáš se vám ozve dnes večer?",
+          text: "Skvělé, 2+kk v Praze do 6 milionů se zahradou. Mohu vás požádat o číslo? Tomáš se vám ozve ještě dnes večer.",
         },
       ],
       result: {
@@ -211,15 +211,15 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
       dialogue: [
         {
           speaker: "karen",
-          text: "Dobrý den, kancelář pana Jana. Jan je momentálně na jednání. Jak vám mohu pomoct?",
+          text: "Dobrý den, kancelář pana Jana. Jan je momentálně na jednání. Jak vám mohu pomoci?",
         },
         {
           speaker: "caller",
-          text: "Potřebuju s ním probrat rozpočet na Q2, není to urgentní ale chtěl bych to stihnout tento týden.",
+          text: "Potřebuji s ním probrat rozpočet na Q2. Není to urgentní, ale rád bych to stihl tento týden.",
         },
         {
           speaker: "karen",
-          text: "Rozumím, rozpočet na Q2, není urgentní, ideálně tento týden. Předám Janovi a ozve se vám.",
+          text: "Rozumím, rozpočet na Q2. Není to urgentní, ideálně tento týden. Předám to Janovi a ozve se vám.",
         },
       ],
       result: {

@@ -12,7 +12,8 @@ export function Hero({ title, tagline, ctaText, onCtaClick }: HeroProps) {
     <Box
       py={{ base: 60, sm: 100 }}
       style={{
-        background: "linear-gradient(135deg, #E6FFFA 0%, #B2F5EA 50%, #E9D8FD 100%)",
+        background:
+          "linear-gradient(135deg, var(--mantine-color-teal-0) 0%, var(--mantine-color-teal-1) 50%, var(--mantine-color-purple-1) 100%)",
         position: "relative",
         overflow: "hidden",
       }}
@@ -38,7 +39,7 @@ export function Hero({ title, tagline, ctaText, onCtaClick }: HeroProps) {
         <Group justify="center" mt="xl" gap="xl">
           <Text size="sm" c="dimmed">Bez kreditky</Text>
           <Text size="sm" c="dimmed">Aktivace za 2 minuty</Text>
-          <Text size="sm" c="dimmed">Zrušení kdykoliv</Text>
+          <Text size="sm" c="dimmed">Zrušení kdykoli</Text>
         </Group>
       </Container>
     </Box>

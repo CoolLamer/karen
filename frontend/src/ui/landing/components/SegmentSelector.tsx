@@ -34,7 +34,7 @@ export function SegmentSelector() {
         Jsem:
       </Title>
       <Text c="dimmed" ta="center" mb={40}>
-        Vyber svůj obor a zjisti, jak ti Zvednu pomůže
+        Vyberte si obor a zjistěte, jak vám Zvednu pomůže
       </Text>
 
       <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">

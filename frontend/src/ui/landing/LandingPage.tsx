@@ -21,9 +21,9 @@ export function LandingPage() {
     <Box>
       <Header />
       <Hero
-        title="Tvoje AI asistentka na telefonu"
-        tagline="Kdyz nezvednes, Karen zvedne za tebe. Zjisti kdo vola a proc. Spam odfiltruje."
-        ctaText="Vyzkouset zdarma"
+        title="Vaše AI asistentka na telefonu"
+        tagline="Když nezvednete, Karen to zvedne za vás. Zjistí, kdo volá a proč. Spam odfiltruje."
+        ctaText="Vyzkoušet zdarma"
         onCtaClick={() => navigate("/login")}
       />
       <SegmentSelector />

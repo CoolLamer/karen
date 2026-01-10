@@ -12,7 +12,7 @@ interface ExampleCallProps {
 const defaultDialogue: DialogueLine[] = [
   {
     speaker: "karen",
-    text: "Dobrý den, tady Karen, asistentka pana Lukáše. Lukáš teď nemůže přijmout hovor. Jak vám mohu pomoct?",
+    text: "Dobrý den, tady Karen, asistentka pana Lukáše. Lukáš teď nemůže přijmout hovor. Jak vám mohu pomoci?",
   },
   {
     speaker: "caller",
@@ -20,7 +20,7 @@ const defaultDialogue: DialogueLine[] = [
   },
   {
     speaker: "karen",
-    text: "Děkuji za zavolání. Lukáš nemá zájem o marketingové nabídky. Pokud chcete, pošlete nabídku na email. Na shledanou.",
+    text: "Děkuji za zavolání. Lukáš nemá zájem o marketingové nabídky. Pokud chcete, pošlete nabídku na e-mail. Na shledanou.",
   },
 ];
 
@@ -52,7 +52,8 @@ export function ExampleCall({
         radius="lg"
         withBorder
         style={{
-          background: "linear-gradient(180deg, var(--mantine-color-gray-0) 0%, #fff 100%)",
+          background:
+            "linear-gradient(180deg, var(--mantine-color-gray-0) 0%, var(--mantine-color-white) 100%)",
           maxWidth: 500,
           margin: "0 auto",
         }}

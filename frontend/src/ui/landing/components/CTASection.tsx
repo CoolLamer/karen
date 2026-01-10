@@ -26,9 +26,9 @@ export function CTASection({ title, subtitle, buttonText, onCtaClick }: CTASecti
           {buttonText}
         </Button>
         <Text c="teal.2" mt="lg" size="sm">
-          Máš otázky?{" "}
+          Máte otázky?{" "}
           <Anchor c="white" href="mailto:info@zvednu.cz" underline="always">
-            Napiš nám
+            Napište nám
           </Anchor>
         </Text>
       </Container>
