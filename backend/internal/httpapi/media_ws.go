@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
 	"github.com/lukasbauer/karen/internal/eventlog"
 	"github.com/lukasbauer/karen/internal/llm"
@@ -309,6 +310,7 @@ func (s *callSession) run() {
 		case "start":
 			if err := s.handleStart(twilioMsg.Start); err != nil {
 				s.logger.Printf("media_ws: start error: %v", err)
+				sentry.CaptureException(err)
 				return
 			}
 
