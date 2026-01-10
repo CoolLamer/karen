@@ -12,6 +12,9 @@ type TranscriptResult struct {
 	// SpeechFinal means Deepgram detected end-of-speech (`speech_final=true`).
 	// This is the signal we should use to finalize a user turn.
 	SpeechFinal bool
+	// VAD events from Deepgram (when vad_events=true)
+	VADSpeechStarted bool // Voice activity detected
+	VADUtteranceEnd  bool // Utterance end timeout fired
 }
 
 // Client defines the interface for speech-to-text providers.

@@ -71,8 +71,8 @@ func LoadConfigFromEnv() Config {
 		STTEndpointingMs: getenvIntClamped("STT_ENDPOINTING_MS", 800, 200, 4000),
 		// Utterance end is a hard timeout after last speech detected, regardless of background noise.
 		// This prevents noisy environments from keeping turns open indefinitely.
-		// Default 1500ms is a good balance between responsiveness and noise tolerance.
-		STTUtteranceEndMs: getenvIntClamped("STT_UTTERANCE_END_MS", 1500, 500, 5000),
+		// Default 1000ms for faster response; client-side 4s max timeout provides safety net.
+		STTUtteranceEndMs: getenvIntClamped("STT_UTTERANCE_END_MS", 1000, 500, 5000),
 
 		// Voice settings (defaults, overridden by tenant config)
 		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
