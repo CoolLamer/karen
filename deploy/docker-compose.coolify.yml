@@ -9,6 +9,9 @@
 #   JWT_SECRET - Secret key for JWT token signing
 #   ADMIN_PHONES - Comma-separated list of admin phone numbers in E.164 format (e.g. +420123456789)
 #   SENTRY_DSN - Sentry DSN for error monitoring (optional)
+#   DEEPGRAM_API_KEY - Deepgram API key for speech-to-text
+#   OPENAI_API_KEY - OpenAI API key for LLM
+#   ELEVENLABS_API_KEY - ElevenLabs API key for text-to-speech
 #
 services:
   db:
@@ -44,6 +47,9 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       LOG_LEVEL: info
       ADMIN_PHONES: ${ADMIN_PHONES}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

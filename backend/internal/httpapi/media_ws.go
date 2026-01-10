@@ -122,6 +122,7 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 	// Check if we have required API keys
 	if r.cfg.DeepgramAPIKey == "" || r.cfg.OpenAIAPIKey == "" || r.cfg.ElevenLabsAPIKey == "" {
 		r.logger.Printf("media_ws: missing API keys")
+		captureError(req, fmt.Errorf("voice AI not configured: missing API keys"), "media_ws: configuration error")
 		http.Error(w, "voice AI not configured", http.StatusServiceUnavailable)
 		return
 	}
