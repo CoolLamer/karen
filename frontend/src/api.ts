@@ -15,6 +15,7 @@ export type CallListItem = {
   status: string;
   started_at: string;
   ended_at?: string | null;
+  ended_by?: string | null;
   screening?: ScreeningResult | null;
 };
 
