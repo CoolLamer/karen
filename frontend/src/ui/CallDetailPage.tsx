@@ -1,7 +1,28 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Badge, Group, Paper, Stack, Text, Title, Box, ThemeIcon, Button, Progress } from "@mantine/core";
-import { IconArrowLeft, IconRobot, IconUser, IconCheck, IconX, IconQuestionMark, IconMail } from "@tabler/icons-react";
+import {
+  Badge,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  Title,
+  Box,
+  ThemeIcon,
+  Button,
+  Progress,
+} from "@mantine/core";
+import {
+  IconArrowLeft,
+  IconRobot,
+  IconUser,
+  IconCheck,
+  IconX,
+  IconQuestionMark,
+  IconMail,
+  IconCircleCheck,
+  IconCircle,
+} from "@tabler/icons-react";
 import { api, CallDetail } from "../api";
 
 function formatStatus(status: string) {
@@ -62,20 +83,53 @@ export function CallDetailPage() {
   const navigate = useNavigate();
   const [call, setCall] = React.useState<CallDetail | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [isResolved, setIsResolved] = React.useState(false);
+  const [isTogglingResolved, setIsTogglingResolved] = React.useState(false);
 
   React.useEffect(() => {
     if (!providerCallId) return;
+
+    // Fetch call detail
     api
       .getCall(providerCallId)
-      .then(setCall)
+      .then((data) => {
+        setCall(data);
+        setIsResolved(!!data.resolved_at);
+      })
       .catch((e) => setError(String(e)));
+
+    // Mark as viewed (fire and forget)
+    api.markCallViewed(providerCallId).catch(() => {});
   }, [providerCallId]);
+
+  const handleToggleResolved = async () => {
+    if (!providerCallId || isTogglingResolved) return;
+
+    setIsTogglingResolved(true);
+    const wasResolved = isResolved;
+
+    // Optimistic update
+    setIsResolved(!wasResolved);
+
+    try {
+      if (wasResolved) {
+        await api.markCallUnresolved(providerCallId);
+      } else {
+        await api.markCallResolved(providerCallId);
+      }
+    } catch {
+      // Revert on error
+      setIsResolved(wasResolved);
+    } finally {
+      setIsTogglingResolved(false);
+    }
+  };
 
   const legitimacyConfig = getLegitimacyConfig(call?.screening?.legitimacy_label ?? "unknown");
 
   return (
     <Stack gap="md" py="md">
-      <Group>
+      <Group justify="space-between">
         <Button
           variant="subtle"
           leftSection={<IconArrowLeft size={16} />}
@@ -84,6 +138,18 @@ export function CallDetailPage() {
         >
           Zpět na hovory
         </Button>
+
+        {call && (
+          <Button
+            variant={isResolved ? "light" : "filled"}
+            color={isResolved ? "gray" : "teal"}
+            leftSection={isResolved ? <IconCircleCheck size={18} /> : <IconCircle size={18} />}
+            onClick={handleToggleResolved}
+            loading={isTogglingResolved}
+          >
+            {isResolved ? "Vyřešeno" : "Označit jako vyřešené"}
+          </Button>
+        )}
       </Group>
 
       <Title order={2}>Detail hovoru</Title>
@@ -102,16 +168,25 @@ export function CallDetailPage() {
           <Paper p="lg" withBorder radius="md">
             <Group justify="space-between" align="flex-start">
               <Stack gap={4}>
-                <Text size="xl" fw={700}>{call.from_number}</Text>
+                <Text size="xl" fw={700}>
+                  {call.from_number}
+                </Text>
                 <Text size="sm" c="dimmed">
                   na {call.to_number}
                 </Text>
                 <Text size="sm" mt="xs">
                   {new Date(call.started_at).toLocaleString("cs-CZ")}
                 </Text>
-                <Badge variant="light" color="gray" size="sm" mt="xs">
-                  {formatStatus(call.status)}
-                </Badge>
+                <Group gap="xs" mt="xs">
+                  <Badge variant="light" color="gray" size="sm">
+                    {formatStatus(call.status)}
+                  </Badge>
+                  {isResolved && (
+                    <Badge variant="light" color="teal" size="sm" leftSection={<IconCircleCheck size={12} />}>
+                      Vyřešeno
+                    </Badge>
+                  )}
+                </Group>
               </Stack>
               <Stack gap="xs" align="flex-end">
                 <Badge
@@ -138,8 +213,12 @@ export function CallDetailPage() {
             </Group>
             {call.screening?.intent_text && (
               <Paper p="sm" radius="sm" bg="gray.0" mt="md">
-                <Text size="sm" fw={500}>Účel hovoru:</Text>
-                <Text size="sm" c="dimmed">{call.screening.intent_text}</Text>
+                <Text size="sm" fw={500}>
+                  Účel hovoru:
+                </Text>
+                <Text size="sm" c="dimmed">
+                  {call.screening.intent_text}
+                </Text>
               </Paper>
             )}
           </Paper>

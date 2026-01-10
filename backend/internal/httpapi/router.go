@@ -82,7 +82,10 @@ func (r *Router) routes() {
 	// Protected API endpoints
 	r.mux.HandleFunc("GET /api/me", r.withAuth(r.handleGetMe))
 	r.mux.HandleFunc("GET /api/calls", r.withAuth(r.handleListCalls))
+	r.mux.HandleFunc("GET /api/calls/unresolved-count", r.withAuth(r.handleGetUnresolvedCount))
 	r.mux.HandleFunc("GET /api/calls/", r.withAuth(r.handleGetCall))
+	r.mux.HandleFunc("PATCH /api/calls/", r.withAuth(r.handleCallPatch))
+	r.mux.HandleFunc("DELETE /api/calls/", r.withAuth(r.handleCallDelete))
 	r.mux.HandleFunc("GET /api/tenant", r.withAuth(r.handleGetTenant))
 	r.mux.HandleFunc("PATCH /api/tenant", r.withAuth(r.handleUpdateTenant))
 

@@ -79,6 +79,9 @@ type Call struct {
 	StartedAt      time.Time  `json:"started_at"`
 	EndedAt        *time.Time `json:"ended_at,omitempty"`
 	EndedBy        *string    `json:"ended_by,omitempty"`
+	FirstViewedAt  *time.Time `json:"first_viewed_at,omitempty"`
+	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
+	ResolvedBy     *string    `json:"resolved_by,omitempty"`
 }
 
 type ScreeningResult struct {
@@ -244,10 +247,12 @@ func (s *Store) GetCallDetailWithTenantCheck(ctx context.Context, providerCallID
 
 	var callID string
 	err := s.db.QueryRow(ctx, `
-		SELECT id, tenant_id, provider, provider_call_id, from_number, to_number, status, started_at, ended_at, ended_by
+		SELECT id, tenant_id, provider, provider_call_id, from_number, to_number, status, started_at, ended_at, ended_by,
+		       first_viewed_at, resolved_at, resolved_by
 		FROM calls
 		WHERE provider='twilio' AND provider_call_id=$1
-	`, providerCallID).Scan(&callID, &tenantID, &out.Provider, &out.ProviderCallID, &out.FromNumber, &out.ToNumber, &out.Status, &out.StartedAt, &out.EndedAt, &out.EndedBy)
+	`, providerCallID).Scan(&callID, &tenantID, &out.Provider, &out.ProviderCallID, &out.FromNumber, &out.ToNumber, &out.Status, &out.StartedAt, &out.EndedAt, &out.EndedBy,
+		&out.FirstViewedAt, &out.ResolvedAt, &out.ResolvedBy)
 	if err != nil {
 		return CallDetail{}, nil, err
 	}
@@ -629,6 +634,7 @@ func (s *Store) UpsertCallWithTenant(ctx context.Context, c Call) error {
 func (s *Store) ListCallsByTenant(ctx context.Context, tenantID string, limit int) ([]CallListItem, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.started_at, c.ended_at, c.ended_by,
+		       c.first_viewed_at, c.resolved_at, c.resolved_by,
 		       r.legitimacy_label, r.legitimacy_confidence, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
 		LEFT JOIN call_screening_results r ON r.call_id = c.id
@@ -658,6 +664,7 @@ func scanCallListItems(rows pgx.Rows) ([]CallListItem, error) {
 
 		err := rows.Scan(
 			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.StartedAt, &item.EndedAt, &item.EndedBy,
+			&item.FirstViewedAt, &item.ResolvedAt, &item.ResolvedBy,
 			&legitimacyLabel, &legitimacyConfidence, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
 		if err != nil {
@@ -1028,4 +1035,63 @@ func (s *Store) UpdateTenantPlanStatus(ctx context.Context, tenantID, plan, stat
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+// ============================================================================
+// Call resolution tracking
+// ============================================================================
+
+// MarkCallViewed sets first_viewed_at if it's currently NULL.
+// Returns true if the call was marked as viewed, false if already viewed.
+func (s *Store) MarkCallViewed(ctx context.Context, providerCallID string) (bool, error) {
+	result, err := s.db.Exec(ctx, `
+		UPDATE calls
+		SET first_viewed_at = NOW()
+		WHERE provider = 'twilio' AND provider_call_id = $1 AND first_viewed_at IS NULL
+	`, providerCallID)
+	if err != nil {
+		return false, err
+	}
+	return result.RowsAffected() > 0, nil
+}
+
+// MarkCallResolved sets resolved_at and resolved_by.
+func (s *Store) MarkCallResolved(ctx context.Context, providerCallID string, userID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE calls
+		SET resolved_at = NOW(), resolved_by = $2
+		WHERE provider = 'twilio' AND provider_call_id = $1
+	`, providerCallID, userID)
+	return err
+}
+
+// MarkCallUnresolved clears resolved_at and resolved_by.
+func (s *Store) MarkCallUnresolved(ctx context.Context, providerCallID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE calls
+		SET resolved_at = NULL, resolved_by = NULL
+		WHERE provider = 'twilio' AND provider_call_id = $1
+	`, providerCallID)
+	return err
+}
+
+// CountUnresolvedCalls returns the count of unresolved calls for a tenant.
+// Unresolved means resolved_at IS NULL.
+func (s *Store) CountUnresolvedCalls(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := s.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM calls
+		WHERE tenant_id = $1 AND resolved_at IS NULL
+	`, tenantID).Scan(&count)
+	return count, err
+}
+
+// GetCallTenantID retrieves the tenant_id for a call by provider_call_id.
+func (s *Store) GetCallTenantID(ctx context.Context, providerCallID string) (*string, error) {
+	var tenantID *string
+	err := s.db.QueryRow(ctx, `
+		SELECT tenant_id FROM calls
+		WHERE provider = 'twilio' AND provider_call_id = $1
+	`, providerCallID).Scan(&tenantID)
+	return tenantID, err
 }

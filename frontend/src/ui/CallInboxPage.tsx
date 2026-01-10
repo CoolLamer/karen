@@ -1,8 +1,33 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Alert, Badge, Box, Group, Paper, Stack, Table, Text, Title, ThemeIcon, UnstyledButton } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Box,
+  Group,
+  Paper,
+  Stack,
+  Table,
+  Text,
+  Title,
+  ThemeIcon,
+  UnstyledButton,
+  ActionIcon,
+  Tooltip,
+} from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconAlertCircle, IconCheck, IconX, IconQuestionMark, IconMail, IconPhone, IconChevronRight } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconCheck,
+  IconX,
+  IconQuestionMark,
+  IconMail,
+  IconPhone,
+  IconChevronRight,
+  IconCircleFilled,
+  IconCircleCheck,
+  IconCircle,
+} from "@tabler/icons-react";
 import { api, CallListItem, TenantPhoneNumber } from "../api";
 
 function getLegitimacyConfig(label: string | undefined) {
@@ -48,6 +73,15 @@ function formatRelativeTime(date: Date): string {
   return date.toLocaleDateString("cs-CZ");
 }
 
+// Call resolution status
+type ResolutionStatus = "new" | "viewed" | "resolved";
+
+function getResolutionStatus(call: CallListItem): ResolutionStatus {
+  if (call.resolved_at) return "resolved";
+  if (call.first_viewed_at) return "viewed";
+  return "new";
+}
+
 export function CallInboxPage() {
   const [calls, setCalls] = React.useState<CallListItem[] | null>(null);
   const [phoneNumbers, setPhoneNumbers] = React.useState<TenantPhoneNumber[]>([]);
@@ -57,6 +91,50 @@ export function CallInboxPage() {
 
   const handleCallClick = (providerCallId: string) => {
     navigate(`/calls/${encodeURIComponent(providerCallId)}`);
+  };
+
+  const handleToggleResolved = async (
+    e: React.MouseEvent,
+    providerCallId: string,
+    currentlyResolved: boolean
+  ) => {
+    e.stopPropagation();
+
+    // Optimistic update
+    setCalls((prev) =>
+      prev
+        ? prev.map((c) =>
+            c.provider_call_id === providerCallId
+              ? {
+                  ...c,
+                  resolved_at: currentlyResolved ? null : new Date().toISOString(),
+                }
+              : c
+          )
+        : prev
+    );
+
+    try {
+      if (currentlyResolved) {
+        await api.markCallUnresolved(providerCallId);
+      } else {
+        await api.markCallResolved(providerCallId);
+      }
+    } catch {
+      // Revert on error
+      setCalls((prev) =>
+        prev
+          ? prev.map((c) =>
+              c.provider_call_id === providerCallId
+                ? {
+                    ...c,
+                    resolved_at: currentlyResolved ? new Date().toISOString() : null,
+                  }
+                : c
+            )
+          : prev
+      );
+    }
   };
 
   React.useEffect(() => {
@@ -80,7 +158,10 @@ export function CallInboxPage() {
         <Title order={2}>Příchozí hovory</Title>
         {hasPhoneNumber && (
           <Text size="sm" c="dimmed">
-            Karen číslo: <Text span fw={600}>{karenNumber}</Text>
+            Karen číslo:{" "}
+            <Text span fw={600}>
+              {karenNumber}
+            </Text>
           </Text>
         )}
       </Group>
@@ -119,6 +200,10 @@ export function CallInboxPage() {
           {calls.map((c) => {
             const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
             const intent = c.screening?.intent_text ?? "";
+            const resolutionStatus = getResolutionStatus(c);
+            const isResolved = resolutionStatus === "resolved";
+            const isNew = resolutionStatus === "new";
+
             return (
               <UnstyledButton
                 key={c.provider_call_id}
@@ -134,12 +219,36 @@ export function CallInboxPage() {
                     borderLeft: `4px solid var(--mantine-color-${legitimacy.color}-5)`,
                     cursor: "pointer",
                     transition: "background-color 0.15s",
+                    opacity: isResolved ? 0.7 : 1,
                   }}
                 >
-                  {/* Row 1: Phone number + Legitimacy badge + Chevron */}
+                  {/* Row 1: Resolution icon + Phone number + Legitimacy badge + Chevron */}
                   <Group justify="space-between" wrap="nowrap" mb={4}>
                     <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" fw={600} truncate>
+                      {/* Resolution status indicator */}
+                      <Tooltip
+                        label={
+                          isResolved
+                            ? "Vyřešeno - kliknutím označíte jako nevyřešené"
+                            : "Označit jako vyřešené"
+                        }
+                      >
+                        <ActionIcon
+                          variant="subtle"
+                          size="sm"
+                          color={isResolved ? "teal" : isNew ? "blue" : "gray"}
+                          onClick={(e) => handleToggleResolved(e, c.provider_call_id, isResolved)}
+                        >
+                          {isResolved ? (
+                            <IconCircleCheck size={18} />
+                          ) : isNew ? (
+                            <IconCircleFilled size={10} />
+                          ) : (
+                            <IconCircle size={18} />
+                          )}
+                        </ActionIcon>
+                      </Tooltip>
+                      <Text size="sm" fw={isNew ? 700 : 600} truncate>
                         {c.from_number}
                       </Text>
                       <Badge
@@ -156,13 +265,13 @@ export function CallInboxPage() {
                   </Group>
 
                   {/* Row 2: to_number + relative time */}
-                  <Text size="xs" c="dimmed" mb="xs">
+                  <Text size="xs" c="dimmed" mb="xs" pl={30}>
                     na {c.to_number} | {formatRelativeTime(new Date(c.started_at))}
                   </Text>
 
                   {/* Row 3: Intent text */}
                   {intent && (
-                    <Text size="sm" lineClamp={2} mb="xs">
+                    <Text size="sm" lineClamp={2} mb="xs" pl={30}>
                       "{intent}"
                     </Text>
                   )}
@@ -186,6 +295,7 @@ export function CallInboxPage() {
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
+                <Table.Th style={{ width: 40 }}></Table.Th>
                 <Table.Th>Čas</Table.Th>
                 <Table.Th>Od</Table.Th>
                 <Table.Th>Hodnocení</Table.Th>
@@ -197,6 +307,10 @@ export function CallInboxPage() {
               {calls.map((c) => {
                 const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
                 const intent = c.screening?.intent_text ?? "";
+                const resolutionStatus = getResolutionStatus(c);
+                const isResolved = resolutionStatus === "resolved";
+                const isNew = resolutionStatus === "new";
+
                 return (
                   <Table.Tr
                     key={c.provider_call_id}
@@ -204,16 +318,46 @@ export function CallInboxPage() {
                     style={{
                       borderLeft: `4px solid var(--mantine-color-${legitimacy.color}-5)`,
                       cursor: "pointer",
+                      opacity: isResolved ? 0.7 : 1,
                     }}
                   >
                     <Table.Td>
-                      <Text size="sm">{formatRelativeTime(new Date(c.started_at))}</Text>
+                      <Tooltip
+                        label={
+                          isResolved
+                            ? "Vyřešeno - kliknutím označíte jako nevyřešené"
+                            : "Označit jako vyřešené"
+                        }
+                      >
+                        <ActionIcon
+                          variant="subtle"
+                          size="sm"
+                          color={isResolved ? "teal" : isNew ? "blue" : "gray"}
+                          onClick={(e) => handleToggleResolved(e, c.provider_call_id, isResolved)}
+                        >
+                          {isResolved ? (
+                            <IconCircleCheck size={18} />
+                          ) : isNew ? (
+                            <IconCircleFilled size={10} />
+                          ) : (
+                            <IconCircle size={18} />
+                          )}
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" fw={isNew ? 600 : 400}>
+                        {formatRelativeTime(new Date(c.started_at))}
+                      </Text>
                       <Text size="xs" c="dimmed">
-                        {new Date(c.started_at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(c.started_at).toLocaleTimeString("cs-CZ", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm" fw={600}>
+                      <Text size="sm" fw={isNew ? 700 : 600}>
                         {c.from_number}
                       </Text>
                       <Text size="xs" c="dimmed">
@@ -221,11 +365,7 @@ export function CallInboxPage() {
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Badge
-                        color={legitimacy.color}
-                        variant="light"
-                        leftSection={legitimacy.icon}
-                      >
+                      <Badge color={legitimacy.color} variant="light" leftSection={legitimacy.icon}>
                         {legitimacy.label}
                       </Badge>
                     </Table.Td>
