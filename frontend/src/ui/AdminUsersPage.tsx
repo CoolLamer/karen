@@ -4,8 +4,8 @@ import {
   Accordion,
   Badge,
   Box,
-  Button,
   Collapse,
+  Container,
   Group,
   Modal,
   Paper,
@@ -18,10 +18,10 @@ import {
   ThemeIcon,
   UnstyledButton,
   Alert,
+  Button,
 } from "@mantine/core";
 import { useMediaQuery, useDisclosure } from "@mantine/hooks";
 import {
-  IconArrowLeft,
   IconChevronDown,
   IconChevronRight,
   IconEdit,
@@ -190,70 +190,56 @@ export function AdminUsersPage() {
   }, [tenants]);
 
   return (
-    <Stack gap="md" py="md">
-      {/* Header */}
-      <Group justify="space-between" wrap="wrap">
-        <Group gap="sm">
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate("/admin")}
-            px={0}
-          >
-            Back
-          </Button>
-          <Title order={2}>Admin: Users</Title>
-        </Group>
-        <Button variant="light" onClick={() => navigate("/admin")}>
-          Phone Numbers
-        </Button>
-      </Group>
+    <Container size="lg" py="xl">
+      <Stack gap="md">
+        {/* Header */}
+        <Title order={2}>Users</Title>
 
-      {/* Stats badges */}
-      {stats && (
-        <Group gap="xs">
-          <Badge color="green" variant="light">
-            Active: {stats.active}
-          </Badge>
-          <Badge color="gray" variant="light">
-            Trial: {stats.trial}
-          </Badge>
-          <Badge variant="outline">Total: {stats.total}</Badge>
-        </Group>
-      )}
+        {/* Stats badges */}
+        {stats && (
+          <Group gap="xs">
+            <Badge color="green" variant="light">
+              Active: {stats.active}
+            </Badge>
+            <Badge color="gray" variant="light">
+              Trial: {stats.trial}
+            </Badge>
+            <Badge variant="outline">Total: {stats.total}</Badge>
+          </Group>
+        )}
 
-      {/* Alerts */}
-      {error && (
-        <Alert color="red" onClose={() => setError(null)} withCloseButton>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert color="green" onClose={() => setSuccess(null)} withCloseButton>
-          {success}
-        </Alert>
-      )}
+        {/* Alerts */}
+        {error && (
+          <Alert color="red" onClose={() => setError(null)} withCloseButton>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert color="green" onClose={() => setSuccess(null)} withCloseButton>
+            {success}
+          </Alert>
+        )}
 
-      {/* Loading state */}
-      {!tenants && !error && <Text c="dimmed">Loading...</Text>}
+        {/* Loading state */}
+        {!tenants && !error && <Text c="dimmed">Loading...</Text>}
 
-      {/* Empty state */}
-      {tenants && tenants.length === 0 && (
-        <Paper p="xl" withBorder ta="center" radius="md">
-          <ThemeIcon size={60} radius="xl" variant="light" color="gray" mb="md" mx="auto">
-            <IconUsers size={30} />
-          </ThemeIcon>
-          <Text c="dimmed" size="lg">
-            No tenants yet
-          </Text>
-        </Paper>
-      )}
+        {/* Empty state */}
+        {tenants && tenants.length === 0 && (
+          <Paper p="xl" withBorder ta="center" radius="md">
+            <ThemeIcon size={60} radius="xl" variant="light" color="gray" mb="md" mx="auto">
+              <IconUsers size={30} />
+            </ThemeIcon>
+            <Text c="dimmed" size="lg">
+              No tenants yet
+            </Text>
+          </Paper>
+        )}
 
-      {/* Mobile layout */}
-      {tenants && tenants.length > 0 && isMobile && (
-        <Stack gap="sm">
-          {tenants.map((tenant) => (
-            <Paper
+        {/* Mobile layout */}
+        {tenants && tenants.length > 0 && isMobile && (
+          <Stack gap="sm">
+            {tenants.map((tenant) => (
+              <Paper
               key={tenant.id}
               p="md"
               radius="md"
@@ -757,6 +743,7 @@ export function AdminUsersPage() {
           </Group>
         </Stack>
       </Modal>
-    </Stack>
+      </Stack>
+    </Container>
   );
 }
