@@ -70,6 +70,11 @@ export type AdminPhoneNumber = {
   created_at: string;
 };
 
+export type AdminTenant = {
+  id: string;
+  name: string;
+};
+
 export type AuthResponse = {
   token: string;
   expires_at: string;
@@ -208,4 +213,6 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ tenant_id: tenantId }),
     }),
+
+  adminListTenants: () => http<{ tenants: AdminTenant[] }>("/admin/tenants"),
 };

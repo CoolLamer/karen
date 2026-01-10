@@ -85,6 +85,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("POST /admin/phone-numbers", r.withAdmin(r.handleAdminAddPhoneNumber))
 	r.mux.HandleFunc("DELETE /admin/phone-numbers/{id}", r.withAdmin(r.handleAdminDeletePhoneNumber))
 	r.mux.HandleFunc("PATCH /admin/phone-numbers/{id}", r.withAdmin(r.handleAdminUpdatePhoneNumber))
+	r.mux.HandleFunc("GET /admin/tenants", r.withAdmin(r.handleAdminListTenants))
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {
