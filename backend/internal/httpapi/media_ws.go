@@ -237,6 +237,7 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 	conn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		r.logger.Printf("media_ws: upgrade failed: %v", err)
+		sentry.CaptureException(err)
 		return
 	}
 
@@ -328,6 +329,7 @@ func (s *callSession) run() {
 				defer cancel()
 				if err := s.store.UpdateCallEndedBy(ctx, s.callSid, "caller"); err != nil {
 					s.logger.Printf("media_ws: failed to update ended_by: %v", err)
+					sentry.CaptureException(err)
 				}
 			}
 
@@ -362,6 +364,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 	if configJSON, ok := start.CustomParams["tenantConfig"]; ok {
 		if err := json.Unmarshal([]byte(configJSON), &s.tenantCfg); err != nil {
 			s.logger.Printf("media_ws: failed to parse tenant config: %v", err)
+			sentry.CaptureException(err)
 		}
 	}
 
@@ -378,6 +381,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		callID, err := s.store.GetCallID(s.ctx, s.callSid)
 		if err != nil {
 			s.logger.Printf("media_ws: failed to get call ID for %s: %v", s.callSid, err)
+			sentry.CaptureException(err)
 		} else {
 			s.callID = callID
 		}
@@ -662,6 +666,7 @@ func (s *callSession) processSTTResults() {
 			s.logger.Printf("media_ws: BARGE-IN detected - caller said: %s", text)
 			if err := s.clearAudio(); err != nil {
 				s.logger.Printf("media_ws: failed to clear audio: %v", err)
+				sentry.CaptureException(err)
 			}
 			s.cancelResponse()
 			s.cancelPendingAction()
@@ -722,6 +727,7 @@ func (s *callSession) processSTTResults() {
 
 		case err := <-s.sttClient.Errors():
 			s.logger.Printf("media_ws: STT error: %v", err)
+			sentry.CaptureException(err)
 			cancelFinalize()
 			return
 
@@ -755,6 +761,7 @@ func (s *callSession) processSTTResults() {
 					})
 					if err := s.clearAudio(); err != nil {
 						s.logger.Printf("media_ws: failed to clear audio: %v", err)
+				sentry.CaptureException(err)
 					}
 					s.cancelResponse()
 					s.cancelPendingAction()
@@ -830,6 +837,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	responseCh, err := s.llmClient.GenerateResponse(ctx, msgs)
 	if err != nil {
 		s.logger.Printf("media_ws: LLM error: %v", err)
+		sentry.CaptureException(err)
 		s.eventLog.LogAsync(s.callID, eventlog.EventLLMError, map[string]any{
 			"turn_id": turnID,
 			"error":   err.Error(),
@@ -883,6 +891,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 			})
 			if _, err := s.speakText(ctx, filler); err != nil {
 				s.logger.Printf("media_ws: filler TTS error: %v", err)
+				sentry.CaptureException(err)
 			}
 			s.messagesMu.Lock()
 			s.lastFillerTime = time.Now()
@@ -923,6 +932,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 				markID, err := s.speakText(ctx, ttsText)
 				if err != nil {
 					s.logger.Printf("media_ws: TTS error: %v", err)
+					sentry.CaptureException(err)
 				} else if markID != 0 {
 					lastResponseMarkID = markID
 				}
@@ -940,6 +950,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 			markID, err := s.speakText(ctx, ttsText)
 			if err != nil {
 				s.logger.Printf("media_ws: TTS error: %v", err)
+				sentry.CaptureException(err)
 			} else if markID != 0 {
 				lastResponseMarkID = markID
 			}
@@ -1135,11 +1146,13 @@ func (s *callSession) speakGreeting() {
 			Interrupted: false,
 		}); err != nil {
 			s.logger.Printf("media_ws: failed to store greeting utterance: %v", err)
+			sentry.CaptureException(err)
 		}
 	}
 
 	if _, err := s.speakText(s.ctx, greeting); err != nil {
 		s.logger.Printf("media_ws: greeting TTS error: %v", err)
+		sentry.CaptureException(err)
 	}
 }
 
@@ -1215,6 +1228,7 @@ func (s *callSession) forwardCall(ctx context.Context) {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, apiURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		s.logger.Printf("media_ws: failed to create forward request: %v", err)
+		sentry.CaptureException(err)
 		return
 	}
 
@@ -1224,6 +1238,7 @@ func (s *callSession) forwardCall(ctx context.Context) {
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		s.logger.Printf("media_ws: failed to forward call: %v", err)
+		sentry.CaptureException(err)
 		return
 	}
 	defer resp.Body.Close()
@@ -1277,6 +1292,7 @@ func (s *callSession) hangUpCall(ctx context.Context) {
 	req, err := http.NewRequestWithContext(s.ctx, http.MethodPost, apiURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		s.logger.Printf("media_ws: failed to create hang up request: %v", err)
+		sentry.CaptureException(err)
 		return
 	}
 
@@ -1286,6 +1302,7 @@ func (s *callSession) hangUpCall(ctx context.Context) {
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		s.logger.Printf("media_ws: failed to hang up call: %v", err)
+		sentry.CaptureException(err)
 		return
 	}
 	defer resp.Body.Close()
@@ -1302,11 +1319,13 @@ func (s *callSession) hangUpCall(ctx context.Context) {
 			defer cancel()
 			if err := s.store.UpdateCallStatus(ctx, s.callSid, "completed", time.Now().UTC()); err != nil {
 				s.logger.Printf("media_ws: failed to update call status: %v", err)
+				sentry.CaptureException(err)
 			}
 
 			// Mark call as ended by agent
 			if err := s.store.UpdateCallEndedBy(ctx, s.callSid, "agent"); err != nil {
 				s.logger.Printf("media_ws: failed to update ended_by: %v", err)
+				sentry.CaptureException(err)
 			}
 		}
 	} else {
@@ -1335,6 +1354,7 @@ func (s *callSession) analyzeCall() {
 	result, err := s.llmClient.AnalyzeCall(ctx, msgs)
 	if err != nil {
 		s.logger.Printf("media_ws: analysis error: %v", err)
+		sentry.CaptureException(err)
 		return
 	}
 
@@ -1353,6 +1373,7 @@ func (s *callSession) analyzeCall() {
 
 	if err := s.store.InsertScreeningResult(ctx, s.callID, sr); err != nil {
 		s.logger.Printf("media_ws: failed to store screening result: %v", err)
+		sentry.CaptureException(err)
 	} else {
 		s.logger.Printf("media_ws: call classified as %s (%.0f%% confidence)",
 			result.LegitimacyLabel, result.LegitimacyConfidence*100)

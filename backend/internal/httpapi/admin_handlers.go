@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -36,6 +37,7 @@ func (r *Router) handleAdminListPhoneNumbers(w http.ResponseWriter, req *http.Re
 	numbers, err := r.store.ListAllPhoneNumbers(req.Context())
 	if err != nil {
 		r.logger.Printf("admin: failed to list phone numbers: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to list phone numbers"}`, http.StatusInternalServerError)
 		return
 	}
@@ -68,6 +70,7 @@ func (r *Router) handleAdminAddPhoneNumber(w http.ResponseWriter, req *http.Requ
 			return
 		}
 		r.logger.Printf("admin: failed to add phone number: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to add phone number"}`, http.StatusInternalServerError)
 		return
 	}
@@ -87,6 +90,7 @@ func (r *Router) handleAdminDeletePhoneNumber(w http.ResponseWriter, req *http.R
 	err := r.store.DeletePhoneNumber(req.Context(), id)
 	if err != nil {
 		r.logger.Printf("admin: failed to delete phone number %s: %v", id, err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to delete phone number"}`, http.StatusInternalServerError)
 		return
 	}
@@ -100,6 +104,7 @@ func (r *Router) handleAdminListTenants(w http.ResponseWriter, req *http.Request
 	tenants, err := r.store.ListAllTenants(req.Context())
 	if err != nil {
 		r.logger.Printf("admin: failed to list tenants: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to list tenants"}`, http.StatusInternalServerError)
 		return
 	}
@@ -133,6 +138,7 @@ func (r *Router) handleAdminUpdatePhoneNumber(w http.ResponseWriter, req *http.R
 	err := r.store.UpdatePhoneNumber(req.Context(), id, tenantID)
 	if err != nil {
 		r.logger.Printf("admin: failed to update phone number %s: %v", id, err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to update phone number"}`, http.StatusInternalServerError)
 		return
 	}
@@ -153,6 +159,7 @@ func (r *Router) handleAdminListCalls(w http.ResponseWriter, req *http.Request) 
 	calls, err := r.store.ListCalls(req.Context(), limit)
 	if err != nil {
 		r.logger.Printf("admin: failed to list calls: %v", err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to list calls"}`, http.StatusInternalServerError)
 		return
 	}
@@ -176,6 +183,7 @@ func (r *Router) handleAdminGetCallEvents(w http.ResponseWriter, req *http.Reque
 			return
 		}
 		r.logger.Printf("admin: failed to get call ID %s: %v", providerCallID, err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to get call"}`, http.StatusInternalServerError)
 		return
 	}
@@ -183,6 +191,7 @@ func (r *Router) handleAdminGetCallEvents(w http.ResponseWriter, req *http.Reque
 	events, err := r.store.ListCallEvents(req.Context(), callID, 1000)
 	if err != nil {
 		r.logger.Printf("admin: failed to list events for %s: %v", callID, err)
+		sentry.CaptureException(err)
 		http.Error(w, `{"error": "failed to list events"}`, http.StatusInternalServerError)
 		return
 	}
