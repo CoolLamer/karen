@@ -2,10 +2,13 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // withAdmin is middleware that requires admin authentication.
@@ -168,8 +171,12 @@ func (r *Router) handleAdminGetCallEvents(w http.ResponseWriter, req *http.Reque
 	// Get internal call ID
 	callID, err := r.store.GetCallID(req.Context(), providerCallID)
 	if err != nil {
-		r.logger.Printf("admin: call not found %s: %v", providerCallID, err)
-		http.Error(w, `{"error": "call not found"}`, http.StatusNotFound)
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error": "call not found"}`, http.StatusNotFound)
+			return
+		}
+		r.logger.Printf("admin: failed to get call ID %s: %v", providerCallID, err)
+		http.Error(w, `{"error": "failed to get call"}`, http.StatusInternalServerError)
 		return
 	}
 

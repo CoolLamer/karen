@@ -14,7 +14,6 @@ type EventType string
 const (
 	EventCallStarted     EventType = "call_started"
 	EventSTTResult       EventType = "stt_result"
-	EventJunkFiltered    EventType = "junk_filtered"
 	EventTurnFinalized   EventType = "turn_finalized"
 	EventBargeIn         EventType = "barge_in"
 	EventFillerSpoken    EventType = "filler_spoken"
@@ -22,16 +21,11 @@ const (
 	EventLLMStarted      EventType = "llm_started"
 	EventLLMCompleted    EventType = "llm_completed"
 	EventLLMError        EventType = "llm_error"
-	EventTTSStarted      EventType = "tts_started"
-	EventTTSCompleted    EventType = "tts_completed"
-	EventTTSError        EventType = "tts_error"
-	EventAudioMark       EventType = "audio_mark"
 	EventGoodbyeDetected EventType = "goodbye_detected"
 	EventForwardDetected EventType = "forward_detected"
 	EventCallForwarded   EventType = "call_forwarded"
 	EventCallHangup      EventType = "call_hangup"
 	EventCallEnded       EventType = "call_ended"
-	EventMarketingCall   EventType = "marketing_call"
 )
 
 // Logger provides async event logging to the database
