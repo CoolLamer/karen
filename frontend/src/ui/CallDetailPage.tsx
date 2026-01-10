@@ -3,6 +3,43 @@ import { useParams } from "react-router-dom";
 import { Badge, Group, Paper, Stack, Text, Title } from "@mantine/core";
 import { api, CallDetail } from "../api";
 
+function formatStatus(status: string) {
+  switch (status) {
+    case "in_progress":
+      return "Probíhá";
+    case "completed":
+      return "Dokončeno";
+    case "queued":
+      return "Čeká";
+    case "ringing":
+      return "Vyzvání";
+    default:
+      return status;
+  }
+}
+
+function formatLabel(label: string) {
+  switch (label) {
+    case "legitimate":
+      return "legitimní";
+    case "unknown":
+      return "neznámé";
+    default:
+      return label;
+  }
+}
+
+function formatSpeaker(speaker: string) {
+  switch (speaker) {
+    case "agent":
+      return "Karen";
+    case "caller":
+      return "Volající";
+    default:
+      return speaker;
+  }
+}
+
 export function CallDetailPage() {
   const { providerCallId } = useParams();
   const [call, setCall] = React.useState<CallDetail | null>(null);
@@ -18,15 +55,15 @@ export function CallDetailPage() {
 
   return (
     <Stack gap="md" py="md">
-      <Title order={2}>Call Detail</Title>
+      <Title order={2}>Detail hovoru</Title>
 
       {error && (
         <Paper p="md" withBorder>
-          <Text c="red">Error: {error}</Text>
+          <Text c="red">Chyba: {error}</Text>
         </Paper>
       )}
 
-      {!call && !error && <Text c="dimmed">Loading…</Text>}
+      {!call && !error && <Text c="dimmed">Načítání…</Text>}
 
       {call && (
         <>
@@ -35,35 +72,35 @@ export function CallDetailPage() {
               <Stack gap={4}>
                 <Text fw={700}>{call.from_number}</Text>
                 <Text size="sm" c="dimmed">
-                  to {call.to_number}
+                  na {call.to_number}
                 </Text>
-                <Text size="sm">Started: {new Date(call.started_at).toLocaleString()}</Text>
-                <Text size="sm">Status: {call.status}</Text>
+                <Text size="sm">Začátek: {new Date(call.started_at).toLocaleString("cs-CZ")}</Text>
+                <Text size="sm">Stav: {formatStatus(call.status)}</Text>
               </Stack>
               <Stack gap={6} align="flex-end">
-                <Badge variant="light">{call.screening?.legitimacy_label ?? "unknown"}</Badge>
+                <Badge variant="light">{formatLabel(call.screening?.legitimacy_label ?? "unknown")}</Badge>
                 {typeof call.screening?.legitimacy_confidence === "number" && (
                   <Text size="xs" c="dimmed">
-                    confidence: {(call.screening.legitimacy_confidence * 100).toFixed(0)}%
+                    spolehlivost: {(call.screening.legitimacy_confidence * 100).toFixed(0)}%
                   </Text>
                 )}
               </Stack>
             </Group>
             <Text mt="sm" size="sm">
-              <strong>Intent:</strong> {call.screening?.intent_text || "—"}
+              <strong>Účel:</strong> {call.screening?.intent_text || "—"}
             </Text>
           </Paper>
 
           <Paper p="md" withBorder>
             <Title order={4} mb="sm">
-              Transcript
+              Přepis
             </Title>
             {call.utterances?.length ? (
               <Stack gap="xs">
                 {call.utterances.map((u) => (
                   <Paper key={u.sequence} p="sm" withBorder>
                     <Text size="xs" c="dimmed">
-                      {u.speaker} • #{u.sequence}
+                      {formatSpeaker(u.speaker)} • #{u.sequence}
                     </Text>
                     <Text size="sm">{u.text}</Text>
                   </Paper>
@@ -71,7 +108,7 @@ export function CallDetailPage() {
               </Stack>
             ) : (
               <Text size="sm" c="dimmed">
-                No transcript yet.
+                Přepis zatím není k dispozici.
               </Text>
             )}
           </Paper>
@@ -80,5 +117,3 @@ export function CallDetailPage() {
     </Stack>
   );
 }
-
-

@@ -911,6 +911,14 @@ func (s *callSession) hangUpCall() {
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		s.logger.Printf("media_ws: call %s hung up successfully", s.callSid)
+		// Update database status to completed
+		if s.callID != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := s.store.UpdateCallStatus(ctx, s.callSid, "completed", time.Now().UTC()); err != nil {
+				s.logger.Printf("media_ws: failed to update call status: %v", err)
+			}
+		}
 	} else {
 		s.logger.Printf("media_ws: hang up returned status %d", resp.StatusCode)
 	}
@@ -966,6 +974,13 @@ func (s *callSession) cleanup() {
 	// Analyze the call at the end (only if we had a conversation)
 	if len(s.messages) >= 2 {
 		s.analyzeCall()
+	}
+
+	// Mark call as completed (fallback in case hangUpCall didn't run or failed)
+	if s.callID != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.store.UpdateCallStatus(ctx, s.callSid, "completed", time.Now().UTC())
 	}
 
 	s.logger.Printf("media_ws: session cleaned up for call %s", s.callSid)
