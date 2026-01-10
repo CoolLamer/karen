@@ -210,6 +210,8 @@ type callSession struct {
 
 	// Goodbye/forward handling: wait for a specific mark before acting
 	pendingDoneMarkID uint64 // 0 when not waiting
+	actionMu          sync.Mutex
+	actionCancel      context.CancelFunc
 
 	// Goodbye handling
 	goodbyeDone    chan struct{} // Signaled when goodbye mark is received
@@ -554,6 +556,26 @@ func (s *callSession) isResponseActive() bool {
 	return active
 }
 
+func (s *callSession) beginPendingAction() context.Context {
+	s.actionMu.Lock()
+	if s.actionCancel != nil {
+		s.actionCancel()
+	}
+	ctx, cancel := context.WithCancel(s.ctx)
+	s.actionCancel = cancel
+	s.actionMu.Unlock()
+	return ctx
+}
+
+func (s *callSession) cancelPendingAction() {
+	s.actionMu.Lock()
+	if s.actionCancel != nil {
+		s.actionCancel()
+		s.actionCancel = nil
+	}
+	s.actionMu.Unlock()
+}
+
 func (s *callSession) processSTTResults() {
 	var currentUtterance strings.Builder
 	var utteranceStartTime *time.Time
@@ -607,6 +629,9 @@ func (s *callSession) processSTTResults() {
 						}
 						// Cancel any in-flight response so we don't keep speaking stale content.
 						s.cancelResponse()
+						// Cancel any pending hang-up/forward that was scheduled from a previous goodbye/forward.
+						// Otherwise the timeout fallback can fire and cut off the conversation.
+						s.cancelPendingAction()
 						// Signal barge-in via channel (non-blocking)
 						select {
 						case s.bargeInCh <- text:
@@ -820,7 +845,8 @@ func (s *callSession) speakFillerAndGenerate(lastUserText string) {
 			s.pendingDoneMarkID = lastResponseMarkID
 			s.audioMu.Unlock()
 		}
-		go s.forwardCall()
+		actionCtx := s.beginPendingAction()
+		go s.forwardCall(actionCtx)
 		return
 	}
 	if isGoodbye(responseText) {
@@ -830,7 +856,8 @@ func (s *callSession) speakFillerAndGenerate(lastUserText string) {
 			s.pendingDoneMarkID = lastResponseMarkID
 			s.audioMu.Unlock()
 		}
-		go s.hangUpCall()
+		actionCtx := s.beginPendingAction()
+		go s.hangUpCall(actionCtx)
 	}
 }
 
@@ -915,6 +942,9 @@ func (s *callSession) clearAudio() error {
 	s.pendingDoneMarkID = 0
 	s.audioMu.Unlock()
 
+	// Also cancel any pending post-audio action (hang-up/forward).
+	s.cancelPendingAction()
+
 	s.logger.Printf("media_ws: sent clear command (barge-in)")
 	return nil
 }
@@ -989,7 +1019,7 @@ func stripForwardMarker(text string) string {
 }
 
 // forwardCall forwards the call to the tenant owner's verified phone number
-func (s *callSession) forwardCall() {
+func (s *callSession) forwardCall(ctx context.Context) {
 	if s.callSid == "" || s.accountSid == "" || s.cfg.TwilioAuthToken == "" {
 		s.logger.Printf("media_ws: cannot forward - missing callSid, accountSid, or auth token")
 		return
@@ -1000,7 +1030,7 @@ func (s *callSession) forwardCall() {
 	if forwardNumber == "" {
 		s.logger.Printf("media_ws: cannot forward call %s - no owner phone configured for tenant", s.callSid)
 		// Instead of forwarding to a random number, just hang up gracefully
-		s.hangUpCall()
+		s.hangUpCall(ctx)
 		return
 	}
 
@@ -1010,6 +1040,9 @@ func (s *callSession) forwardCall() {
 		s.logger.Printf("media_ws: forward audio finished, forwarding call to %s", forwardNumber)
 	case <-time.After(10 * time.Second):
 		s.logger.Printf("media_ws: timeout waiting for forward audio, forwarding anyway to %s", forwardNumber)
+	case <-ctx.Done():
+		s.logger.Printf("media_ws: forwarding cancelled")
+		return
 	case <-s.ctx.Done():
 		return
 	}
@@ -1051,7 +1084,7 @@ func (s *callSession) forwardCall() {
 }
 
 // hangUpCall terminates the call via Twilio REST API
-func (s *callSession) hangUpCall() {
+func (s *callSession) hangUpCall(ctx context.Context) {
 	if s.callSid == "" || s.accountSid == "" || s.cfg.TwilioAuthToken == "" {
 		s.logger.Printf("media_ws: cannot hang up - missing callSid, accountSid, or auth token")
 		return
@@ -1064,6 +1097,9 @@ func (s *callSession) hangUpCall() {
 		s.logger.Printf("media_ws: goodbye audio finished, hanging up")
 	case <-time.After(10 * time.Second):
 		s.logger.Printf("media_ws: timeout waiting for goodbye audio, hanging up anyway")
+	case <-ctx.Done():
+		s.logger.Printf("media_ws: hangup cancelled")
+		return
 	case <-s.ctx.Done():
 		return
 	}

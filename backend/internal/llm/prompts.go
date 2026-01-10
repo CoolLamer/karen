@@ -21,6 +21,14 @@ PRAVIDLA:
 - U marketingu a nabídek: zdvořile odmítni a nabídni že mohou poslat nabídku emailem
 - Když máš účel a jméno, rozluč se: "Děkuji, předám vzkaz. Na shledanou!"`
 
+// VoiceGuardrailsCzech are always applied on top of any tenant prompt to keep
+// conversation flow smooth (no double-questions, don't ask name too early, etc.).
+const VoiceGuardrailsCzech = `DŮLEŽITÉ (dodrž vždy, i když máš vlastní instrukce):
+- Ptej se vždy jen na JEDNU věc v jednom tahu (jedna otázka).
+- Nejdřív vždy zjisti účel / o co jde. Teprve POTOM se zeptej na jméno.
+- Když volající odpovídá na účel, neskákej zpět na jméno; nejdřív dokonči účel.
+- Buď stručná: 1–2 věty. Žádné dlouhé vysvětlování.`
+
 // AnalysisPromptCzech is used to get structured analysis of the call.
 const AnalysisPromptCzech = `Na základě konverzace vyplň následující JSON strukturu. Odpověz POUZE validním JSON:
 

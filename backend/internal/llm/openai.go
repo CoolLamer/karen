@@ -58,6 +58,11 @@ func (c *OpenAIClient) GetSystemPrompt() string {
 	return c.systemPrompt
 }
 
+func (c *OpenAIClient) systemPromptWithGuardrails() string {
+	// Always include guardrails to keep turn-taking smooth.
+	return VoiceGuardrailsCzech + "\n\n" + c.systemPrompt
+}
+
 // chatRequest represents an OpenAI chat completion request.
 type chatRequest struct {
 	Model       string        `json:"model"`
@@ -88,7 +93,7 @@ type chatResponse struct {
 func (c *OpenAIClient) AnalyzeCall(ctx context.Context, messages []Message) (*ScreeningResult, error) {
 	// Build messages with system prompt and analysis request
 	chatMsgs := []chatMessage{
-		{Role: "system", Content: c.systemPrompt},
+		{Role: "system", Content: c.systemPromptWithGuardrails()},
 	}
 
 	for _, m := range messages {
@@ -162,7 +167,7 @@ func (c *OpenAIClient) AnalyzeCall(ctx context.Context, messages []Message) (*Sc
 func (c *OpenAIClient) GenerateResponse(ctx context.Context, messages []Message) (<-chan string, error) {
 	// Build messages with system prompt
 	chatMsgs := []chatMessage{
-		{Role: "system", Content: c.systemPrompt},
+		{Role: "system", Content: c.systemPromptWithGuardrails()},
 	}
 
 	for _, m := range messages {
