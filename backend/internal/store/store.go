@@ -619,7 +619,7 @@ func (s *Store) ListCallsByTenant(ctx context.Context, tenantID string, limit in
 
 // scanCallListItems is a helper to scan call list rows.
 func scanCallListItems(rows pgx.Rows) ([]CallListItem, error) {
-	var out []CallListItem
+	out := []CallListItem{}
 	for rows.Next() {
 		var item CallListItem
 		var legitimacyLabel *string

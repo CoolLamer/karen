@@ -7,6 +7,7 @@
 #   TWILIO_ACCOUNT_SID - Twilio account SID (for SMS verification)
 #   TWILIO_VERIFY_SERVICE_SID - Twilio Verify service SID (for SMS OTP)
 #   JWT_SECRET - Secret key for JWT token signing
+#   ADMIN_PHONES - Comma-separated list of admin phone numbers in E.164 format (e.g. +420123456789)
 #
 services:
   db:
@@ -40,6 +41,7 @@ services:
       TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID}
       JWT_SECRET: ${JWT_SECRET}
       LOG_LEVEL: info
+      ADMIN_PHONES: ${ADMIN_PHONES}
     depends_on:
       db:
         condition: service_healthy
