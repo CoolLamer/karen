@@ -159,7 +159,8 @@ type TenantConfig struct {
 	GreetingText   *string  `json:"greeting_text,omitempty"`
 	VoiceID        *string  `json:"voice_id,omitempty"`
 	Language       string   `json:"language,omitempty"`
-	Endpointing    *int     `json:"endpointing,omitempty"` // STT endpointing in ms (default 800)
+	Endpointing    *int     `json:"endpointing,omitempty"`     // STT endpointing in ms (default 800)
+	UtteranceEnd   *int     `json:"utterance_end,omitempty"`   // Hard timeout after last speech in ms (default 1500)
 	VIPNames       []string `json:"vip_names,omitempty"`
 	MarketingEmail *string  `json:"marketing_email,omitempty"`
 	ForwardNumber  *string  `json:"forward_number,omitempty"`
@@ -396,16 +397,27 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		s.logger.Printf("media_ws: using tenant endpointing: %dms", endpointing)
 	}
 
+	// Determine utterance_end_ms (hard timeout after last speech, regardless of noise)
+	utteranceEnd := s.cfg.STTUtteranceEndMs
+	if utteranceEnd <= 0 {
+		utteranceEnd = 1500
+	}
+	if s.tenantCfg.UtteranceEnd != nil && *s.tenantCfg.UtteranceEnd > 0 {
+		utteranceEnd = *s.tenantCfg.UtteranceEnd
+		s.logger.Printf("media_ws: using tenant utterance_end: %dms", utteranceEnd)
+	}
+
 	// Connect to Deepgram STT
 	sttClient, err := stt.NewDeepgramClient(s.ctx, stt.DeepgramConfig{
-		APIKey:      s.cfg.DeepgramAPIKey,
-		Language:    language,
-		Model:       "nova-3",
-		SampleRate:  8000,
-		Encoding:    "mulaw",
-		Channels:    1,
-		Punctuate:   true,
-		Endpointing: endpointing, // Configurable silence threshold for turn detection
+		APIKey:         s.cfg.DeepgramAPIKey,
+		Language:       language,
+		Model:          "nova-3",
+		SampleRate:     8000,
+		Encoding:       "mulaw",
+		Channels:       1,
+		Punctuate:      true,
+		Endpointing:    endpointing,  // Silence-based turn detection
+		UtteranceEndMs: utteranceEnd, // Hard timeout after last speech (noise-resistant)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to Deepgram: %w", err)
@@ -437,11 +449,12 @@ func (s *callSession) handleStart(start *twilioStart) error {
 
 	// Log call started event
 	s.eventLog.LogAsync(s.callID, eventlog.EventCallStarted, map[string]any{
-		"stream_sid":     s.streamSid,
-		"call_sid":       s.callSid,
-		"tenant_id":      s.tenantCfg.TenantID,
-		"endpointing_ms": endpointing,
-		"language":       language,
+		"stream_sid":        s.streamSid,
+		"call_sid":          s.callSid,
+		"tenant_id":         s.tenantCfg.TenantID,
+		"endpointing_ms":    endpointing,
+		"utterance_end_ms":  utteranceEnd,
+		"language":          language,
 	})
 
 	return nil

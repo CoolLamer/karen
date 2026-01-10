@@ -62,6 +62,7 @@ func (a *App) Router() http.Handler {
 		OpenAIAPIKey:          a.cfg.OpenAIAPIKey,
 		ElevenLabsAPIKey:      a.cfg.ElevenLabsAPIKey,
 		STTEndpointingMs:      a.cfg.STTEndpointingMs,
+		STTUtteranceEndMs:     a.cfg.STTUtteranceEndMs,
 		GreetingText:          a.cfg.GreetingText,
 		TTSVoiceID:            a.cfg.TTSVoiceID,
 		TTSStability:          a.cfg.TTSStability,

@@ -26,7 +26,8 @@ type RouterConfig struct {
 	ElevenLabsAPIKey string
 
 	// STT settings
-	STTEndpointingMs int // Deepgram endpointing in ms (silence threshold)
+	STTEndpointingMs  int // Deepgram endpointing in ms (silence threshold)
+	STTUtteranceEndMs int // Hard timeout after last speech, regardless of noise
 
 	// Voice settings (defaults, can be overridden by tenant)
 	GreetingText  string
