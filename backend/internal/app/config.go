@@ -13,6 +13,9 @@ type Config struct {
 	TwilioAuthTok string
 	LogLevel      string
 
+	// Error monitoring
+	SentryDSN string
+
 	// Voice AI providers
 	DeepgramAPIKey   string
 	OpenAIAPIKey     string
@@ -46,6 +49,9 @@ func LoadConfigFromEnv() Config {
 		DatabaseURL:   getenv("DATABASE_URL", ""),
 		TwilioAuthTok: getenv("TWILIO_AUTH_TOKEN", ""),
 		LogLevel:      getenv("LOG_LEVEL", "info"),
+
+		// Error monitoring
+		SentryDSN: os.Getenv("SENTRY_DSN"),
 
 		// Voice AI providers
 		DeepgramAPIKey:   getenv("DEEPGRAM_API_KEY", ""),
