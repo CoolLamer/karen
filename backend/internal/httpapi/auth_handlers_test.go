@@ -348,6 +348,118 @@ func getTestRouterWithDB(t *testing.T) (*Router, *pgxpool.Pool, func()) {
 	return r, db, cleanup
 }
 
+func TestGenerateSystemPromptWithVIPs(t *testing.T) {
+	t.Run("basic prompt with name only", func(t *testing.T) {
+		prompt := generateSystemPromptWithVIPs("Jan", nil, nil)
+
+		if !strings.Contains(prompt, "Jan") {
+			t.Error("prompt should contain the user's name")
+		}
+		if !strings.Contains(prompt, "Karen") {
+			t.Error("prompt should mention Karen")
+		}
+		if strings.Contains(prompt, "[PŘEPOJIT]") {
+			t.Error("prompt without VIPs should not contain forward marker")
+		}
+		if strings.Contains(prompt, "KRIZOVÉ SITUACE") {
+			t.Error("prompt without VIPs should not contain VIP section")
+		}
+	})
+
+	t.Run("prompt with VIP names", func(t *testing.T) {
+		vipNames := []string{"Máma", "Táta", "Honza"}
+		prompt := generateSystemPromptWithVIPs("Petr", vipNames, nil)
+
+		if !strings.Contains(prompt, "Petr") {
+			t.Error("prompt should contain the user's name")
+		}
+		if !strings.Contains(prompt, "KRIZOVÉ SITUACE") {
+			t.Error("prompt with VIPs should contain VIP section")
+		}
+		for _, vip := range vipNames {
+			if !strings.Contains(prompt, vip) {
+				t.Errorf("prompt should contain VIP name %q", vip)
+			}
+		}
+		if !strings.Contains(prompt, "[PŘEPOJIT]") {
+			t.Error("prompt with VIPs should contain forward marker instruction")
+		}
+	})
+
+	t.Run("prompt with empty VIP names", func(t *testing.T) {
+		emptyVips := []string{}
+		prompt := generateSystemPromptWithVIPs("Eva", emptyVips, nil)
+
+		if strings.Contains(prompt, "KRIZOVÉ SITUACE") {
+			t.Error("prompt with empty VIPs should not contain VIP section")
+		}
+	})
+
+	t.Run("prompt with marketing email", func(t *testing.T) {
+		email := "nabidky@example.com"
+		prompt := generateSystemPromptWithVIPs("Karel", nil, &email)
+
+		if !strings.Contains(prompt, "Karel") {
+			t.Error("prompt should contain the user's name")
+		}
+		if !strings.Contains(prompt, email) {
+			t.Error("prompt should contain the marketing email")
+		}
+		if !strings.Contains(prompt, "MARKETING") {
+			t.Error("prompt with email should contain marketing section")
+		}
+	})
+
+	t.Run("prompt with both VIPs and marketing email", func(t *testing.T) {
+		vipNames := []string{"Rodina"}
+		email := "info@firma.cz"
+		prompt := generateSystemPromptWithVIPs("Lukáš", vipNames, &email)
+
+		if !strings.Contains(prompt, "Lukáš") {
+			t.Error("prompt should contain the user's name")
+		}
+		if !strings.Contains(prompt, "KRIZOVÉ SITUACE") {
+			t.Error("prompt should contain VIP section")
+		}
+		if !strings.Contains(prompt, "Rodina") {
+			t.Error("prompt should contain VIP name")
+		}
+		if !strings.Contains(prompt, email) {
+			t.Error("prompt should contain marketing email")
+		}
+	})
+
+	t.Run("prompt with nil marketing email", func(t *testing.T) {
+		prompt := generateSystemPromptWithVIPs("Anna", nil, nil)
+
+		// When no email is set, marketing section should still exist but without an email address
+		if !strings.Contains(prompt, "MARKETING") {
+			t.Error("prompt should contain marketing section")
+		}
+		if !strings.Contains(prompt, "nemá zájem") {
+			t.Error("prompt without email should tell callers owner has no interest")
+		}
+		// Should not contain specific email address pattern
+		if strings.Contains(prompt, "@") {
+			t.Error("prompt without email should not contain email address")
+		}
+	})
+
+	t.Run("prompt with empty marketing email", func(t *testing.T) {
+		emptyEmail := ""
+		prompt := generateSystemPromptWithVIPs("Martin", nil, &emptyEmail)
+
+		// When email is empty, marketing section should still exist but without an email address
+		if !strings.Contains(prompt, "MARKETING") {
+			t.Error("prompt should contain marketing section")
+		}
+		// Should not contain specific email address pattern
+		if strings.Contains(prompt, "mohou nabídku poslat na email") {
+			t.Error("prompt with empty email should not offer to send email")
+		}
+	})
+}
+
 func TestCompleteOnboardingIntegration(t *testing.T) {
 	r, db, cleanup := getTestRouterWithDB(t)
 	defer cleanup()

@@ -155,6 +155,7 @@ type TenantConfig struct {
 	VIPNames       []string `json:"vip_names,omitempty"`
 	MarketingEmail *string  `json:"marketing_email,omitempty"`
 	ForwardNumber  *string  `json:"forward_number,omitempty"`
+	OwnerPhone     string   `json:"owner_phone,omitempty"` // User's verified phone for forwarding
 }
 
 // callSession manages a single call's voice AI session
@@ -807,17 +808,20 @@ func stripForwardMarker(text string) string {
 	return strings.ReplaceAll(text, "[PŘEPOJIT] ", "")
 }
 
-// forwardCall forwards the call to the tenant's forward number
+// forwardCall forwards the call to the tenant owner's verified phone number
 func (s *callSession) forwardCall() {
 	if s.callSid == "" || s.accountSid == "" || s.cfg.TwilioAuthToken == "" {
 		s.logger.Printf("media_ws: cannot forward - missing callSid, accountSid, or auth token")
 		return
 	}
 
-	// Determine the forward number (tenant config or default)
-	forwardNumber := "+420724794686" // Default fallback
-	if s.tenantCfg.ForwardNumber != nil && *s.tenantCfg.ForwardNumber != "" {
-		forwardNumber = *s.tenantCfg.ForwardNumber
+	// Use owner's verified phone number - no hardcoded fallback for security
+	forwardNumber := s.tenantCfg.OwnerPhone
+	if forwardNumber == "" {
+		s.logger.Printf("media_ws: cannot forward call %s - no owner phone configured for tenant", s.callSid)
+		// Instead of forwarding to a random number, just hang up gracefully
+		s.hangUpCall()
+		return
 	}
 
 	// Wait for the forwarding message to finish playing

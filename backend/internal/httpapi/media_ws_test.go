@@ -284,3 +284,104 @@ func TestTenantConfigEndpointingNil(t *testing.T) {
 		t.Errorf("Default endpointing = %d, want %d", endpointing, 800)
 	}
 }
+
+func TestIsForward(t *testing.T) {
+	tests := []struct {
+		text     string
+		expected bool
+	}{
+		{"[PŘEPOJIT] Přepojuji tě.", true},
+		{"[PŘEPOJIT]", true},
+		{"Dobrý den, [PŘEPOJIT] moment prosím.", true},
+		{"Dobrý den, jak vám mohu pomoci?", false},
+		{"Přepojuji vás", false}, // Without the marker
+		{"", false},
+		{"PŘEPOJIT", false}, // Missing brackets
+	}
+
+	for _, tt := range tests {
+		result := isForward(tt.text)
+		if result != tt.expected {
+			t.Errorf("isForward(%q) = %v, want %v", tt.text, result, tt.expected)
+		}
+	}
+}
+
+func TestStripForwardMarker(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"[PŘEPOJIT] Přepojuji tě.", "Přepojuji tě."},
+		{"[PŘEPOJIT] Moment, přepojuji.", "Moment, přepojuji."},
+		{"Dobrý den, [PŘEPOJIT] přepojuji.", "Dobrý den, přepojuji."},
+		{"Text bez markeru", "Text bez markeru"},
+		{"", ""},
+		{"[PŘEPOJIT]", "[PŘEPOJIT]"}, // No space after, shouldn't be stripped
+	}
+
+	for _, tt := range tests {
+		result := stripForwardMarker(tt.input)
+		if result != tt.expected {
+			t.Errorf("stripForwardMarker(%q) = %q, want %q", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestTenantConfigOwnerPhone(t *testing.T) {
+	// Test TenantConfig with owner phone set
+	cfg := TenantConfig{
+		TenantID:   "test-tenant",
+		OwnerPhone: "+420777123456",
+	}
+
+	if cfg.OwnerPhone != "+420777123456" {
+		t.Errorf("OwnerPhone = %q, want %q", cfg.OwnerPhone, "+420777123456")
+	}
+}
+
+func TestTenantConfigOwnerPhoneEmpty(t *testing.T) {
+	// Test TenantConfig without owner phone (empty string)
+	cfg := TenantConfig{
+		TenantID: "test-tenant",
+	}
+
+	if cfg.OwnerPhone != "" {
+		t.Errorf("OwnerPhone should be empty when not set, got %q", cfg.OwnerPhone)
+	}
+
+	// Test the logic that should prevent forwarding without owner phone
+	forwardNumber := cfg.OwnerPhone
+	if forwardNumber == "" {
+		// This is expected - call should be hung up gracefully
+	} else {
+		t.Error("forwardNumber should be empty when OwnerPhone is not set")
+	}
+}
+
+func TestTenantConfigVIPNames(t *testing.T) {
+	// Test TenantConfig with VIP names
+	vipNames := []string{"Máma", "Táta"}
+	cfg := TenantConfig{
+		TenantID: "test-tenant",
+		VIPNames: vipNames,
+	}
+
+	if len(cfg.VIPNames) != 2 {
+		t.Errorf("VIPNames length = %d, want 2", len(cfg.VIPNames))
+	}
+	if cfg.VIPNames[0] != "Máma" {
+		t.Errorf("VIPNames[0] = %q, want %q", cfg.VIPNames[0], "Máma")
+	}
+}
+
+func TestTenantConfigVIPNamesEmpty(t *testing.T) {
+	// Test TenantConfig without VIP names
+	cfg := TenantConfig{
+		TenantID: "test-tenant",
+	}
+
+	if cfg.VIPNames != nil && len(cfg.VIPNames) != 0 {
+		t.Errorf("VIPNames should be nil or empty when not set, got %v", cfg.VIPNames)
+	}
+}
