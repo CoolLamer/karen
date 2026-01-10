@@ -45,7 +45,7 @@ type deepgramResponse struct {
 			Confidence float64 `json:"confidence"`
 		} `json:"alternatives"`
 	} `json:"channel"`
-	IsFinal   bool `json:"is_final"`
+	IsFinal     bool `json:"is_final"`
 	SpeechFinal bool `json:"speech_final"`
 }
 
@@ -169,22 +169,31 @@ func (c *DeepgramClient) readLoop() {
 			continue
 		}
 
-		// Extract transcript from first alternative
+		// Extract transcript from first alternative (can be empty).
+		var transcript string
+		var confidence float64
 		if len(resp.Channel.Alternatives) > 0 {
 			alt := resp.Channel.Alternatives[0]
-			if alt.Transcript != "" {
-				result := TranscriptResult{
-					Text:       alt.Transcript,
-					Confidence: alt.Confidence,
-					IsFinal:    resp.IsFinal || resp.SpeechFinal,
-				}
+			transcript = alt.Transcript
+			confidence = alt.Confidence
+		}
 
-				select {
-				case <-c.done:
-					return
-				case c.results <- result:
-				}
-			}
+		result := TranscriptResult{
+			Text:         transcript,
+			Confidence:   confidence,
+			SegmentFinal: resp.IsFinal,
+			SpeechFinal:  resp.SpeechFinal,
+		}
+
+		// Emit events even if transcript is empty when we have boundary signals.
+		if result.Text == "" && !result.SegmentFinal && !result.SpeechFinal {
+			continue
+		}
+
+		select {
+		case <-c.done:
+			return
+		case c.results <- result:
 		}
 	}
 }

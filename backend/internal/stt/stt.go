@@ -6,7 +6,12 @@ import "context"
 type TranscriptResult struct {
 	Text       string  // The transcribed text
 	Confidence float64 // Confidence score (0-1)
-	IsFinal    bool    // Whether this is a final or interim result
+	// SegmentFinal means Deepgram marked this transcript segment as final (`is_final=true`).
+	// Note: multiple SegmentFinal segments can occur within a single user turn.
+	SegmentFinal bool
+	// SpeechFinal means Deepgram detected end-of-speech (`speech_final=true`).
+	// This is the signal we should use to finalize a user turn.
+	SpeechFinal bool
 }
 
 // Client defines the interface for speech-to-text providers.

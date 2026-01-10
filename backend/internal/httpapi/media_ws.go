@@ -193,6 +193,7 @@ type callSession struct {
 
 	utteranceSeq   int
 	lastFillerTime time.Time // Last time a filler word was spoken
+	turnSeq        uint64    // Monotonic user turn id (for logging/debugging)
 
 	// Response control (cancel ongoing response on barge-in / new utterance)
 	respMu       sync.Mutex
@@ -579,101 +580,179 @@ func (s *callSession) cancelPendingAction() {
 func (s *callSession) processSTTResults() {
 	var currentUtterance strings.Builder
 	var utteranceStartTime *time.Time
+	var lastConfidence float64
+
+	// We only finalize a user "turn" on Deepgram's end-of-speech signal (`speech_final`),
+	// with a short grace window to allow late-arriving tokens/segments.
+	const speechFinalGrace = 250 * time.Millisecond
+	var finalizeTimer *time.Timer
+	var finalizeC <-chan time.Time
+	stopFinalizeTimer := func() {
+		if finalizeTimer == nil {
+			return
+		}
+		if !finalizeTimer.Stop() {
+			// Drain if already fired to avoid spurious wakeups after Reset.
+			select {
+			case <-finalizeTimer.C:
+			default:
+			}
+		}
+	}
+	scheduleFinalize := func() {
+		if finalizeTimer == nil {
+			finalizeTimer = time.NewTimer(speechFinalGrace)
+		} else {
+			stopFinalizeTimer()
+			finalizeTimer.Reset(speechFinalGrace)
+		}
+		finalizeC = finalizeTimer.C
+	}
+	cancelFinalize := func() {
+		stopFinalizeTimer()
+		finalizeC = nil
+	}
+
+	// Track whether we already issued a barge-in clear for the current speaking overlap.
+	bargeInSent := false
+
+	finalizeUtterance := func() {
+		text := strings.TrimSpace(currentUtterance.String())
+		if text == "" {
+			// Nothing meaningful captured; reset state and move on.
+			currentUtterance.Reset()
+			utteranceStartTime = nil
+			lastConfidence = 0
+			bargeInSent = false
+			return
+		}
+
+		// Barge-in is defined as the caller speaking while the agent is speaking.
+		isSpeaking := bargeInSent || s.isAudioPlaying() || s.isResponseActive()
+
+		if isSpeaking && !bargeInSent {
+			// Ensure playback is stopped (safety net). We may have already cleared on interim results.
+			s.logger.Printf("media_ws: BARGE-IN detected - caller said: %s", text)
+			if err := s.clearAudio(); err != nil {
+				s.logger.Printf("media_ws: failed to clear audio: %v", err)
+			}
+			s.cancelResponse()
+			s.cancelPendingAction()
+			select {
+			case s.bargeInCh <- text:
+			default:
+			}
+		}
+
+		turnID := atomic.AddUint64(&s.turnSeq, 1)
+		s.logger.Printf("media_ws: caller said (turn=%d): %s", turnID, text)
+
+		// Store utterance (mark as interruption if barge-in)
+		s.utteranceSeq++
+		now := time.Now().UTC()
+		confidence := lastConfidence
+		if s.callID != "" {
+			_ = s.store.InsertUtterance(s.ctx, s.callID, store.Utterance{
+				Speaker:       "caller",
+				Text:          text,
+				Sequence:      s.utteranceSeq,
+				StartedAt:     utteranceStartTime,
+				EndedAt:       &now,
+				STTConfidence: &confidence,
+				Interrupted:   isSpeaking,
+			})
+		}
+
+		// Add to conversation history
+		s.messagesMu.Lock()
+		s.messages = append(s.messages, llm.Message{
+			Role:    "user",
+			Content: text,
+		})
+		s.messagesMu.Unlock()
+
+		// Speak filler word immediately, then generate and speak response
+		go s.speakFillerAndGenerate(turnID, text)
+
+		// Reset for next utterance
+		currentUtterance.Reset()
+		utteranceStartTime = nil
+		lastConfidence = 0
+		bargeInSent = false
+	}
 
 	for {
 		select {
 		case <-s.ctx.Done():
+			cancelFinalize()
 			return
 
 		case err := <-s.sttClient.Errors():
 			s.logger.Printf("media_ws: STT error: %v", err)
+			cancelFinalize()
 			return
 
 		case result, ok := <-s.sttClient.Results():
 			if !ok {
+				cancelFinalize()
 				return
 			}
 
-			if result.Text == "" {
-				continue
+			// Optional instrumentation (keep it light; text is logged at finalize).
+			if result.SegmentFinal || result.SpeechFinal {
+				s.logger.Printf("media_ws: stt event (segment_final=%t speech_final=%t) text=%q",
+					result.SegmentFinal, result.SpeechFinal, strings.TrimSpace(result.Text))
 			}
 
-			// Track utterance timing
-			if utteranceStartTime == nil {
+			// Detect barge-in as early as possible (on any non-empty transcript),
+			// not only after endpointing emits a final utterance.
+			if strings.TrimSpace(result.Text) != "" {
+				isSpeaking := s.isAudioPlaying() || s.isResponseActive()
+				if isSpeaking && !bargeInSent {
+					s.logger.Printf("media_ws: early BARGE-IN (partial) - caller: %s", strings.TrimSpace(result.Text))
+					if err := s.clearAudio(); err != nil {
+						s.logger.Printf("media_ws: failed to clear audio: %v", err)
+					}
+					s.cancelResponse()
+					s.cancelPendingAction()
+					select {
+					case s.bargeInCh <- strings.TrimSpace(result.Text):
+					default:
+					}
+					bargeInSent = true
+				}
+			}
+
+			// Track utterance timing once we see any text for this turn.
+			if utteranceStartTime == nil && strings.TrimSpace(result.Text) != "" {
 				now := time.Now().UTC()
 				utteranceStartTime = &now
 			}
 
-			if result.IsFinal {
-				// Append final text
-				if currentUtterance.Len() > 0 {
-					currentUtterance.WriteString(" ")
-				}
-				currentUtterance.WriteString(result.Text)
-
-				// Complete utterance - process with LLM
-				text := strings.TrimSpace(currentUtterance.String())
-				if text != "" {
-					// Check if this is a barge-in (user speaking while agent has audio in-flight)
-					isSpeaking := s.isAudioPlaying() || s.isResponseActive()
-
-					if isSpeaking {
-						// Barge-in detected: clear audio and signal interruption.
-						// Note: There's a small timing window where speakText may send a few
-						// more audio chunks after clearAudio() is called but before the
-						// bargeInCh signal is received. This is acceptable because Twilio's
-						// "clear" command will stop playback regardless of pending chunks.
-						s.logger.Printf("media_ws: BARGE-IN detected - caller said: %s", text)
-						if err := s.clearAudio(); err != nil {
-							s.logger.Printf("media_ws: failed to clear audio: %v", err)
-						}
-						// Cancel any in-flight response so we don't keep speaking stale content.
-						s.cancelResponse()
-						// Cancel any pending hang-up/forward that was scheduled from a previous goodbye/forward.
-						// Otherwise the timeout fallback can fire and cut off the conversation.
-						s.cancelPendingAction()
-						// Signal barge-in via channel (non-blocking)
-						select {
-						case s.bargeInCh <- text:
-						default:
-							// Channel full, skip (shouldn't happen with buffered channel)
-						}
+			// Append only segment-final text. Interim transcripts can be unstable/revised.
+			if result.SegmentFinal {
+				if strings.TrimSpace(result.Text) != "" {
+					if currentUtterance.Len() > 0 {
+						currentUtterance.WriteString(" ")
 					}
-
-					s.logger.Printf("media_ws: caller said: %s", text)
-
-					// Store utterance (mark as interruption if barge-in)
-					s.utteranceSeq++
-					now := time.Now().UTC()
-					confidence := result.Confidence
-					if s.callID != "" {
-						_ = s.store.InsertUtterance(s.ctx, s.callID, store.Utterance{
-							Speaker:       "caller",
-							Text:          text,
-							Sequence:      s.utteranceSeq,
-							StartedAt:     utteranceStartTime,
-							EndedAt:       &now,
-							STTConfidence: &confidence,
-							Interrupted:   isSpeaking, // Mark as interruption if it was a barge-in
-						})
-					}
-
-					// Add to conversation history
-					s.messagesMu.Lock()
-					s.messages = append(s.messages, llm.Message{
-						Role:    "user",
-						Content: text,
-					})
-					s.messagesMu.Unlock()
-
-					// Speak filler word immediately, then generate and speak response
-					go s.speakFillerAndGenerate(text)
+					currentUtterance.WriteString(strings.TrimSpace(result.Text))
+					lastConfidence = result.Confidence
 				}
-
-				// Reset for next utterance
-				currentUtterance.Reset()
-				utteranceStartTime = nil
+				// If we already saw end-of-speech, keep grace window open for this late segment.
+				if finalizeC != nil {
+					scheduleFinalize()
+				}
 			}
+
+			// Schedule finalization on end-of-speech (NOT on segment final).
+			if result.SpeechFinal {
+				scheduleFinalize()
+			}
+
+		case <-finalizeC:
+			// End-of-speech grace window elapsed; finalize a single user turn.
+			cancelFinalize()
+			finalizeUtterance()
 		}
 	}
 }
@@ -688,9 +767,10 @@ func (s *callSession) isCurrentResponse(respID uint64) bool {
 // speakFillerAndGenerate starts a new response (cancelling any previous one),
 // optionally speaks a short filler after a brief delay, then streams the LLM
 // response via sentence-based TTS.
-func (s *callSession) speakFillerAndGenerate(lastUserText string) {
+func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string) {
 	ctx, respID := s.beginNewResponse()
 	defer s.endResponse(respID)
+	s.logger.Printf("media_ws: starting response (turn=%d resp=%d)", turnID, respID)
 
 	// Snapshot messages for this response (avoid races with concurrent appends).
 	s.messagesMu.Lock()
