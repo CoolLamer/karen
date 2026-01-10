@@ -67,7 +67,7 @@ func LoadConfigFromEnv() Config {
 		// STT settings
 		// Deepgram endpointing controls how quickly we decide the caller finished speaking.
 		// Too low -> fragmented utterances and interruptive back-and-forth; too high -> sluggish turns.
-		STTEndpointingMs: getenvIntClamped("STT_ENDPOINTING_MS", 1200, 200, 4000),
+		STTEndpointingMs: getenvIntClamped("STT_ENDPOINTING_MS", 800, 200, 4000),
 
 		// Voice settings (defaults, overridden by tenant config)
 		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),

@@ -2,9 +2,13 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // withAdmin is middleware that requires admin authentication.
@@ -135,4 +139,53 @@ func (r *Router) handleAdminUpdatePhoneNumber(w http.ResponseWriter, req *http.R
 
 	r.logger.Printf("admin: updated phone number %s", id)
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleAdminListCalls returns all calls with pagination (for admin debugging).
+func (r *Router) handleAdminListCalls(w http.ResponseWriter, req *http.Request) {
+	limit := 100
+	if l := req.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
+			limit = parsed
+		}
+	}
+
+	calls, err := r.store.ListCalls(req.Context(), limit)
+	if err != nil {
+		r.logger.Printf("admin: failed to list calls: %v", err)
+		http.Error(w, `{"error": "failed to list calls"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"calls": calls})
+}
+
+// handleAdminGetCallEvents returns events for a specific call.
+func (r *Router) handleAdminGetCallEvents(w http.ResponseWriter, req *http.Request) {
+	providerCallID := req.PathValue("providerCallId")
+	if providerCallID == "" {
+		http.Error(w, `{"error": "missing call ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Get internal call ID
+	callID, err := r.store.GetCallID(req.Context(), providerCallID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error": "call not found"}`, http.StatusNotFound)
+			return
+		}
+		r.logger.Printf("admin: failed to get call ID %s: %v", providerCallID, err)
+		http.Error(w, `{"error": "failed to get call"}`, http.StatusInternalServerError)
+		return
+	}
+
+	events, err := r.store.ListCallEvents(req.Context(), callID, 1000)
+	if err != nil {
+		r.logger.Printf("admin: failed to list events for %s: %v", callID, err)
+		http.Error(w, `{"error": "failed to list events"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"events": events})
 }

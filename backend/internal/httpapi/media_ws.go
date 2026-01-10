@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/lukasbauer/karen/internal/eventlog"
 	"github.com/lukasbauer/karen/internal/llm"
 	"github.com/lukasbauer/karen/internal/stt"
 	"github.com/lukasbauer/karen/internal/store"
@@ -181,6 +182,7 @@ type callSession struct {
 
 	store      *store.Store
 	logger     *log.Logger
+	eventLog   *eventlog.Logger
 	cfg        RouterConfig
 	httpClient *http.Client
 
@@ -242,6 +244,7 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 		conn:        conn,
 		store:       r.store,
 		logger:      r.logger,
+		eventLog:    r.eventLog,
 		cfg:         r.cfg,
 		httpClient:  &http.Client{Timeout: 10 * time.Second},
 		messages:    []llm.Message{},
@@ -431,6 +434,15 @@ func (s *callSession) handleStart(start *twilioStart) error {
 
 	// Speak the greeting using ElevenLabs (same voice as rest of conversation)
 	go s.speakGreeting()
+
+	// Log call started event
+	s.eventLog.LogAsync(s.callID, eventlog.EventCallStarted, map[string]any{
+		"stream_sid":     s.streamSid,
+		"call_sid":       s.callSid,
+		"tenant_id":      s.tenantCfg.TenantID,
+		"endpointing_ms": endpointing,
+		"language":       language,
+	})
 
 	return nil
 }
@@ -646,6 +658,12 @@ func (s *callSession) processSTTResults() {
 
 		turnID := atomic.AddUint64(&s.turnSeq, 1)
 		s.logger.Printf("media_ws: caller said (turn=%d): %s", turnID, text)
+		s.eventLog.LogAsync(s.callID, eventlog.EventTurnFinalized, map[string]any{
+			"turn_id":     turnID,
+			"text":        text,
+			"confidence":  lastConfidence,
+			"interrupted": isSpeaking,
+		})
 
 		// Store utterance (mark as interruption if barge-in)
 		s.utteranceSeq++
@@ -702,6 +720,12 @@ func (s *callSession) processSTTResults() {
 			if result.SegmentFinal || result.SpeechFinal {
 				s.logger.Printf("media_ws: stt event (segment_final=%t speech_final=%t) text=%q",
 					result.SegmentFinal, result.SpeechFinal, strings.TrimSpace(result.Text))
+				s.eventLog.LogAsync(s.callID, eventlog.EventSTTResult, map[string]any{
+					"text":          strings.TrimSpace(result.Text),
+					"confidence":    result.Confidence,
+					"segment_final": result.SegmentFinal,
+					"speech_final":  result.SpeechFinal,
+				})
 			}
 
 			// Detect barge-in as early as possible (on any non-empty transcript),
@@ -710,6 +734,10 @@ func (s *callSession) processSTTResults() {
 				isSpeaking := s.isAudioPlaying() || s.isResponseActive()
 				if isSpeaking && !bargeInSent {
 					s.logger.Printf("media_ws: early BARGE-IN (partial) - caller: %s", strings.TrimSpace(result.Text))
+					s.eventLog.LogAsync(s.callID, eventlog.EventBargeIn, map[string]any{
+						"partial_text":       strings.TrimSpace(result.Text),
+						"agent_was_speaking": true,
+					})
 					if err := s.clearAudio(); err != nil {
 						s.logger.Printf("media_ws: failed to clear audio: %v", err)
 					}
@@ -778,9 +806,19 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	lastFiller := s.lastFillerTime
 	s.messagesMu.Unlock()
 
+	s.eventLog.LogAsync(s.callID, eventlog.EventLLMStarted, map[string]any{
+		"turn_id":       turnID,
+		"message_count": len(msgs),
+	})
+
+	llmStartTime := time.Now()
 	responseCh, err := s.llmClient.GenerateResponse(ctx, msgs)
 	if err != nil {
 		s.logger.Printf("media_ws: LLM error: %v", err)
+		s.eventLog.LogAsync(s.callID, eventlog.EventLLMError, map[string]any{
+			"turn_id": turnID,
+			"error":   err.Error(),
+		})
 		return
 	}
 
@@ -824,6 +862,10 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		if !shortUtterance && shouldSpeakFiller(lastFiller) {
 			filler := getRandomFiller()
 			s.logger.Printf("media_ws: speaking filler: %s", filler)
+			s.eventLog.LogAsync(s.callID, eventlog.EventFillerSpoken, map[string]any{
+				"turn_id": turnID,
+				"filler":  filler,
+			})
 			if _, err := s.speakText(ctx, filler); err != nil {
 				s.logger.Printf("media_ws: filler TTS error: %v", err)
 			}
@@ -832,6 +874,10 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 			s.messagesMu.Unlock()
 		} else {
 			s.logger.Printf("media_ws: skipping filler (variety/cooldown/short-utterance)")
+			s.eventLog.LogAsync(s.callID, eventlog.EventFillerSkipped, map[string]any{
+				"turn_id": turnID,
+				"reason":  "variety/cooldown/short-utterance",
+			})
 		}
 	}
 
@@ -895,6 +941,11 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	}
 
 	s.logger.Printf("media_ws: agent response (full): %s", responseText)
+	s.eventLog.LogAsync(s.callID, eventlog.EventLLMCompleted, map[string]any{
+		"turn_id":         turnID,
+		"response_length": len(responseText),
+		"duration_ms":     time.Since(llmStartTime).Milliseconds(),
+	})
 
 	// Add to conversation history
 	s.messagesMu.Lock()
@@ -920,6 +971,9 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	// If we need to forward/hang up, wait for the final mark of the response.
 	if isForward(responseText) {
 		s.logger.Printf("media_ws: detected forward request, will forward after audio finishes")
+		s.eventLog.LogAsync(s.callID, eventlog.EventForwardDetected, map[string]any{
+			"response_text": responseText,
+		})
 		if lastResponseMarkID != 0 {
 			s.audioMu.Lock()
 			s.pendingDoneMarkID = lastResponseMarkID
@@ -931,6 +985,9 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	}
 	if isGoodbye(responseText) {
 		s.logger.Printf("media_ws: detected goodbye, will hang up after audio finishes")
+		s.eventLog.LogAsync(s.callID, eventlog.EventGoodbyeDetected, map[string]any{
+			"response_text": responseText,
+		})
 		if lastResponseMarkID != 0 {
 			s.audioMu.Lock()
 			s.pendingDoneMarkID = lastResponseMarkID
@@ -1158,8 +1215,17 @@ func (s *callSession) forwardCall(ctx context.Context) {
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		s.logger.Printf("media_ws: call %s forwarded successfully to %s", s.callSid, forwardNumber)
+		s.eventLog.LogAsync(s.callID, eventlog.EventCallForwarded, map[string]any{
+			"forward_number": forwardNumber,
+			"success":        true,
+		})
 	} else {
 		s.logger.Printf("media_ws: forward returned status %d", resp.StatusCode)
+		s.eventLog.LogAsync(s.callID, eventlog.EventCallForwarded, map[string]any{
+			"forward_number": forwardNumber,
+			"success":        false,
+			"status_code":    resp.StatusCode,
+		})
 	}
 }
 
@@ -1211,6 +1277,10 @@ func (s *callSession) hangUpCall(ctx context.Context) {
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		s.logger.Printf("media_ws: call %s hung up successfully (agent initiated)", s.callSid)
+		s.eventLog.LogAsync(s.callID, eventlog.EventCallHangup, map[string]any{
+			"initiated_by": "agent",
+			"success":      true,
+		})
 		// Update database status to completed
 		if s.callID != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1226,6 +1296,11 @@ func (s *callSession) hangUpCall(ctx context.Context) {
 		}
 	} else {
 		s.logger.Printf("media_ws: hang up returned status %d", resp.StatusCode)
+		s.eventLog.LogAsync(s.callID, eventlog.EventCallHangup, map[string]any{
+			"initiated_by": "agent",
+			"success":      false,
+			"status_code":  resp.StatusCode,
+		})
 	}
 }
 
@@ -1296,4 +1371,7 @@ func (s *callSession) cleanup() {
 	}
 
 	s.logger.Printf("media_ws: session cleaned up for call %s", s.callSid)
+	s.eventLog.LogAsync(s.callID, eventlog.EventCallEnded, map[string]any{
+		"call_sid": s.callSid,
+	})
 }
