@@ -165,15 +165,6 @@ To debug turn-taking issues, logs include:
 
 This makes it easy to verify: **one user turn → one response**, and to spot any accidental double-trigger.
 
-### 9) Prompt-driven control markers
-
-The assistant can include special markers in its *text output* to trigger call actions. These markers are **not spoken** and are stripped before storing the agent utterance.
-
-- `[PŘEPOJIT]` — forward call after the last audio finishes
-- `[ZAVĚSIT]` — hang up after the last audio finishes
-
-This is intentionally prompt-driven so each tenant can decide their policy (e.g., “hang up immediately on marketing calls”).
-
 ## Prompt guardrails (to reduce “not smooth” conversations)
 
 We apply guardrails to the system prompt so the model:

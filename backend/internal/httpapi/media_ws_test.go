@@ -120,7 +120,7 @@ func TestIsSentenceEnd(t *testing.T) {
 		{"Hello,", false},
 		{"", false},
 		{"   ", false},
-		{"Hello. ", true}, // trailing space should still detect
+		{"Hello. ", true},  // trailing space should still detect
 		{"Jasně...", true}, // Czech filler with ellipsis ends with period
 	}
 
@@ -341,8 +341,8 @@ func TestIsGoodbye(t *testing.T) {
 		{"", false},
 		{"Nashle", false}, // too short, doesn't contain full phrase
 		{"Dobře, rozumím", false},
-		{"Měj se", false},         // doesn't match "mějte se"
-		{"Pěkný den", false},      // doesn't match "hezký den"
+		{"Měj se", false},           // doesn't match "mějte se"
+		{"Pěkný den", false},        // doesn't match "hezký den"
 		{"Hezký zbytek dne", false}, // "hezký" and "den" aren't adjacent
 	}
 
@@ -378,7 +378,7 @@ func TestIsGoodbye_WithContext(t *testing.T) {
 		"Můžete to zopakovat?",
 		"Ahoj, co potřebujete?",
 		"Pěkný zbytek dne", // doesn't contain "hezký den"
-		"Měj se", // doesn't contain "mějte se"
+		"Měj se",           // doesn't contain "mějte se"
 	}
 
 	for _, text := range notGoodbyes {
@@ -388,7 +388,7 @@ func TestIsGoodbye_WithContext(t *testing.T) {
 	}
 }
 
-func TestStripControlMarkers_ForwardMarker(t *testing.T) {
+func TestStripForwardMarker(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
@@ -398,34 +398,13 @@ func TestStripControlMarkers_ForwardMarker(t *testing.T) {
 		{"Dobrý den, [PŘEPOJIT] přepojuji.", "Dobrý den, přepojuji."},
 		{"Text bez markeru", "Text bez markeru"},
 		{"", ""},
-		{"[PŘEPOJIT]", ""}, // marker is always stripped
+		{"[PŘEPOJIT]", "[PŘEPOJIT]"}, // No space after, shouldn't be stripped
 	}
 
 	for _, tt := range tests {
-		result := stripControlMarkers(tt.input)
+		result := stripForwardMarker(tt.input)
 		if result != tt.expected {
-			t.Errorf("stripControlMarkers(%q) = %q, want %q", tt.input, result, tt.expected)
-		}
-	}
-}
-
-func TestStripControlMarkers_HangupMarker(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"[ZAVĚSIT] Na shledanou.", "Na shledanou."},
-		{"Na shledanou. [ZAVĚSIT]", "Na shledanou."},
-		{"[HANGUP] Goodbye.", "Goodbye."},
-		{"Text bez markeru", "Text bez markeru"},
-		{"", ""},
-		{"[ZAVĚSIT]", ""},
-	}
-
-	for _, tt := range tests {
-		result := stripControlMarkers(tt.input)
-		if result != tt.expected {
-			t.Errorf("stripControlMarkers(%q) = %q, want %q", tt.input, result, tt.expected)
+			t.Errorf("stripForwardMarker(%q) = %q, want %q", tt.input, result, tt.expected)
 		}
 	}
 }
@@ -514,7 +493,7 @@ func TestAudioPendingCounterNeverNegative(t *testing.T) {
 
 func TestHandleMarkSignalsPendingDoneMark(t *testing.T) {
 	s := &callSession{
-		logger:     log.New(io.Discard, "", 0),
+		logger:      log.New(io.Discard, "", 0),
 		goodbyeDone: make(chan struct{}, 1),
 	}
 
