@@ -19,7 +19,6 @@ import {
   TagsInput,
   Alert,
   Modal,
-  Anchor,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -361,16 +360,17 @@ export function SettingsPage() {
             </Stack>
           </Paper>
 
-          <Anchor href={`tel:${encodeURIComponent(getDialCode())}`} style={{ textDecoration: "none" }}>
-            <Button
-              variant="light"
-              fullWidth
-              leftSection={<IconPhone size={18} />}
-              disabled={!karenNumber}
-            >
-              Vytocit automaticky
-            </Button>
-          </Anchor>
+          <Button
+            variant="light"
+            fullWidth
+            leftSection={<IconPhone size={18} />}
+            disabled={!karenNumber}
+            onClick={() => {
+              window.location.href = `tel:${getDialCode()}`;
+            }}
+          >
+            Vytocit automaticky
+          </Button>
         </Stack>
       </Modal>
 
