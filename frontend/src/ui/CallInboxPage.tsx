@@ -1,7 +1,8 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { Alert, Badge, Group, Paper, Stack, Table, Text, Title, ThemeIcon } from "@mantine/core";
-import { IconAlertCircle, IconCheck, IconX, IconQuestionMark, IconMail, IconPhone } from "@tabler/icons-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Alert, Badge, Box, Group, Paper, Stack, Table, Text, Title, ThemeIcon, UnstyledButton } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import { IconAlertCircle, IconCheck, IconX, IconQuestionMark, IconMail, IconPhone, IconChevronRight } from "@tabler/icons-react";
 import { api, CallListItem, TenantPhoneNumber } from "../api";
 
 function getLegitimacyConfig(label: string | undefined) {
@@ -51,6 +52,12 @@ export function CallInboxPage() {
   const [calls, setCalls] = React.useState<CallListItem[] | null>(null);
   const [phoneNumbers, setPhoneNumbers] = React.useState<TenantPhoneNumber[]>([]);
   const [error, setError] = React.useState<string | null>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const navigate = useNavigate();
+
+  const handleCallClick = (providerCallId: string) => {
+    navigate(`/calls/${encodeURIComponent(providerCallId)}`);
+  };
 
   React.useEffect(() => {
     api
@@ -106,7 +113,75 @@ export function CallInboxPage() {
         </Paper>
       )}
 
-      {calls && calls.length > 0 && (
+      {/* Mobile card layout */}
+      {calls && calls.length > 0 && isMobile && (
+        <Stack gap="sm">
+          {calls.map((c) => {
+            const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
+            const intent = c.screening?.intent_text ?? "";
+            return (
+              <UnstyledButton
+                key={c.provider_call_id}
+                onClick={() => handleCallClick(c.provider_call_id)}
+                aria-label={`Zobrazit hovor od ${c.from_number}`}
+                style={{ width: "100%" }}
+              >
+                <Paper
+                  p="md"
+                  radius="md"
+                  withBorder
+                  style={{
+                    borderLeft: `4px solid var(--mantine-color-${legitimacy.color}-5)`,
+                    cursor: "pointer",
+                    transition: "background-color 0.15s",
+                  }}
+                >
+                  {/* Row 1: Phone number + Legitimacy badge + Chevron */}
+                  <Group justify="space-between" wrap="nowrap" mb={4}>
+                    <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                      <Text size="sm" fw={600} truncate>
+                        {c.from_number}
+                      </Text>
+                      <Badge
+                        color={legitimacy.color}
+                        variant="light"
+                        leftSection={legitimacy.icon}
+                        size="sm"
+                        style={{ flexShrink: 0 }}
+                      >
+                        {legitimacy.label}
+                      </Badge>
+                    </Group>
+                    <IconChevronRight size={20} color="gray" style={{ flexShrink: 0 }} />
+                  </Group>
+
+                  {/* Row 2: to_number + relative time */}
+                  <Text size="xs" c="dimmed" mb="xs">
+                    na {c.to_number} | {formatRelativeTime(new Date(c.started_at))}
+                  </Text>
+
+                  {/* Row 3: Intent text */}
+                  {intent && (
+                    <Text size="sm" lineClamp={2} mb="xs">
+                      "{intent}"
+                    </Text>
+                  )}
+
+                  {/* Row 4: Status badge */}
+                  <Box ta="right">
+                    <Badge variant="light" color="gray" size="sm">
+                      {formatStatus(c.status)}
+                    </Badge>
+                  </Box>
+                </Paper>
+              </UnstyledButton>
+            );
+          })}
+        </Stack>
+      )}
+
+      {/* Desktop table layout */}
+      {calls && calls.length > 0 && !isMobile && (
         <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
           <Table striped highlightOnHover>
             <Table.Thead>
