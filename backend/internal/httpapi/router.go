@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/lukasbauer/karen/internal/store"
 )
 
@@ -51,7 +53,7 @@ func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store) http.Handle
 	}
 
 	r.routes()
-	return withCORS(r.mux)
+	return withSentryRecovery(withCORS(r.mux))
 }
 
 func (r *Router) routes() {
@@ -97,6 +99,20 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+func withSentryRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				hub := sentry.CurrentHub().Clone()
+				hub.Scope().SetRequest(req)
+				hub.RecoverWithContext(req.Context(), err)
+				http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, req)
+	})
+}
+
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -111,6 +127,39 @@ func withCORS(next http.Handler) http.Handler {
 }
 
 func nowUTC() time.Time { return time.Now().UTC() }
+
+// captureError sends an error to Sentry with request context
+func captureError(req *http.Request, err error, msg string) {
+	if hub := sentry.GetHubFromContext(req.Context()); hub != nil {
+		hub.WithScope(func(scope *sentry.Scope) {
+			scope.SetRequest(req)
+			scope.SetExtra("message", msg)
+			hub.CaptureException(err)
+		})
+	} else {
+		sentry.WithScope(func(scope *sentry.Scope) {
+			scope.SetRequest(req)
+			scope.SetExtra("message", msg)
+			sentry.CaptureException(err)
+		})
+	}
+}
+
+// captureMessage sends a message to Sentry with request context
+func captureMessage(req *http.Request, msg string) {
+	sentry.WithScope(func(scope *sentry.Scope) {
+		scope.SetRequest(req)
+		scope.SetLevel(sentry.LevelWarning)
+		sentry.CaptureMessage(msg)
+	})
+}
+
+// wrapError creates an error and captures it to Sentry
+func wrapError(req *http.Request, format string, args ...interface{}) error {
+	err := fmt.Errorf(format, args...)
+	captureError(req, err, format)
+	return err
+}
 
 func wsURLFromPublicBase(publicBase string) string {
 	// http://x -> ws://x

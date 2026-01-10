@@ -166,6 +166,7 @@ func (r *Router) handleSendCode(w http.ResponseWriter, req *http.Request) {
 	err := r.sendTwilioVerifyCode(req.Context(), body.Phone)
 	if err != nil {
 		r.logger.Printf("auth: failed to send verification code to %s: %v", body.Phone, err)
+		captureError(req, err, "failed to send verification code via Twilio")
 		http.Error(w, `{"error": "failed to send verification code"}`, http.StatusInternalServerError)
 		return
 	}
@@ -211,6 +212,7 @@ func (r *Router) handleVerifyCode(w http.ResponseWriter, req *http.Request) {
 	valid, err := r.verifyTwilioCode(req.Context(), body.Phone, body.Code)
 	if err != nil {
 		r.logger.Printf("auth: verification check failed for %s: %v", body.Phone, err)
+		captureError(req, err, "Twilio verification check failed")
 		http.Error(w, `{"error": "verification failed"}`, http.StatusInternalServerError)
 		return
 	}

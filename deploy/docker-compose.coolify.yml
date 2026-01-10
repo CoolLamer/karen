@@ -8,6 +8,7 @@
 #   TWILIO_VERIFY_SERVICE_SID - Twilio Verify service SID (for SMS OTP)
 #   JWT_SECRET - Secret key for JWT token signing
 #   ADMIN_PHONES - Comma-separated list of admin phone numbers in E.164 format (e.g. +420123456789)
+#   SENTRY_DSN - Sentry DSN for error monitoring (optional)
 #
 services:
   db:
@@ -40,6 +41,7 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID}
       JWT_SECRET: ${JWT_SECRET}
+      SENTRY_DSN: ${SENTRY_DSN:-}
       LOG_LEVEL: info
       ADMIN_PHONES: ${ADMIN_PHONES}
     depends_on:
