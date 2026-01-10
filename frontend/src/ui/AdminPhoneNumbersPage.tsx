@@ -16,6 +16,7 @@ import {
   ActionIcon,
   Tooltip,
   Alert,
+  Select,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -24,8 +25,9 @@ import {
   IconAlertCircle,
   IconCheck,
   IconUserOff,
+  IconUserPlus,
 } from "@tabler/icons-react";
-import { api, AdminPhoneNumber } from "../api";
+import { api, AdminPhoneNumber, AdminTenant } from "../api";
 
 export function AdminPhoneNumbersPage() {
   const navigate = useNavigate();
@@ -39,6 +41,14 @@ export function AdminPhoneNumbersPage() {
   const [newNumber, setNewNumber] = useState("");
   const [newSid, setNewSid] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+
+  // Assign modal state
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assigningPhoneId, setAssigningPhoneId] = useState<string | null>(null);
+  const [assigningPhoneNumber, setAssigningPhoneNumber] = useState<string>("");
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [tenants, setTenants] = useState<AdminTenant[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     loadPhoneNumbers();
@@ -100,6 +110,40 @@ export function AdminPhoneNumbersPage() {
       setTimeout(() => setSuccess(null), 3000);
     } catch {
       setError("Failed to unassign phone number");
+    }
+  };
+
+  const openAssignModal = async (phoneId: string, phoneNumber: string) => {
+    setAssigningPhoneId(phoneId);
+    setAssigningPhoneNumber(phoneNumber);
+    setSelectedTenantId(null);
+
+    try {
+      const data = await api.adminListTenants();
+      setTenants(data.tenants || []);
+      setAssignModalOpen(true);
+    } catch {
+      setError("Failed to load tenants");
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!assigningPhoneId || !selectedTenantId) return;
+
+    setIsAssigning(true);
+    setError(null);
+    try {
+      await api.adminUpdatePhoneNumber(assigningPhoneId, selectedTenantId);
+      setSuccess("Phone number assigned");
+      setAssignModalOpen(false);
+      setAssigningPhoneId(null);
+      setSelectedTenantId(null);
+      loadPhoneNumbers();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch {
+      setError("Failed to assign phone number");
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -203,6 +247,17 @@ export function AdminPhoneNumbersPage() {
                       </Table.Td>
                       <Table.Td>
                         <Group gap="xs">
+                          {!pn.tenant_id && (
+                            <Tooltip label="Assign to tenant">
+                              <ActionIcon
+                                color="blue"
+                                variant="light"
+                                onClick={() => openAssignModal(pn.id, pn.twilio_number)}
+                              >
+                                <IconUserPlus size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
                           {pn.tenant_id && (
                             <Tooltip label="Unassign">
                               <ActionIcon
@@ -258,6 +313,36 @@ export function AdminPhoneNumbersPage() {
             </Button>
             <Button onClick={handleAdd} loading={isAdding} disabled={!newNumber}>
               Add
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Assign Modal */}
+      <Modal
+        opened={assignModalOpen}
+        onClose={() => setAssignModalOpen(false)}
+        title="Assign Phone Number"
+      >
+        <Stack>
+          <Text size="sm" c="dimmed">
+            Assign <Text span fw={500}>{assigningPhoneNumber}</Text> to a tenant
+          </Text>
+          <Select
+            label="Select Tenant"
+            placeholder="Choose a tenant"
+            data={tenants.map((t) => ({ value: t.id, label: t.name }))}
+            value={selectedTenantId}
+            onChange={setSelectedTenantId}
+            searchable
+            required
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setAssignModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssign} loading={isAssigning} disabled={!selectedTenantId}>
+              Assign
             </Button>
           </Group>
         </Stack>

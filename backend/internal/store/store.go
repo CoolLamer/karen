@@ -732,4 +732,31 @@ func (s *Store) UpdatePhoneNumber(ctx context.Context, id string, tenantID *stri
 	return err
 }
 
+// AdminTenant is a simplified tenant view for admin lists.
+type AdminTenant struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// ListAllTenants returns all tenants (for admin dropdowns).
+func (s *Store) ListAllTenants(ctx context.Context) ([]AdminTenant, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, name FROM tenants ORDER BY name ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tenants := []AdminTenant{}
+	for rows.Next() {
+		var t AdminTenant
+		if err := rows.Scan(&t.ID, &t.Name); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
 

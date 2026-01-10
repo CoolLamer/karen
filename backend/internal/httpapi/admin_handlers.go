@@ -91,6 +91,18 @@ func (r *Router) handleAdminDeletePhoneNumber(w http.ResponseWriter, req *http.R
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
+// handleAdminListTenants returns all tenants for admin dropdowns.
+func (r *Router) handleAdminListTenants(w http.ResponseWriter, req *http.Request) {
+	tenants, err := r.store.ListAllTenants(req.Context())
+	if err != nil {
+		r.logger.Printf("admin: failed to list tenants: %v", err)
+		http.Error(w, `{"error": "failed to list tenants"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"tenants": tenants})
+}
+
 // handleAdminUpdatePhoneNumber updates a phone number's assignment.
 func (r *Router) handleAdminUpdatePhoneNumber(w http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("id")
