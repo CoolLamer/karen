@@ -59,6 +59,8 @@ func (a *App) Router() http.Handler {
 		ElevenLabsAPIKey:      a.cfg.ElevenLabsAPIKey,
 		GreetingText:          a.cfg.GreetingText,
 		TTSVoiceID:            a.cfg.TTSVoiceID,
+		TTSStability:          a.cfg.TTSStability,
+		TTSSimilarity:         a.cfg.TTSSimilarity,
 		JWTSecret:             a.cfg.JWTSecret,
 		JWTExpiry:             a.cfg.JWTExpiry,
 		AdminPhones:           a.cfg.AdminPhones,

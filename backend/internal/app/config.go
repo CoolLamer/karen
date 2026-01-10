@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -22,8 +23,10 @@ type Config struct {
 	ElevenLabsAPIKey string
 
 	// Voice settings (defaults, overridden by tenant config)
-	GreetingText string
-	TTSVoiceID   string // ElevenLabs voice ID
+	GreetingText   string
+	TTSVoiceID     string  // ElevenLabs voice ID
+	TTSStability   float64 // ElevenLabs voice stability (0.0-1.0, default 0.5)
+	TTSSimilarity  float64 // ElevenLabs voice similarity boost (0.0-1.0, default 0.75)
 
 	// Twilio Verify (SMS OTP)
 	TwilioAccountSID      string
@@ -59,8 +62,10 @@ func LoadConfigFromEnv() Config {
 		ElevenLabsAPIKey: getenv("ELEVENLABS_API_KEY", ""),
 
 		// Voice settings (defaults, overridden by tenant config)
-		GreetingText: getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
-		TTSVoiceID:   getenv("TTS_VOICE_ID", ""), // ElevenLabs voice ID
+		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
+		TTSVoiceID:    getenv("TTS_VOICE_ID", ""),        // ElevenLabs voice ID
+		TTSStability:  getenvFloatClamped("TTS_STABILITY", 0.5, 0.0, 1.0),   // Voice stability (0.0-1.0)
+		TTSSimilarity: getenvFloatClamped("TTS_SIMILARITY", 0.75, 0.0, 1.0), // Voice similarity boost (0.0-1.0)
 
 		// Twilio Verify (SMS OTP)
 		TwilioAccountSID:      getenv("TWILIO_ACCOUNT_SID", ""),
@@ -91,6 +96,32 @@ func parseAdminPhones(s string) []string {
 func getenv(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
+	}
+	return def
+}
+
+func getenvFloat(k string, def float64) float64 {
+	if v := os.Getenv(k); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
+	return def
+}
+
+// getenvFloatClamped reads a float env var and clamps it to [min, max] range.
+// Returns def if the env var is not set or cannot be parsed.
+func getenvFloatClamped(k string, def, min, max float64) float64 {
+	if v := os.Getenv(k); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			if f < min {
+				return min
+			}
+			if f > max {
+				return max
+			}
+			return f
+		}
 	}
 	return def
 }
