@@ -22,7 +22,7 @@ export function CTASection({ title, subtitle, buttonText, onCtaClick }: CTASecti
         <Text c="teal.1" mb="xl" size="lg">
           {subtitle}
         </Text>
-        <Button size="xl" radius="lg" color="white" variant="white" onClick={onCtaClick}>
+        <Button size="xl" radius="lg" color="teal" variant="white" onClick={onCtaClick}>
           {buttonText}
         </Button>
         <Text c="teal.2" mt="lg" size="sm">
