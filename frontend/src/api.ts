@@ -16,6 +16,9 @@ export type CallListItem = {
   started_at: string;
   ended_at?: string | null;
   ended_by?: string | null;
+  first_viewed_at?: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
   screening?: ScreeningResult | null;
 };
 
@@ -188,6 +191,19 @@ export const api = {
   listCalls: () => http<CallListItem[]>("/api/calls"),
   getCall: (providerCallId: string) =>
     http<CallDetail>(`/api/calls/${encodeURIComponent(providerCallId)}`),
+  markCallViewed: (providerCallId: string) =>
+    http<{ success: boolean }>(`/api/calls/${encodeURIComponent(providerCallId)}/viewed`, {
+      method: "PATCH",
+    }),
+  markCallResolved: (providerCallId: string) =>
+    http<{ success: boolean }>(`/api/calls/${encodeURIComponent(providerCallId)}/resolve`, {
+      method: "PATCH",
+    }),
+  markCallUnresolved: (providerCallId: string) =>
+    http<{ success: boolean }>(`/api/calls/${encodeURIComponent(providerCallId)}/resolve`, {
+      method: "DELETE",
+    }),
+  getUnresolvedCount: () => http<{ count: number }>("/api/calls/unresolved-count"),
 
   // Auth
   sendCode: (phone: string) =>
