@@ -178,8 +178,8 @@ func (c *OpenAIClient) GenerateResponse(ctx context.Context, messages []Message)
 		Model:       c.model,
 		Messages:    chatMsgs,
 		Stream:      true,
-		Temperature: 0.7,
-		MaxTokens:   150,
+		Temperature: 0.5,
+		MaxTokens:   90,
 	}
 
 	body, err := json.Marshal(req)

@@ -627,6 +627,17 @@ func (s *callSession) processSTTResults() {
 			return
 		}
 
+		// Drop very low-confidence / very short "junk" turns (often background TV/noise).
+		// We keep this conservative to avoid ignoring real short answers like names.
+		if isLikelyJunkTurn(text, lastConfidence) {
+			s.logger.Printf("media_ws: ignoring likely-junk utterance (confidence=%.2f) text=%q", lastConfidence, text)
+			currentUtterance.Reset()
+			utteranceStartTime = nil
+			lastConfidence = 0
+			bargeInSent = false
+			return
+		}
+
 		// Barge-in is defined as the caller speaking while the agent is speaking.
 		isSpeaking := bargeInSent || s.isAudioPlaying() || s.isResponseActive()
 
@@ -671,6 +682,18 @@ func (s *callSession) processSTTResults() {
 		})
 		s.messagesMu.Unlock()
 
+		// Hard-stop marketing / cold-call offers: refuse and hang up (no follow-up).
+		if isLikelyMarketingTurn(text) {
+			s.logger.Printf("media_ws: marketing detected (turn=%d), will refuse and hang up", turnID)
+			s.speakRefuseAndHangup(turnID)
+			// Reset for next utterance (call will end, but keep consistent).
+			currentUtterance.Reset()
+			utteranceStartTime = nil
+			lastConfidence = 0
+			bargeInSent = false
+			return
+		}
+
 		// Speak filler word immediately, then generate and speak response
 		go s.speakFillerAndGenerate(turnID, text)
 
@@ -706,17 +729,18 @@ func (s *callSession) processSTTResults() {
 
 			// Detect barge-in as early as possible (on any non-empty transcript),
 			// not only after endpointing emits a final utterance.
-			if strings.TrimSpace(result.Text) != "" {
+			partial := strings.TrimSpace(result.Text)
+			if partial != "" && isMeaningfulBargeIn(partial) {
 				isSpeaking := s.isAudioPlaying() || s.isResponseActive()
 				if isSpeaking && !bargeInSent {
-					s.logger.Printf("media_ws: early BARGE-IN (partial) - caller: %s", strings.TrimSpace(result.Text))
+					s.logger.Printf("media_ws: early BARGE-IN (partial) - caller: %s", partial)
 					if err := s.clearAudio(); err != nil {
 						s.logger.Printf("media_ws: failed to clear audio: %v", err)
 					}
 					s.cancelResponse()
 					s.cancelPendingAction()
 					select {
-					case s.bargeInCh <- strings.TrimSpace(result.Text):
+					case s.bargeInCh <- partial:
 					default:
 					}
 					bargeInSent = true
@@ -1096,6 +1120,120 @@ func isForward(text string) bool {
 // stripForwardMarker removes the [PŘEPOJIT] marker from text for TTS
 func stripForwardMarker(text string) string {
 	return strings.ReplaceAll(text, "[PŘEPOJIT] ", "")
+}
+
+func isLikelyMarketingTurn(text string) bool {
+	lower := strings.ToLower(text)
+	keywords := []string{
+		"nabíd",       // nabídka/nabídnout
+		"levn",        // levný/levnější
+		"slev",        // sleva/slevy
+		"akce",        // akce
+		"tarif",       // tarif
+		"pojišt",      // pojištění
+		"energie",     // energie
+		"elektřin",    // elektřina
+		"plyn",        // plyn
+		"úvěr",        // úvěr
+		"uver",        // fallback without diacritics
+		"půjčk",       // půjčka
+		"pujc",        // fallback without diacritics
+		"marketing",   // marketing
+		"telemarketing",
+		"průzkum", // průzkum
+		"pruzkum",
+		"anketa",
+	}
+	for _, kw := range keywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+func isLikelyJunkTurn(text string, confidence float64) bool {
+	t := strings.TrimSpace(text)
+	if t == "" {
+		return true
+	}
+	// If the provider didn't give confidence, don't filter.
+	if confidence <= 0 {
+		return false
+	}
+	// Very low-confidence is usually noise.
+	if confidence < 0.20 {
+		return true
+	}
+	// Short + low-confidence tends to be TV/noise.
+	if len([]rune(t)) <= 6 && confidence < 0.45 {
+		return true
+	}
+	return false
+}
+
+func isMeaningfulBargeIn(partial string) bool {
+	p := strings.TrimSpace(partial)
+	if p == "" {
+		return false
+	}
+	// Avoid clearing on tiny noise fragments like "a", "hm", etc.
+	if len([]rune(p)) < 3 {
+		return false
+	}
+	// Single-word answers like names should still interrupt; require either:
+	// - at least 2 words, or
+	// - a longer single token.
+	if len(strings.Fields(p)) >= 2 {
+		return true
+	}
+	return len([]rune(p)) >= 7
+}
+
+func (s *callSession) speakRefuseAndHangup(turnID uint64) {
+	// Cancel any in-flight response so we don't keep speaking stale content.
+	s.cancelResponse()
+	s.cancelPendingAction()
+
+	// One short spoken sentence + goodbye phrase to ensure hangup trigger.
+	respText := "Děkuji, Lukáš nemá zájem o nabídky. Na shledanou!"
+
+	// Add to conversation history
+	s.messagesMu.Lock()
+	s.messages = append(s.messages, llm.Message{
+		Role:    "assistant",
+		Content: respText,
+	})
+	s.messagesMu.Unlock()
+
+	// Store agent utterance
+	s.utteranceSeq++
+	startTime := time.Now().UTC()
+	if s.callID != "" {
+		_ = s.store.InsertUtterance(s.ctx, s.callID, store.Utterance{
+			Speaker:     "agent",
+			Text:        respText,
+			Sequence:    s.utteranceSeq,
+			StartedAt:   &startTime,
+			Interrupted: false,
+		})
+	}
+
+	// Speak + hang up after audio finishes.
+	ctx, respID := s.beginNewResponse()
+	defer s.endResponse(respID)
+	s.logger.Printf("media_ws: starting response (turn=%d resp=%d) [marketing_refusal]", turnID, respID)
+	markID, err := s.speakText(ctx, respText)
+	if err != nil {
+		s.logger.Printf("media_ws: marketing refusal TTS error: %v", err)
+	}
+	if markID != 0 {
+		s.audioMu.Lock()
+		s.pendingDoneMarkID = markID
+		s.audioMu.Unlock()
+	}
+	actionCtx := s.beginPendingAction()
+	go s.hangUpCall(actionCtx)
 }
 
 // forwardCall forwards the call to the tenant owner's verified phone number
