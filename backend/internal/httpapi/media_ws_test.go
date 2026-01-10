@@ -307,6 +307,84 @@ func TestIsForward(t *testing.T) {
 	}
 }
 
+func TestIsGoodbye(t *testing.T) {
+	// Test that isGoodbye correctly detects goodbye phrases
+	// Current implementation checks for: "na shledanou", "nashledanou", "mějte se", "hezký den"
+	tests := []struct {
+		text     string
+		expected bool
+	}{
+		// "na shledanou" phrases
+		{"Na shledanou!", true},
+		{"nashledanou", true},
+		{"NA SHLEDANOU", true}, // case insensitive
+		{"Ahoj, na shledanou.", true},
+		{"Dobře, na shledanou", true},
+
+		// "hezký den" phrases
+		{"Hezký den!", true},
+		{"HEZKÝ DEN", true},
+		{"Přeji vám hezký den", true},
+
+		// "mějte se" phrases
+		{"Mějte se!", true},
+		{"Mějte se hezky", true},
+		{"MĚJTE SE", true},
+
+		// Not goodbyes
+		{"Dobrý den", false},
+		{"Ahoj, jak se máte?", false},
+		{"Potřebuji mluvit s Lukášem", false},
+		{"", false},
+		{"Nashle", false}, // too short, doesn't contain full phrase
+		{"Dobře, rozumím", false},
+		{"Měj se", false},         // doesn't match "mějte se"
+		{"Pěkný den", false},      // doesn't match "hezký den"
+		{"Hezký zbytek dne", false}, // "hezký" and "den" aren't adjacent
+	}
+
+	for _, tt := range tests {
+		result := isGoodbye(tt.text)
+		if result != tt.expected {
+			t.Errorf("isGoodbye(%q) = %v, want %v", tt.text, result, tt.expected)
+		}
+	}
+}
+
+func TestIsGoodbye_WithContext(t *testing.T) {
+	// Test goodbye detection in full sentences with context
+	// Only phrases that match: "na shledanou", "nashledanou", "mějte se", "hezký den"
+	goodbyes := []string{
+		"Děkuji za zprávu, na shledanou",
+		"Dobře, předám mu to. Hezký den!",
+		"Nashledanou!",
+		"To je vše, mějte se hezky",
+		"Ok, nashledanou!",
+		"Hezký den, sbohem",
+	}
+
+	for _, text := range goodbyes {
+		if !isGoodbye(text) {
+			t.Errorf("isGoodbye(%q) should be true", text)
+		}
+	}
+
+	notGoodbyes := []string{
+		"Dobrý den, tady Karen",
+		"Rozumím, zapíšu si to",
+		"Můžete to zopakovat?",
+		"Ahoj, co potřebujete?",
+		"Pěkný zbytek dne", // doesn't contain "hezký den"
+		"Měj se", // doesn't contain "mějte se"
+	}
+
+	for _, text := range notGoodbyes {
+		if isGoodbye(text) {
+			t.Errorf("isGoodbye(%q) should be false", text)
+		}
+	}
+}
+
 func TestStripForwardMarker(t *testing.T) {
 	tests := []struct {
 		input    string

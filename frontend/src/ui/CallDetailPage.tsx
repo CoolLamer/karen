@@ -40,6 +40,19 @@ function formatSpeaker(speaker: string) {
   }
 }
 
+function formatCallTermination(endedBy: string | null | undefined) {
+  if (!endedBy) return null;
+
+  switch (endedBy) {
+    case "agent":
+      return "Zavěsila asistentka";
+    case "caller":
+      return "Zavěsil volající";
+    default:
+      return null;
+  }
+}
+
 export function CallDetailPage() {
   const { providerCallId } = useParams();
   const [call, setCall] = React.useState<CallDetail | null>(null);
@@ -105,6 +118,11 @@ export function CallDetailPage() {
                     <Text size="sm">{u.text}</Text>
                   </Paper>
                 ))}
+                {formatCallTermination(call.ended_by) && (
+                  <Text size="sm" c="dimmed" mt="xs" fs="italic">
+                    — {formatCallTermination(call.ended_by)} —
+                  </Text>
+                )}
               </Stack>
             ) : (
               <Text size="sm" c="dimmed">

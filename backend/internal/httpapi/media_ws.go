@@ -291,7 +291,17 @@ func (s *callSession) run() {
 			}
 
 		case "stop":
-			s.logger.Printf("media_ws: stream stopped for call %s", s.callSid)
+			s.logger.Printf("media_ws: stream stopped for call %s (caller hung up)", s.callSid)
+
+			// Mark call as ended by caller
+			if s.callID != "" && s.callSid != "" {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := s.store.UpdateCallEndedBy(ctx, s.callSid, "caller"); err != nil {
+					s.logger.Printf("media_ws: failed to update ended_by: %v", err)
+				}
+			}
+
 			return
 
 		case "mark":
@@ -776,6 +786,21 @@ func (s *callSession) speakGreeting() {
 		Content: greeting,
 	})
 
+	// Store greeting as first utterance (sequence 1)
+	s.utteranceSeq++ // Increments from 0 to 1
+	startTime := time.Now().UTC()
+	if s.callID != "" {
+		if err := s.store.InsertUtterance(s.ctx, s.callID, store.Utterance{
+			Speaker:     "agent",
+			Text:        greeting,
+			Sequence:    s.utteranceSeq,
+			StartedAt:   &startTime,
+			Interrupted: false,
+		}); err != nil {
+			s.logger.Printf("media_ws: failed to store greeting utterance: %v", err)
+		}
+	}
+
 	if err := s.speakText(greeting); err != nil {
 		s.logger.Printf("media_ws: greeting TTS error: %v", err)
 	}
@@ -914,13 +939,18 @@ func (s *callSession) hangUpCall() {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		s.logger.Printf("media_ws: call %s hung up successfully", s.callSid)
+		s.logger.Printf("media_ws: call %s hung up successfully (agent initiated)", s.callSid)
 		// Update database status to completed
 		if s.callID != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			if err := s.store.UpdateCallStatus(ctx, s.callSid, "completed", time.Now().UTC()); err != nil {
 				s.logger.Printf("media_ws: failed to update call status: %v", err)
+			}
+
+			// Mark call as ended by agent
+			if err := s.store.UpdateCallEndedBy(ctx, s.callSid, "agent"); err != nil {
+				s.logger.Printf("media_ws: failed to update ended_by: %v", err)
 			}
 		}
 	} else {

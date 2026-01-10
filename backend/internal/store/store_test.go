@@ -462,3 +462,242 @@ func TestGetTenantOwnerPhone(t *testing.T) {
 	_, _ = db.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
 	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
 }
+
+func TestUpdateCallEndedBy(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create a call
+	callSid := "CA" + time.Now().Format("20060102150405")
+	call := Call{
+		Provider:       "twilio",
+		ProviderCallID: callSid,
+		FromNumber:     "+420777123456",
+		ToNumber:       "+420228883001",
+		Status:         "in_progress",
+		StartedAt:      time.Now(),
+	}
+
+	err := s.UpsertCall(ctx, call)
+	if err != nil {
+		t.Fatalf("UpsertCall failed: %v", err)
+	}
+
+	// Test updating ended_by to "agent"
+	err = s.UpdateCallEndedBy(ctx, callSid, "agent")
+	if err != nil {
+		t.Fatalf("UpdateCallEndedBy (agent) failed: %v", err)
+	}
+
+	// Verify the update
+	detail, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail failed: %v", err)
+	}
+	if detail.EndedBy == nil {
+		t.Error("ended_by should not be nil")
+	} else if *detail.EndedBy != "agent" {
+		t.Errorf("ended_by = %q, want %q", *detail.EndedBy, "agent")
+	}
+
+	// Test updating ended_by to "caller"
+	err = s.UpdateCallEndedBy(ctx, callSid, "caller")
+	if err != nil {
+		t.Fatalf("UpdateCallEndedBy (caller) failed: %v", err)
+	}
+
+	// Verify the update
+	detail2, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail failed: %v", err)
+	}
+	if detail2.EndedBy == nil {
+		t.Error("ended_by should not be nil")
+	} else if *detail2.EndedBy != "caller" {
+		t.Errorf("ended_by = %q, want %q", *detail2.EndedBy, "caller")
+	}
+
+	// Test updating non-existent call (should not error)
+	err = s.UpdateCallEndedBy(ctx, "CA_NONEXISTENT", "agent")
+	if err != nil {
+		t.Errorf("UpdateCallEndedBy on non-existent call should not error: %v", err)
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM calls WHERE provider_call_id = $1", callSid)
+}
+
+func TestGreetingUtteranceStorage(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create a call
+	callSid := "CA" + time.Now().Format("20060102150405")
+	call := Call{
+		Provider:       "twilio",
+		ProviderCallID: callSid,
+		FromNumber:     "+420777123456",
+		ToNumber:       "+420228883001",
+		Status:         "in_progress",
+		StartedAt:      time.Now(),
+	}
+
+	err := s.UpsertCall(ctx, call)
+	if err != nil {
+		t.Fatalf("UpsertCall failed: %v", err)
+	}
+
+	// Get the call ID
+	detail, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail failed: %v", err)
+	}
+	callID := detail.ID
+
+	// Simulate storing greeting as first utterance
+	startTime := time.Now().UTC()
+	greetingText := "Dobrý den, tady Asistentka Karen."
+	err = s.InsertUtterance(ctx, callID, Utterance{
+		Speaker:     "agent",
+		Text:        greetingText,
+		Sequence:    1,
+		StartedAt:   &startTime,
+		Interrupted: false,
+	})
+	if err != nil {
+		t.Fatalf("InsertUtterance (greeting) failed: %v", err)
+	}
+
+	// Store a caller utterance (sequence 2)
+	callerStartTime := time.Now().UTC()
+	err = s.InsertUtterance(ctx, callID, Utterance{
+		Speaker:     "caller",
+		Text:        "Ahoj, potřebuji mluvit s Lukášem.",
+		Sequence:    2,
+		StartedAt:   &callerStartTime,
+		Interrupted: false,
+	})
+	if err != nil {
+		t.Fatalf("InsertUtterance (caller) failed: %v", err)
+	}
+
+	// Retrieve call detail with utterances
+	result, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail with utterances failed: %v", err)
+	}
+
+	// Verify we have 2 utterances
+	if len(result.Utterances) != 2 {
+		t.Fatalf("got %d utterances, want 2", len(result.Utterances))
+	}
+
+	// Verify first utterance is the greeting
+	firstUtterance := result.Utterances[0]
+	if firstUtterance.Sequence != 1 {
+		t.Errorf("first utterance sequence = %d, want 1", firstUtterance.Sequence)
+	}
+	if firstUtterance.Speaker != "agent" {
+		t.Errorf("first utterance speaker = %q, want %q", firstUtterance.Speaker, "agent")
+	}
+	if firstUtterance.Text != greetingText {
+		t.Errorf("first utterance text = %q, want %q", firstUtterance.Text, greetingText)
+	}
+
+	// Verify second utterance is the caller
+	secondUtterance := result.Utterances[1]
+	if secondUtterance.Sequence != 2 {
+		t.Errorf("second utterance sequence = %d, want 2", secondUtterance.Sequence)
+	}
+	if secondUtterance.Speaker != "caller" {
+		t.Errorf("second utterance speaker = %q, want %q", secondUtterance.Speaker, "caller")
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM call_utterances WHERE call_id = $1", callID)
+	_, _ = db.Exec(ctx, "DELETE FROM calls WHERE provider_call_id = $1", callSid)
+}
+
+func TestCallListIncludesEndedBy(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create tenant
+	tenant, err := s.CreateTenant(ctx, "EndedBy Test Tenant", "Test prompt")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Create call with ended_by set
+	callSid := "CA" + time.Now().Format("20060102150405")
+	call := Call{
+		TenantID:       &tenant.ID,
+		Provider:       "twilio",
+		ProviderCallID: callSid,
+		FromNumber:     "+420777123456",
+		ToNumber:       "+420228883001",
+		Status:         "completed",
+		StartedAt:      time.Now(),
+	}
+
+	err = s.UpsertCallWithTenant(ctx, call)
+	if err != nil {
+		t.Fatalf("UpsertCallWithTenant failed: %v", err)
+	}
+
+	// Set ended_by
+	err = s.UpdateCallEndedBy(ctx, callSid, "agent")
+	if err != nil {
+		t.Fatalf("UpdateCallEndedBy failed: %v", err)
+	}
+
+	// Test ListCalls includes ended_by
+	calls, err := s.ListCalls(ctx, 100)
+	if err != nil {
+		t.Fatalf("ListCalls failed: %v", err)
+	}
+
+	found := false
+	for _, c := range calls {
+		if c.ProviderCallID == callSid {
+			found = true
+			if c.EndedBy == nil {
+				t.Error("ended_by should not be nil in ListCalls")
+			} else if *c.EndedBy != "agent" {
+				t.Errorf("ended_by = %q, want %q", *c.EndedBy, "agent")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("call not found in ListCalls")
+	}
+
+	// Test ListCallsByTenant includes ended_by
+	tenantCalls, err := s.ListCallsByTenant(ctx, tenant.ID, 100)
+	if err != nil {
+		t.Fatalf("ListCallsByTenant failed: %v", err)
+	}
+
+	if len(tenantCalls) != 1 {
+		t.Fatalf("got %d calls, want 1", len(tenantCalls))
+	}
+	if tenantCalls[0].EndedBy == nil {
+		t.Error("ended_by should not be nil in ListCallsByTenant")
+	} else if *tenantCalls[0].EndedBy != "agent" {
+		t.Errorf("ended_by = %q, want %q", *tenantCalls[0].EndedBy, "agent")
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM calls WHERE provider_call_id = $1", callSid)
+	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+}
