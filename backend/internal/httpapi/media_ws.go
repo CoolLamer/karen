@@ -9,8 +9,10 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -97,7 +99,12 @@ type twilioMessage struct {
 	SequenceNumber string          `json:"sequenceNumber,omitempty"`
 	Media          *twilioMedia    `json:"media,omitempty"`
 	Start          *twilioStart    `json:"start,omitempty"`
+	Mark           *twilioMarkData `json:"mark,omitempty"`
 	StreamSid      string          `json:"streamSid,omitempty"`
+}
+
+type twilioMarkData struct {
+	Name string `json:"name"`
 }
 
 type twilioMedia struct {
@@ -181,17 +188,30 @@ type callSession struct {
 	tenantCfg TenantConfig
 
 	// Conversation state
-	messages       []llm.Message
+	messages   []llm.Message
+	messagesMu sync.Mutex
+
 	utteranceSeq   int
-	speaking       bool      // True when TTS is playing
-	speakingMu     sync.Mutex
 	lastFillerTime time.Time // Last time a filler word was spoken
+
+	// Response control (cancel ongoing response on barge-in / new utterance)
+	respMu       sync.Mutex
+	respSeq      uint64
+	activeRespID uint64
+	respCancel   context.CancelFunc
 
 	// Barge-in handling
 	bargeInCh chan string // Channel to signal barge-in with the interrupting text
 
+	// Audio playback tracking via Twilio mark events
+	audioMu      sync.Mutex
+	audioPending int    // number of marks sent but not yet acknowledged by Twilio
+	audioSeq     uint64 // monotonically increasing mark id
+
+	// Goodbye/forward handling: wait for a specific mark before acting
+	pendingDoneMarkID uint64 // 0 when not waiting
+
 	// Goodbye handling
-	pendingGoodbye bool          // True when waiting for goodbye audio to finish
 	goodbyeDone    chan struct{} // Signaled when goodbye mark is received
 
 	ctx    context.Context
@@ -305,18 +325,7 @@ func (s *callSession) run() {
 			return
 
 		case "mark":
-			// Audio playback completed
-			s.speakingMu.Lock()
-			s.speaking = false
-			// Signal goodbye completion if we're waiting
-			if s.pendingGoodbye {
-				s.pendingGoodbye = false
-				select {
-				case s.goodbyeDone <- struct{}{}:
-				default:
-				}
-			}
-			s.speakingMu.Unlock()
+			s.handleMark(twilioMsg.Mark)
 		}
 	}
 }
@@ -371,8 +380,11 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		language = s.tenantCfg.Language
 	}
 
-	// Determine endpointing (from tenant config or default 800ms)
-	endpointing := 800
+	// Determine endpointing (from tenant config or configured default)
+	endpointing := s.cfg.STTEndpointingMs
+	if endpointing <= 0 {
+		endpointing = 1200
+	}
 	if s.tenantCfg.Endpointing != nil && *s.tenantCfg.Endpointing > 0 {
 		endpointing = *s.tenantCfg.Endpointing
 		s.logger.Printf("media_ws: using tenant endpointing: %dms", endpointing)
@@ -435,6 +447,113 @@ func (s *callSession) handleMedia(media *twilioMedia) error {
 	return s.sttClient.StreamAudio(s.ctx, audio)
 }
 
+func (s *callSession) nextAudioMarkID() uint64 {
+	return atomic.AddUint64(&s.audioSeq, 1)
+}
+
+func (s *callSession) incAudioPending() int {
+	s.audioMu.Lock()
+	s.audioPending++
+	n := s.audioPending
+	s.audioMu.Unlock()
+	return n
+}
+
+func (s *callSession) decAudioPending() int {
+	s.audioMu.Lock()
+	if s.audioPending > 0 {
+		s.audioPending--
+	}
+	n := s.audioPending
+	s.audioMu.Unlock()
+	return n
+}
+
+func (s *callSession) isAudioPlaying() bool {
+	s.audioMu.Lock()
+	n := s.audioPending
+	s.audioMu.Unlock()
+	return n > 0
+}
+
+func parseAudioMarkID(name string) (uint64, bool) {
+	if !strings.HasPrefix(name, "audio-") {
+		return 0, false
+	}
+	idStr := strings.TrimPrefix(name, "audio-")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return id, true
+}
+
+func (s *callSession) handleMark(mark *twilioMarkData) {
+	if mark == nil {
+		return
+	}
+	markID, ok := parseAudioMarkID(mark.Name)
+	pending := s.decAudioPending()
+
+	if ok && markID != 0 {
+		s.logger.Printf("media_ws: mark received %q (pending=%d)", mark.Name, pending)
+	} else {
+		s.logger.Printf("media_ws: mark received (unparsed) %q (pending=%d)", mark.Name, pending)
+	}
+
+	// Signal goodbye/forward completion only for the final mark we’re waiting on.
+	if ok {
+		s.audioMu.Lock()
+		awaitID := s.pendingDoneMarkID
+		if awaitID != 0 && markID == awaitID {
+			s.pendingDoneMarkID = 0
+			select {
+			case s.goodbyeDone <- struct{}{}:
+			default:
+			}
+		}
+		s.audioMu.Unlock()
+	}
+}
+
+func (s *callSession) beginNewResponse() (context.Context, uint64) {
+	s.respMu.Lock()
+	// Cancel any in-flight response generation/audio sending.
+	if s.respCancel != nil {
+		s.respCancel()
+	}
+	respID := atomic.AddUint64(&s.respSeq, 1)
+	ctx, cancel := context.WithCancel(s.ctx)
+	s.activeRespID = respID
+	s.respCancel = cancel
+	s.respMu.Unlock()
+	return ctx, respID
+}
+
+func (s *callSession) endResponse(respID uint64) {
+	s.respMu.Lock()
+	if s.activeRespID == respID {
+		s.activeRespID = 0
+		s.respCancel = nil
+	}
+	s.respMu.Unlock()
+}
+
+func (s *callSession) cancelResponse() {
+	s.respMu.Lock()
+	if s.respCancel != nil {
+		s.respCancel()
+	}
+	s.respMu.Unlock()
+}
+
+func (s *callSession) isResponseActive() bool {
+	s.respMu.Lock()
+	active := s.respCancel != nil
+	s.respMu.Unlock()
+	return active
+}
+
 func (s *callSession) processSTTResults() {
 	var currentUtterance strings.Builder
 	var utteranceStartTime *time.Time
@@ -473,10 +592,8 @@ func (s *callSession) processSTTResults() {
 				// Complete utterance - process with LLM
 				text := strings.TrimSpace(currentUtterance.String())
 				if text != "" {
-					// Check if this is a barge-in (user speaking while agent is speaking)
-					s.speakingMu.Lock()
-					isSpeaking := s.speaking
-					s.speakingMu.Unlock()
+					// Check if this is a barge-in (user speaking while agent has audio in-flight)
+					isSpeaking := s.isAudioPlaying() || s.isResponseActive()
 
 					if isSpeaking {
 						// Barge-in detected: clear audio and signal interruption.
@@ -488,16 +605,14 @@ func (s *callSession) processSTTResults() {
 						if err := s.clearAudio(); err != nil {
 							s.logger.Printf("media_ws: failed to clear audio: %v", err)
 						}
+						// Cancel any in-flight response so we don't keep speaking stale content.
+						s.cancelResponse()
 						// Signal barge-in via channel (non-blocking)
 						select {
 						case s.bargeInCh <- text:
 						default:
 							// Channel full, skip (shouldn't happen with buffered channel)
 						}
-						// Mark speaking as false since we cleared
-						s.speakingMu.Lock()
-						s.speaking = false
-						s.speakingMu.Unlock()
 					}
 
 					s.logger.Printf("media_ws: caller said: %s", text)
@@ -519,13 +634,15 @@ func (s *callSession) processSTTResults() {
 					}
 
 					// Add to conversation history
+					s.messagesMu.Lock()
 					s.messages = append(s.messages, llm.Message{
 						Role:    "user",
 						Content: text,
 					})
+					s.messagesMu.Unlock()
 
 					// Speak filler word immediately, then generate and speak response
-					go s.speakFillerAndGenerate()
+					go s.speakFillerAndGenerate(text)
 				}
 
 				// Reset for next utterance
@@ -536,107 +653,135 @@ func (s *callSession) processSTTResults() {
 	}
 }
 
-// speakFillerAndGenerate speaks a short filler word immediately to reduce perceived
-// latency, then generates and speaks the actual LLM response.
-// Filler words are skipped randomly (30% of time) and when spoken recently (cooldown).
-func (s *callSession) speakFillerAndGenerate() {
-	// Check if already speaking - acquire lock for entire operation to prevent
-	// timing window where another goroutine could slip through
-	s.speakingMu.Lock()
-	if s.speaking {
-		s.speakingMu.Unlock()
-		return
-	}
-	s.speaking = true
+func (s *callSession) isCurrentResponse(respID uint64) bool {
+	s.respMu.Lock()
+	cur := s.activeRespID
+	s.respMu.Unlock()
+	return cur == respID
+}
+
+// speakFillerAndGenerate starts a new response (cancelling any previous one),
+// optionally speaks a short filler after a brief delay, then streams the LLM
+// response via sentence-based TTS.
+func (s *callSession) speakFillerAndGenerate(lastUserText string) {
+	ctx, respID := s.beginNewResponse()
+	defer s.endResponse(respID)
+
+	// Snapshot messages for this response (avoid races with concurrent appends).
+	s.messagesMu.Lock()
+	msgs := append([]llm.Message(nil), s.messages...)
 	lastFiller := s.lastFillerTime
-	s.speakingMu.Unlock()
+	s.messagesMu.Unlock()
 
-	// Optionally speak filler word (skip randomly or if recently spoken for variety)
-	if shouldSpeakFiller(lastFiller) {
-		filler := getRandomFiller()
-		s.logger.Printf("media_ws: speaking filler: %s", filler)
-		if err := s.speakText(filler); err != nil {
-			s.logger.Printf("media_ws: filler TTS error: %v", err)
-		}
-		// Update last filler time
-		s.speakingMu.Lock()
-		s.lastFillerTime = time.Now()
-		s.speakingMu.Unlock()
-	} else {
-		s.logger.Printf("media_ws: skipping filler (variety/cooldown)")
-	}
-
-	// Generate and speak the actual response (keep speaking=true throughout)
-	s.generateAndSpeakInternal()
-}
-
-func (s *callSession) generateAndSpeak() {
-	// Check if already speaking (barge-in handling would go here)
-	s.speakingMu.Lock()
-	if s.speaking {
-		s.speakingMu.Unlock()
-		return // Skip if already speaking, let current response finish
-	}
-	s.speaking = true
-	s.speakingMu.Unlock()
-
-	s.generateAndSpeakInternal()
-}
-
-// generateAndSpeakInternal generates and speaks the LLM response.
-// Assumes speaking is already set to true by caller.
-func (s *callSession) generateAndSpeakInternal() {
-	defer func() {
-		s.speakingMu.Lock()
-		s.speaking = false
-		s.speakingMu.Unlock()
-	}()
-
-	// Generate response with LLM
-	responseCh, err := s.llmClient.GenerateResponse(s.ctx, s.messages)
+	responseCh, err := s.llmClient.GenerateResponse(ctx, msgs)
 	if err != nil {
 		s.logger.Printf("media_ws: LLM error: %v", err)
 		return
 	}
 
-	// Stream LLM output with sentence-based TTS for lower latency
+	// Buffer LLM chunks so we can optionally speak filler without blocking the stream.
+	llmBuf := make(chan string, 200)
+	go func() {
+		defer close(llmBuf)
+		for chunk := range responseCh {
+			select {
+			case <-ctx.Done():
+				return
+			case llmBuf <- chunk:
+			}
+		}
+	}()
+
 	var fullResponse strings.Builder
 	var buffer strings.Builder
 	sentenceCount := 0
+	var lastResponseMarkID uint64
 
-	for chunk := range responseCh {
+	// If the model is slow to produce any output, speak a short acknowledgement.
+	// This prevents filler when the model is already fast.
+	fillerDelay := 350 * time.Millisecond
+	timer := time.NewTimer(fillerDelay)
+	defer timer.Stop()
+
+	gotAnyChunk := false
+	select {
+	case <-ctx.Done():
+		return
+	case chunk, ok := <-llmBuf:
+		if ok {
+			gotAnyChunk = true
+			fullResponse.WriteString(chunk)
+			buffer.WriteString(chunk)
+		}
+	case <-timer.C:
+		// No LLM output yet: consider filler (also skip for very short utterances).
+		shortUtterance := len(strings.TrimSpace(lastUserText)) < 8
+		if !shortUtterance && shouldSpeakFiller(lastFiller) {
+			filler := getRandomFiller()
+			s.logger.Printf("media_ws: speaking filler: %s", filler)
+			if _, err := s.speakText(ctx, filler); err != nil {
+				s.logger.Printf("media_ws: filler TTS error: %v", err)
+			}
+			s.messagesMu.Lock()
+			s.lastFillerTime = time.Now()
+			s.messagesMu.Unlock()
+		} else {
+			s.logger.Printf("media_ws: skipping filler (variety/cooldown/short-utterance)")
+		}
+	}
+
+	// Stream remaining LLM output with sentence-based TTS for lower latency.
+	for chunk := range llmBuf {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		// If a newer response started, stop speaking stale content immediately.
+		if !s.isCurrentResponse(respID) {
+			return
+		}
+
+		gotAnyChunk = true
 		fullResponse.WriteString(chunk)
 		buffer.WriteString(chunk)
 
-		// Check if we have a complete sentence to speak
 		completeSentences, remaining := extractCompleteSentences(buffer.String())
 		if completeSentences != "" {
 			sentenceCount++
-			// Speak complete sentences immediately (strip forward marker)
 			ttsText := stripForwardMarker(completeSentences)
 			if ttsText != "" {
 				if sentenceCount == 1 {
 					s.logger.Printf("media_ws: streaming first sentence: %s", ttsText)
 				}
-				if err := s.speakText(ttsText); err != nil {
+				markID, err := s.speakText(ctx, ttsText)
+				if err != nil {
 					s.logger.Printf("media_ws: TTS error: %v", err)
+				} else if markID != 0 {
+					lastResponseMarkID = markID
 				}
 			}
-			// Keep only the remaining incomplete sentence
 			buffer.Reset()
 			buffer.WriteString(remaining)
 		}
 	}
 
-	// Speak any remaining text that didn't end with punctuation
+	// Speak any remaining text that didn't end with punctuation.
 	remaining := strings.TrimSpace(buffer.String())
-	if remaining != "" {
+	if remaining != "" && s.isCurrentResponse(respID) {
 		ttsText := stripForwardMarker(remaining)
 		if ttsText != "" {
-			if err := s.speakText(ttsText); err != nil {
+			markID, err := s.speakText(ctx, ttsText)
+			if err != nil {
 				s.logger.Printf("media_ws: TTS error: %v", err)
+			} else if markID != 0 {
+				lastResponseMarkID = markID
 			}
 		}
+	}
+
+	if !gotAnyChunk {
+		return
 	}
 
 	responseText := strings.TrimSpace(fullResponse.String())
@@ -647,10 +792,12 @@ func (s *callSession) generateAndSpeakInternal() {
 	s.logger.Printf("media_ws: agent response (full): %s", responseText)
 
 	// Add to conversation history
+	s.messagesMu.Lock()
 	s.messages = append(s.messages, llm.Message{
 		Role:    "assistant",
 		Content: responseText,
 	})
+	s.messagesMu.Unlock()
 
 	// Store agent utterance
 	s.utteranceSeq++
@@ -665,45 +812,47 @@ func (s *callSession) generateAndSpeakInternal() {
 		})
 	}
 
-	// Check for forwarding (emergency/VIP)
+	// If we need to forward/hang up, wait for the final mark of the response.
 	if isForward(responseText) {
 		s.logger.Printf("media_ws: detected forward request, will forward after audio finishes")
-		s.speakingMu.Lock()
-		s.pendingGoodbye = true // reuse same mechanism
-		s.speakingMu.Unlock()
+		if lastResponseMarkID != 0 {
+			s.audioMu.Lock()
+			s.pendingDoneMarkID = lastResponseMarkID
+			s.audioMu.Unlock()
+		}
 		go s.forwardCall()
 		return
 	}
-
-	// If this was a goodbye, mark pending and hang up after audio finishes
 	if isGoodbye(responseText) {
 		s.logger.Printf("media_ws: detected goodbye, will hang up after audio finishes")
-		s.speakingMu.Lock()
-		s.pendingGoodbye = true
-		s.speakingMu.Unlock()
+		if lastResponseMarkID != 0 {
+			s.audioMu.Lock()
+			s.pendingDoneMarkID = lastResponseMarkID
+			s.audioMu.Unlock()
+		}
 		go s.hangUpCall()
 	}
 }
 
-func (s *callSession) speakText(text string) error {
+func (s *callSession) speakText(ctx context.Context, text string) (uint64, error) {
 	// Get audio from TTS
-	audioCh, err := s.ttsClient.SynthesizeStream(s.ctx, text)
+	audioCh, err := s.ttsClient.SynthesizeStream(ctx, text)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Send audio chunks to Twilio
 	for chunk := range audioCh {
 		select {
-		case <-s.ctx.Done():
-			return s.ctx.Err()
+		case <-ctx.Done():
+			return 0, ctx.Err()
 		case <-s.bargeInCh:
 			// Barge-in detected - stop sending audio
 			s.logger.Printf("media_ws: stopping audio send due to barge-in")
 			// Drain remaining audio
 			for range audioCh {
 			}
-			return nil
+			return 0, nil
 		default:
 		}
 
@@ -719,22 +868,29 @@ func (s *callSession) speakText(text string) error {
 		s.connMu.Unlock()
 
 		if err != nil {
-			return fmt.Errorf("failed to send audio: %w", err)
+			return 0, fmt.Errorf("failed to send audio: %w", err)
 		}
 	}
 
-	// Send mark to track completion
+	// Send mark to track completion.
+	// We track audio in-flight by counting marks we send and marks we receive.
+	markID := s.nextAudioMarkID()
+	_ = s.incAudioPending()
 	mark := twilioMark{
 		Event:     "mark",
 		StreamSid: s.streamSid,
 	}
-	mark.Mark.Name = fmt.Sprintf("response-%d", s.utteranceSeq)
+	mark.Mark.Name = fmt.Sprintf("audio-%d", markID)
 
 	s.connMu.Lock()
 	err = s.conn.WriteJSON(mark)
 	s.connMu.Unlock()
 
-	return err
+	if err != nil {
+		// If the mark wasn't sent, don't keep the pending counter inflated.
+		_ = s.decAudioPending()
+	}
+	return markID, err
 }
 
 // clearAudio sends a clear event to Twilio to stop audio playback (for barge-in)
@@ -752,22 +908,19 @@ func (s *callSession) clearAudio() error {
 		return fmt.Errorf("failed to send clear: %w", err)
 	}
 
+	// Twilio clears any queued audio. Marks that were already sent may not arrive,
+	// so reset our local pending counter to avoid getting stuck in "speaking" mode.
+	s.audioMu.Lock()
+	s.audioPending = 0
+	s.pendingDoneMarkID = 0
+	s.audioMu.Unlock()
+
 	s.logger.Printf("media_ws: sent clear command (barge-in)")
 	return nil
 }
 
 // speakGreeting sends the initial greeting via ElevenLabs TTS
 func (s *callSession) speakGreeting() {
-	s.speakingMu.Lock()
-	s.speaking = true
-	s.speakingMu.Unlock()
-
-	defer func() {
-		s.speakingMu.Lock()
-		s.speaking = false
-		s.speakingMu.Unlock()
-	}()
-
 	// Use tenant's greeting if available, otherwise fall back to config default
 	var greeting string
 	if s.tenantCfg.GreetingText != nil && *s.tenantCfg.GreetingText != "" {
@@ -781,10 +934,12 @@ func (s *callSession) speakGreeting() {
 	s.logger.Printf("media_ws: speaking greeting: %s", greeting)
 
 	// Add greeting to conversation history so LLM knows it was already said
+	s.messagesMu.Lock()
 	s.messages = append(s.messages, llm.Message{
 		Role:    "assistant",
 		Content: greeting,
 	})
+	s.messagesMu.Unlock()
 
 	// Store greeting as first utterance (sequence 1)
 	s.utteranceSeq++ // Increments from 0 to 1
@@ -801,7 +956,7 @@ func (s *callSession) speakGreeting() {
 		}
 	}
 
-	if err := s.speakText(greeting); err != nil {
+	if _, err := s.speakText(s.ctx, greeting); err != nil {
 		s.logger.Printf("media_ws: greeting TTS error: %v", err)
 	}
 }
@@ -967,7 +1122,11 @@ func (s *callSession) analyzeCall() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.llmClient.AnalyzeCall(ctx, s.messages)
+	s.messagesMu.Lock()
+	msgs := append([]llm.Message(nil), s.messages...)
+	s.messagesMu.Unlock()
+
+	result, err := s.llmClient.AnalyzeCall(ctx, msgs)
 	if err != nil {
 		s.logger.Printf("media_ws: analysis error: %v", err)
 		return
@@ -1006,7 +1165,10 @@ func (s *callSession) cleanup() {
 	s.connMu.Unlock()
 
 	// Analyze the call at the end (only if we had a conversation)
-	if len(s.messages) >= 2 {
+	s.messagesMu.Lock()
+	msgCount := len(s.messages)
+	s.messagesMu.Unlock()
+	if msgCount >= 2 {
 		s.analyzeCall()
 	}
 

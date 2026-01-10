@@ -22,6 +22,9 @@ type Config struct {
 	OpenAIAPIKey     string
 	ElevenLabsAPIKey string
 
+	// STT settings
+	STTEndpointingMs int // Deepgram endpointing in ms (silence threshold)
+
 	// Voice settings (defaults, overridden by tenant config)
 	GreetingText   string
 	TTSVoiceID     string  // ElevenLabs voice ID
@@ -60,6 +63,11 @@ func LoadConfigFromEnv() Config {
 		DeepgramAPIKey:   getenv("DEEPGRAM_API_KEY", ""),
 		OpenAIAPIKey:     getenv("OPENAI_API_KEY", ""),
 		ElevenLabsAPIKey: getenv("ELEVENLABS_API_KEY", ""),
+
+		// STT settings
+		// Deepgram endpointing controls how quickly we decide the caller finished speaking.
+		// Too low -> fragmented utterances and interruptive back-and-forth; too high -> sluggish turns.
+		STTEndpointingMs: getenvIntClamped("STT_ENDPOINTING_MS", 1200, 200, 4000),
 
 		// Voice settings (defaults, overridden by tenant config)
 		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
@@ -121,6 +129,23 @@ func getenvFloatClamped(k string, def, min, max float64) float64 {
 				return max
 			}
 			return f
+		}
+	}
+	return def
+}
+
+// getenvIntClamped reads an int env var and clamps it to [min, max] range.
+// Returns def if the env var is not set or cannot be parsed.
+func getenvIntClamped(k string, def, min, max int) int {
+	if v := os.Getenv(k); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			if i < min {
+				return min
+			}
+			if i > max {
+				return max
+			}
+			return i
 		}
 	}
 	return def

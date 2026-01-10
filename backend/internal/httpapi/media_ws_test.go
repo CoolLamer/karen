@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"io"
+	"log"
 	"testing"
 	"time"
 )
@@ -274,14 +276,15 @@ func TestTenantConfigEndpointingNil(t *testing.T) {
 		t.Error("Endpointing should be nil when not set")
 	}
 
-	// When nil, default 800ms should be used in handleStart
-	defaultEndpointing := 800
+	// When nil, we should not override the chosen default endpointing.
+	// (In production, the default comes from RouterConfig / env.)
+	defaultEndpointing := 1200
 	endpointing := defaultEndpointing
 	if cfg.Endpointing != nil && *cfg.Endpointing > 0 {
 		endpointing = *cfg.Endpointing
 	}
-	if endpointing != 800 {
-		t.Errorf("Default endpointing = %d, want %d", endpointing, 800)
+	if endpointing != 1200 {
+		t.Errorf("Default endpointing = %d, want %d", endpointing, 1200)
 	}
 }
 
@@ -459,7 +462,51 @@ func TestTenantConfigVIPNamesEmpty(t *testing.T) {
 		TenantID: "test-tenant",
 	}
 
-	if cfg.VIPNames != nil && len(cfg.VIPNames) != 0 {
+	if len(cfg.VIPNames) != 0 {
 		t.Errorf("VIPNames should be nil or empty when not set, got %v", cfg.VIPNames)
+	}
+}
+
+func TestParseAudioMarkID(t *testing.T) {
+	id, ok := parseAudioMarkID("audio-123")
+	if !ok || id != 123 {
+		t.Errorf("parseAudioMarkID(audio-123) = (%d,%v), want (123,true)", id, ok)
+	}
+
+	_, ok = parseAudioMarkID("response-1")
+	if ok {
+		t.Error("parseAudioMarkID(response-1) should be false")
+	}
+
+	_, ok = parseAudioMarkID("audio-xyz")
+	if ok {
+		t.Error("parseAudioMarkID(audio-xyz) should be false")
+	}
+}
+
+func TestAudioPendingCounterNeverNegative(t *testing.T) {
+	s := &callSession{}
+	if n := s.decAudioPending(); n != 0 {
+		t.Errorf("decAudioPending() from zero = %d, want 0", n)
+	}
+}
+
+func TestHandleMarkSignalsPendingDoneMark(t *testing.T) {
+	s := &callSession{
+		logger:     log.New(io.Discard, "", 0),
+		goodbyeDone: make(chan struct{}, 1),
+	}
+
+	s.audioMu.Lock()
+	s.pendingDoneMarkID = 7
+	s.audioMu.Unlock()
+
+	s.handleMark(&twilioMarkData{Name: "audio-7"})
+
+	select {
+	case <-s.goodbyeDone:
+		// ok
+	default:
+		t.Error("expected goodbyeDone to be signaled for matching mark id")
 	}
 }

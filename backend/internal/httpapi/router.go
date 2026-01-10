@@ -24,6 +24,9 @@ type RouterConfig struct {
 	OpenAIAPIKey     string
 	ElevenLabsAPIKey string
 
+	// STT settings
+	STTEndpointingMs int // Deepgram endpointing in ms (silence threshold)
+
 	// Voice settings (defaults, can be overridden by tenant)
 	GreetingText  string
 	TTSVoiceID    string
