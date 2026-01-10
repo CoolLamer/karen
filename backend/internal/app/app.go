@@ -61,6 +61,7 @@ func (a *App) Router() http.Handler {
 		TTSVoiceID:            a.cfg.TTSVoiceID,
 		JWTSecret:             a.cfg.JWTSecret,
 		JWTExpiry:             a.cfg.JWTExpiry,
+		AdminPhones:           a.cfg.AdminPhones,
 	}
 	return httpapi.NewRouter(routerCfg, a.logger, a.store)
 }

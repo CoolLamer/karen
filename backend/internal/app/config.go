@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,9 @@ type Config struct {
 	// JWT Authentication
 	JWTSecret string
 	JWTExpiry time.Duration
+
+	// Admin access
+	AdminPhones []string
 }
 
 func LoadConfigFromEnv() Config {
@@ -59,7 +63,23 @@ func LoadConfigFromEnv() Config {
 		// JWT Authentication
 		JWTSecret: os.Getenv("JWT_SECRET"), // Required - no fallback for security
 		JWTExpiry: jwtExpiry,
+
+		// Admin access
+		AdminPhones: parseAdminPhones(os.Getenv("ADMIN_PHONES")),
 	}
+}
+
+func parseAdminPhones(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var phones []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			phones = append(phones, p)
+		}
+	}
+	return phones
 }
 
 func getenv(k, def string) string {

@@ -59,6 +59,17 @@ export type TenantPhoneNumber = {
   is_primary: boolean;
 };
 
+export type AdminPhoneNumber = {
+  id: string;
+  twilio_number: string;
+  twilio_sid?: string;
+  forwarding_source?: string;
+  is_primary: boolean;
+  tenant_id?: string;
+  tenant_name?: string;
+  created_at: string;
+};
+
 export type AuthResponse = {
   token: string;
   expires_at: string;
@@ -175,5 +186,26 @@ export const api = {
     http<OnboardingResponse>("/api/onboarding/complete", {
       method: "POST",
       body: JSON.stringify({ name }),
+    }),
+
+  // Admin
+  adminListPhoneNumbers: () =>
+    http<{ phone_numbers: AdminPhoneNumber[] }>("/admin/phone-numbers"),
+
+  adminAddPhoneNumber: (twilioNumber: string, twilioSid?: string) =>
+    http<TenantPhoneNumber>("/admin/phone-numbers", {
+      method: "POST",
+      body: JSON.stringify({ twilio_number: twilioNumber, twilio_sid: twilioSid }),
+    }),
+
+  adminDeletePhoneNumber: (id: string) =>
+    http<{ success: boolean }>(`/admin/phone-numbers/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+
+  adminUpdatePhoneNumber: (id: string, tenantId: string | null) =>
+    http<{ success: boolean }>(`/admin/phone-numbers/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ tenant_id: tenantId }),
     }),
 };
