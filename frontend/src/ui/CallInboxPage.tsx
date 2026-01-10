@@ -7,6 +7,7 @@ import { api, CallListItem, TenantPhoneNumber } from "../api";
 function labelColor(label: string | undefined) {
   switch (label) {
     case "legitimate":
+    case "legitimní":
       return "green";
     case "marketing":
       return "yellow";
@@ -16,6 +17,32 @@ function labelColor(label: string | undefined) {
       return "gray";
     default:
       return "gray";
+  }
+}
+
+function formatLabel(label: string) {
+  switch (label) {
+    case "legitimate":
+      return "legitimní";
+    case "unknown":
+      return "neznámé";
+    default:
+      return label;
+  }
+}
+
+function formatStatus(status: string) {
+  switch (status) {
+    case "in_progress":
+      return "Probíhá";
+    case "completed":
+      return "Dokončeno";
+    case "queued":
+      return "Čeká";
+    case "ringing":
+      return "Vyzvání";
+    default:
+      return status;
   }
 }
 
@@ -42,35 +69,35 @@ export function CallInboxPage() {
   return (
     <Stack gap="md" py="md">
       <Group justify="space-between">
-        <Title order={2}>Call Inbox</Title>
+        <Title order={2}>Příchozí hovory</Title>
         {hasPhoneNumber && (
           <Text size="sm" c="dimmed">
-            Karen cislo: <Text span fw={600}>{karenNumber}</Text>
+            Karen číslo: <Text span fw={600}>{karenNumber}</Text>
           </Text>
         )}
       </Group>
 
       {!hasPhoneNumber && calls !== null && (
         <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
-          Zatim ti nebylo prirazeno telefonni cislo. Jakmile bude dostupne, budeme te informovat.
+          Zatím ti nebylo přiřazeno telefonní číslo. Jakmile bude dostupné, budeme tě informovat.
         </Alert>
       )}
 
       {error && (
         <Paper p="md" withBorder>
-          <Text c="red">Error: {error}</Text>
+          <Text c="red">Chyba: {error}</Text>
         </Paper>
       )}
 
-      {!calls && !error && <Text c="dimmed">Loading…</Text>}
+      {!calls && !error && <Text c="dimmed">Načítání…</Text>}
 
       {calls && calls.length === 0 && (
         <Paper p="xl" withBorder ta="center">
           <Text c="dimmed" size="lg">
-            Zatim zadne hovory
+            Zatím žádné hovory
           </Text>
           <Text c="dimmed" size="sm" mt="xs">
-            Jakmile nekdo zavola na tvoje Karen cislo, uvidis hovor zde.
+            Jakmile někdo zavolá na tvoje Karen číslo, uvidíš hovor zde.
           </Text>
         </Paper>
       )}
@@ -80,11 +107,11 @@ export function CallInboxPage() {
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Time</Table.Th>
-                <Table.Th>From</Table.Th>
-                <Table.Th>Label</Table.Th>
-                <Table.Th>Intent</Table.Th>
-                <Table.Th>Status</Table.Th>
+                <Table.Th>Čas</Table.Th>
+                <Table.Th>Od</Table.Th>
+                <Table.Th>Hodnocení</Table.Th>
+                <Table.Th>Účel</Table.Th>
+                <Table.Th>Stav</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -94,19 +121,19 @@ export function CallInboxPage() {
                 return (
                   <Table.Tr key={c.provider_call_id}>
                     <Table.Td>
-                      <Text size="sm">{new Date(c.started_at).toLocaleString()}</Text>
+                      <Text size="sm">{new Date(c.started_at).toLocaleString("cs-CZ")}</Text>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" fw={600}>
                         <Link to={`/calls/${encodeURIComponent(c.provider_call_id)}`}>{c.from_number}</Link>
                       </Text>
                       <Text size="xs" c="dimmed">
-                        to {c.to_number}
+                        na {c.to_number}
                       </Text>
                     </Table.Td>
                     <Table.Td>
                       <Badge color={labelColor(label)} variant="light">
-                        {label}
+                        {formatLabel(label)}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
@@ -115,7 +142,7 @@ export function CallInboxPage() {
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm">{c.status}</Text>
+                      <Text size="sm">{formatStatus(c.status)}</Text>
                     </Table.Td>
                   </Table.Tr>
                 );
@@ -127,5 +154,3 @@ export function CallInboxPage() {
     </Stack>
   );
 }
-
-
