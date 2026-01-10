@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 // Pages
-import { LandingPage } from "./ui/LandingPage";
+import { LandingPage, SegmentLandingPage } from "./ui/landing";
 import { LoginPage } from "./ui/LoginPage";
 import { OnboardingPage } from "./ui/OnboardingPage";
 import { AppShellLayout } from "./ui/AppShellLayout";
@@ -92,6 +92,24 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <HomeRoute />,
+  },
+
+  // Segment landing pages (public)
+  {
+    path: "/pro-techniky",
+    element: <SegmentLandingPage segmentKey="technicians" />,
+  },
+  {
+    path: "/pro-lekare",
+    element: <SegmentLandingPage segmentKey="professionals" />,
+  },
+  {
+    path: "/pro-maklere",
+    element: <SegmentLandingPage segmentKey="sales" />,
+  },
+  {
+    path: "/pro-manazery",
+    element: <SegmentLandingPage segmentKey="managers" />,
   },
 
   // Login - public only

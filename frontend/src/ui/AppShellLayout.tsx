@@ -10,7 +10,7 @@ export function AppShellLayout() {
         <Group h="100%" px="md" justify="space-between">
           <Group gap="md">
             <Title order={4} c="blue">
-              Karen
+              Zvednu
             </Title>
             <Anchor component={Link} to="/inbox" underline="never" size="sm">
               Hovory

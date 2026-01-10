@@ -221,7 +221,7 @@ export function OnboardingPage() {
           {step === 3 && (
             <Stack gap="xl">
               <Stack gap="xs" ta="center">
-                <Title order={2}>{hasPhoneNumber ? "Tvoje Karen cislo" : "Skoro hotovo!"}</Title>
+                <Title order={2}>{hasPhoneNumber ? "Tvoje Zvednu cislo" : "Skoro hotovo!"}</Title>
                 <Text c="dimmed">
                   {hasPhoneNumber
                     ? "Na toto cislo presmerujes hovory kdyz budes nedostupny"
