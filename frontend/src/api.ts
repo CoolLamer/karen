@@ -76,6 +76,34 @@ export type AdminTenant = {
   name: string;
 };
 
+export type AdminTenantDetail = {
+  id: string;
+  name: string;
+  system_prompt: string;
+  greeting_text?: string;
+  voice_id?: string;
+  language: string;
+  vip_names?: string[];
+  marketing_email?: string;
+  forward_number?: string;
+  plan: string;
+  status: string;
+  user_count: number;
+  call_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminUser = {
+  id: string;
+  phone: string;
+  phone_verified: boolean;
+  name?: string;
+  role: string;
+  last_login_at?: string;
+  created_at: string;
+};
+
 export type CallEvent = {
   id: string;
   call_id: string;
@@ -233,4 +261,22 @@ export const api = {
     http<{ events: CallEvent[] }>(
       `/admin/calls/${encodeURIComponent(providerCallId)}/events`
     ),
+
+  // Admin users dashboard
+  adminListTenantsWithDetails: () =>
+    http<{ tenants: AdminTenantDetail[] }>("/admin/tenants/details"),
+
+  adminGetTenantUsers: (tenantId: string) =>
+    http<{ users: AdminUser[] }>(`/admin/tenants/${encodeURIComponent(tenantId)}/users`),
+
+  adminGetTenantCalls: (tenantId: string, limit = 20) =>
+    http<{ calls: CallDetail[] }>(
+      `/admin/tenants/${encodeURIComponent(tenantId)}/calls?limit=${limit}`
+    ),
+
+  adminUpdateTenantPlanStatus: (tenantId: string, plan: string, status: string) =>
+    http<{ success: boolean }>(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ plan, status }),
+    }),
 };

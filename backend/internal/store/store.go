@@ -765,6 +765,36 @@ type AdminTenant struct {
 	Name string `json:"name"`
 }
 
+// AdminTenantDetail is a full tenant view for admin dashboard with counts.
+type AdminTenantDetail struct {
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	SystemPrompt   string     `json:"system_prompt"`
+	GreetingText   *string    `json:"greeting_text,omitempty"`
+	VoiceID        *string    `json:"voice_id,omitempty"`
+	Language       string     `json:"language"`
+	VIPNames       []string   `json:"vip_names"`
+	MarketingEmail *string    `json:"marketing_email,omitempty"`
+	ForwardNumber  *string    `json:"forward_number,omitempty"`
+	Plan           string     `json:"plan"`
+	Status         string     `json:"status"`
+	UserCount      int        `json:"user_count"`
+	CallCount      int        `json:"call_count"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// AdminUser is a user view for admin dashboard.
+type AdminUser struct {
+	ID            string     `json:"id"`
+	Phone         string     `json:"phone"`
+	PhoneVerified bool       `json:"phone_verified"`
+	Name          *string    `json:"name,omitempty"`
+	Role          string     `json:"role"`
+	LastLoginAt   *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
 // ListAllTenants returns all tenants (for admin dropdowns).
 func (s *Store) ListAllTenants(ctx context.Context) ([]AdminTenant, error) {
 	rows, err := s.db.Query(ctx, `
@@ -826,4 +856,176 @@ func (s *Store) ListCallEvents(ctx context.Context, callID string, limit int) ([
 	return events, rows.Err()
 }
 
+// ============================================================================
+// Admin users dashboard operations
+// ============================================================================
 
+// ListAllTenantsWithDetails returns all tenants with full details and counts for admin dashboard.
+func (s *Store) ListAllTenantsWithDetails(ctx context.Context) ([]AdminTenantDetail, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT
+			t.id, t.name, t.system_prompt, t.greeting_text, t.voice_id, t.language,
+			t.vip_names, t.marketing_email, t.forward_number, t.plan, t.status,
+			t.created_at, t.updated_at,
+			COALESCE((SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id), 0) as user_count,
+			COALESCE((SELECT COUNT(*) FROM calls c WHERE c.tenant_id = t.id), 0) as call_count
+		FROM tenants t
+		ORDER BY t.created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tenants []AdminTenantDetail
+	for rows.Next() {
+		var t AdminTenantDetail
+		if err := rows.Scan(
+			&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
+			&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.Plan, &t.Status,
+			&t.CreatedAt, &t.UpdatedAt, &t.UserCount, &t.CallCount,
+		); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
+// ListUsersByTenant returns all users for a specific tenant.
+func (s *Store) ListUsersByTenant(ctx context.Context, tenantID string) ([]AdminUser, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, phone, phone_verified, name, role, last_login_at, created_at
+		FROM users
+		WHERE tenant_id = $1
+		ORDER BY created_at ASC
+	`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []AdminUser
+	for rows.Next() {
+		var u AdminUser
+		if err := rows.Scan(&u.ID, &u.Phone, &u.PhoneVerified, &u.Name, &u.Role, &u.LastLoginAt, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+// ListCallsByTenantWithDetails returns calls with utterances for a tenant.
+func (s *Store) ListCallsByTenantWithDetails(ctx context.Context, tenantID string, limit int) ([]CallDetail, error) {
+	// First get the calls
+	rows, err := s.db.Query(ctx, `
+		SELECT c.id, c.tenant_id, c.provider, c.provider_call_id, c.from_number, c.to_number,
+		       c.status, c.started_at, c.ended_at, c.ended_by,
+		       r.legitimacy_label, r.legitimacy_confidence, r.intent_category, r.intent_text, r.entities_json, r.created_at
+		FROM calls c
+		LEFT JOIN call_screening_results r ON r.call_id = c.id
+		WHERE c.tenant_id = $1
+		ORDER BY c.started_at DESC
+		LIMIT $2
+	`, tenantID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var calls []CallDetail
+	var callIDs []string
+
+	for rows.Next() {
+		var cd CallDetail
+		var callID string
+		var legitimacyLabel *string
+		var legitimacyConfidence *float64
+		var intentCategory *string
+		var intentText *string
+		var entities []byte
+		var screeningCreatedAt *time.Time
+
+		err := rows.Scan(
+			&callID, &cd.TenantID, &cd.Provider, &cd.ProviderCallID, &cd.FromNumber, &cd.ToNumber,
+			&cd.Status, &cd.StartedAt, &cd.EndedAt, &cd.EndedBy,
+			&legitimacyLabel, &legitimacyConfidence, &intentCategory, &intentText, &entities, &screeningCreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if screeningCreatedAt != nil && legitimacyLabel != nil && legitimacyConfidence != nil && intentCategory != nil && intentText != nil {
+			sr := ScreeningResult{
+				LegitimacyLabel:      *legitimacyLabel,
+				LegitimacyConfidence: *legitimacyConfidence,
+				IntentCategory:       *intentCategory,
+				IntentText:           *intentText,
+				CreatedAt:            *screeningCreatedAt,
+			}
+			if len(entities) > 0 {
+				sr.EntitiesJSON = json.RawMessage(entities)
+			} else {
+				sr.EntitiesJSON = json.RawMessage(`{}`)
+			}
+			cd.Screening = &sr
+		}
+
+		cd.ID = callID
+		calls = append(calls, cd)
+		callIDs = append(callIDs, callID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Build map after slice is complete to avoid stale pointers from slice reallocation
+	callMap := make(map[string]*CallDetail, len(calls))
+	for i := range calls {
+		callMap[calls[i].ID] = &calls[i]
+	}
+
+	// Fetch utterances for all calls
+	if len(callIDs) > 0 {
+		utteranceRows, err := s.db.Query(ctx, `
+			SELECT call_id, speaker, text, sequence, started_at, ended_at, stt_confidence, interrupted
+			FROM call_utterances
+			WHERE call_id = ANY($1)
+			ORDER BY call_id, sequence ASC
+		`, callIDs)
+		if err != nil {
+			// Log error but return calls without utterances rather than failing entirely
+			return calls, nil
+		}
+		defer utteranceRows.Close()
+
+		for utteranceRows.Next() {
+			var callID string
+			var u Utterance
+			if err := utteranceRows.Scan(&callID, &u.Speaker, &u.Text, &u.Sequence, &u.StartedAt, &u.EndedAt, &u.STTConfidence, &u.Interrupted); err != nil {
+				continue
+			}
+			if cd, ok := callMap[callID]; ok {
+				cd.Utterances = append(cd.Utterances, u)
+			}
+		}
+	}
+
+	return calls, nil
+}
+
+// UpdateTenantPlanStatus updates only the plan and status fields of a tenant.
+// Returns the number of rows affected (0 if tenant not found).
+func (s *Store) UpdateTenantPlanStatus(ctx context.Context, tenantID, plan, status string) (int64, error) {
+	result, err := s.db.Exec(ctx, `
+		UPDATE tenants
+		SET plan = $2, status = $3, updated_at = NOW()
+		WHERE id = $1
+	`, tenantID, plan, status)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

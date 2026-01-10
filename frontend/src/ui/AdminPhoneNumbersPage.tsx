@@ -176,6 +176,9 @@ export function AdminPhoneNumbersPage() {
               <Title order={2}>Admin: Phone Numbers</Title>
             </Group>
             <Group>
+              <Button variant="light" onClick={() => navigate("/admin/users")}>
+                Users
+              </Button>
               <Button variant="light" onClick={() => navigate("/admin/logs")}>
                 View Logs
               </Button>

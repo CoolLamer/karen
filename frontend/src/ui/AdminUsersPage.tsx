@@ -1,0 +1,762 @@
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Accordion,
+  Badge,
+  Box,
+  Button,
+  Collapse,
+  Group,
+  Modal,
+  Paper,
+  Select,
+  Stack,
+  Table,
+  Text,
+  Title,
+  Spoiler,
+  ThemeIcon,
+  UnstyledButton,
+  Alert,
+} from "@mantine/core";
+import { useMediaQuery, useDisclosure } from "@mantine/hooks";
+import {
+  IconArrowLeft,
+  IconChevronDown,
+  IconChevronRight,
+  IconEdit,
+  IconUsers,
+  IconSettings,
+  IconPhoneCall,
+  IconRobot,
+  IconUser,
+} from "@tabler/icons-react";
+import { api, AdminTenantDetail, AdminUser, CallDetail } from "../api";
+
+const PLAN_OPTIONS = [
+  { value: "trial", label: "Trial" },
+  { value: "basic", label: "Basic" },
+  { value: "pro", label: "Pro" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "suspended", label: "Suspended" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const PLAN_COLORS: Record<string, string> = {
+  trial: "gray",
+  basic: "blue",
+  pro: "violet",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  active: "green",
+  suspended: "orange",
+  cancelled: "red",
+};
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+function formatSpeaker(speaker: string) {
+  return speaker === "agent" ? "Karen" : "Caller";
+}
+
+export function AdminUsersPage() {
+  const navigate = useNavigate();
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const [tenants, setTenants] = React.useState<AdminTenantDetail[] | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState<string | null>(null);
+
+  // Lazy-loaded data per tenant
+  const [tenantUsers, setTenantUsers] = React.useState<Record<string, AdminUser[]>>({});
+  const [tenantCalls, setTenantCalls] = React.useState<Record<string, CallDetail[]>>({});
+  const [loadingUsers, setLoadingUsers] = React.useState<Record<string, boolean>>({});
+  const [loadingCalls, setLoadingCalls] = React.useState<Record<string, boolean>>({});
+
+  // Mobile expanded sections
+  const [expandedTenant, setExpandedTenant] = React.useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = React.useState<Record<string, { config?: boolean; users?: boolean; calls?: boolean }>>({});
+  const [expandedCall, setExpandedCall] = React.useState<string | null>(null);
+
+  // Edit modal
+  const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
+  const [editingTenant, setEditingTenant] = React.useState<AdminTenantDetail | null>(null);
+  const [editPlan, setEditPlan] = React.useState("");
+  const [editStatus, setEditStatus] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    api
+      .adminListTenantsWithDetails()
+      .then((data) => setTenants(data.tenants || []))
+      .catch((e: unknown) => {
+        const err = e as { status?: number };
+        if (err.status === 403) {
+          navigate("/");
+          return;
+        }
+        setError("Failed to load tenants");
+      });
+  }, [navigate]);
+
+  const loadUsers = async (tenantId: string) => {
+    if (tenantUsers[tenantId] || loadingUsers[tenantId]) return;
+    setLoadingUsers((prev) => ({ ...prev, [tenantId]: true }));
+    try {
+      const data = await api.adminGetTenantUsers(tenantId);
+      setTenantUsers((prev) => ({ ...prev, [tenantId]: data.users || [] }));
+    } catch {
+      setError("Failed to load users");
+    } finally {
+      setLoadingUsers((prev) => ({ ...prev, [tenantId]: false }));
+    }
+  };
+
+  const loadCalls = async (tenantId: string) => {
+    if (tenantCalls[tenantId] || loadingCalls[tenantId]) return;
+    setLoadingCalls((prev) => ({ ...prev, [tenantId]: true }));
+    try {
+      const data = await api.adminGetTenantCalls(tenantId, 10);
+      setTenantCalls((prev) => ({ ...prev, [tenantId]: data.calls || [] }));
+    } catch {
+      setError("Failed to load calls");
+    } finally {
+      setLoadingCalls((prev) => ({ ...prev, [tenantId]: false }));
+    }
+  };
+
+  const handleEdit = (tenant: AdminTenantDetail) => {
+    setEditingTenant(tenant);
+    setEditPlan(tenant.plan);
+    setEditStatus(tenant.status);
+    openEditModal();
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTenant) return;
+    setSaving(true);
+    try {
+      await api.adminUpdateTenantPlanStatus(editingTenant.id, editPlan, editStatus);
+      setTenants((prev) =>
+        prev?.map((t) =>
+          t.id === editingTenant.id ? { ...t, plan: editPlan, status: editStatus } : t
+        ) ?? null
+      );
+      setSuccess(`Updated ${editingTenant.name}`);
+      closeEditModal();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch {
+      setError("Failed to update tenant");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleMobileSection = (tenantId: string, section: "config" | "users" | "calls") => {
+    setExpandedSection((prev) => ({
+      ...prev,
+      [tenantId]: {
+        ...prev[tenantId],
+        [section]: !prev[tenantId]?.[section],
+      },
+    }));
+    if (section === "users") loadUsers(tenantId);
+    if (section === "calls") loadCalls(tenantId);
+  };
+
+  // Stats
+  const stats = React.useMemo(() => {
+    if (!tenants) return null;
+    return {
+      active: tenants.filter((t) => t.status === "active").length,
+      trial: tenants.filter((t) => t.plan === "trial").length,
+      total: tenants.length,
+    };
+  }, [tenants]);
+
+  return (
+    <Stack gap="md" py="md">
+      {/* Header */}
+      <Group justify="space-between" wrap="wrap">
+        <Group gap="sm">
+          <Button
+            variant="subtle"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={() => navigate("/admin")}
+            px={0}
+          >
+            Back
+          </Button>
+          <Title order={2}>Admin: Users</Title>
+        </Group>
+        <Button variant="light" onClick={() => navigate("/admin")}>
+          Phone Numbers
+        </Button>
+      </Group>
+
+      {/* Stats badges */}
+      {stats && (
+        <Group gap="xs">
+          <Badge color="green" variant="light">
+            Active: {stats.active}
+          </Badge>
+          <Badge color="gray" variant="light">
+            Trial: {stats.trial}
+          </Badge>
+          <Badge variant="outline">Total: {stats.total}</Badge>
+        </Group>
+      )}
+
+      {/* Alerts */}
+      {error && (
+        <Alert color="red" onClose={() => setError(null)} withCloseButton>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert color="green" onClose={() => setSuccess(null)} withCloseButton>
+          {success}
+        </Alert>
+      )}
+
+      {/* Loading state */}
+      {!tenants && !error && <Text c="dimmed">Loading...</Text>}
+
+      {/* Empty state */}
+      {tenants && tenants.length === 0 && (
+        <Paper p="xl" withBorder ta="center" radius="md">
+          <ThemeIcon size={60} radius="xl" variant="light" color="gray" mb="md" mx="auto">
+            <IconUsers size={30} />
+          </ThemeIcon>
+          <Text c="dimmed" size="lg">
+            No tenants yet
+          </Text>
+        </Paper>
+      )}
+
+      {/* Mobile layout */}
+      {tenants && tenants.length > 0 && isMobile && (
+        <Stack gap="sm">
+          {tenants.map((tenant) => (
+            <Paper
+              key={tenant.id}
+              p="md"
+              radius="md"
+              withBorder
+              style={{
+                borderLeft: `4px solid var(--mantine-color-${STATUS_COLORS[tenant.status] || "gray"}-5)`,
+              }}
+            >
+              {/* Tenant header */}
+              <UnstyledButton
+                onClick={() => setExpandedTenant(expandedTenant === tenant.id ? null : tenant.id)}
+                style={{ width: "100%" }}
+              >
+                <Group justify="space-between" wrap="nowrap">
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Text fw={600} truncate>
+                      {tenant.name}
+                    </Text>
+                    <Group gap="xs" mt={4}>
+                      <Badge size="xs" color={PLAN_COLORS[tenant.plan] || "gray"}>
+                        {tenant.plan}
+                      </Badge>
+                      <Badge size="xs" color={STATUS_COLORS[tenant.status] || "gray"}>
+                        {tenant.status}
+                      </Badge>
+                    </Group>
+                  </Box>
+                  {expandedTenant === tenant.id ? (
+                    <IconChevronDown size={20} color="gray" />
+                  ) : (
+                    <IconChevronRight size={20} color="gray" />
+                  )}
+                </Group>
+              </UnstyledButton>
+
+              <Collapse in={expandedTenant === tenant.id}>
+                <Stack gap="xs" mt="md">
+                  {/* Config section */}
+                  <UnstyledButton
+                    onClick={() => toggleMobileSection(tenant.id, "config")}
+                    style={{ width: "100%" }}
+                  >
+                    <Group gap="xs">
+                      <IconSettings size={16} />
+                      <Text size="sm" fw={500}>
+                        Configuration
+                      </Text>
+                      {expandedSection[tenant.id]?.config ? (
+                        <IconChevronDown size={14} />
+                      ) : (
+                        <IconChevronRight size={14} />
+                      )}
+                    </Group>
+                  </UnstyledButton>
+                  <Collapse in={expandedSection[tenant.id]?.config || false}>
+                    <Paper p="sm" bg="gray.0" radius="sm">
+                      <Stack gap="xs">
+                        <Text size="xs">
+                          <Text span fw={500}>Language:</Text> {tenant.language}
+                        </Text>
+                        {tenant.voice_id && (
+                          <Text size="xs">
+                            <Text span fw={500}>Voice:</Text> {tenant.voice_id}
+                          </Text>
+                        )}
+                        {tenant.forward_number && (
+                          <Text size="xs">
+                            <Text span fw={500}>Forward:</Text> {tenant.forward_number}
+                          </Text>
+                        )}
+                        {tenant.vip_names && tenant.vip_names.length > 0 && (
+                          <Text size="xs">
+                            <Text span fw={500}>VIP:</Text> {tenant.vip_names.join(", ")}
+                          </Text>
+                        )}
+                        <Box>
+                          <Text size="xs" fw={500} mb={2}>
+                            System Prompt:
+                          </Text>
+                          <Spoiler maxHeight={60} showLabel="Show more" hideLabel="Hide">
+                            <Text size="xs" style={{ whiteSpace: "pre-wrap" }}>
+                              {tenant.system_prompt}
+                            </Text>
+                          </Spoiler>
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  </Collapse>
+
+                  {/* Users section */}
+                  <UnstyledButton
+                    onClick={() => toggleMobileSection(tenant.id, "users")}
+                    style={{ width: "100%" }}
+                  >
+                    <Group gap="xs">
+                      <IconUsers size={16} />
+                      <Text size="sm" fw={500}>
+                        Users ({tenant.user_count})
+                      </Text>
+                      {expandedSection[tenant.id]?.users ? (
+                        <IconChevronDown size={14} />
+                      ) : (
+                        <IconChevronRight size={14} />
+                      )}
+                    </Group>
+                  </UnstyledButton>
+                  <Collapse in={expandedSection[tenant.id]?.users || false}>
+                    {loadingUsers[tenant.id] && <Text size="xs" c="dimmed">Loading...</Text>}
+                    {tenantUsers[tenant.id]?.length === 0 && (
+                      <Text size="xs" c="dimmed">No users</Text>
+                    )}
+                    {tenantUsers[tenant.id]?.map((user) => (
+                      <Paper key={user.id} p="xs" bg="gray.0" radius="sm" mb="xs">
+                        <Group justify="space-between">
+                          <Box>
+                            <Text size="sm" fw={500}>
+                              {user.phone}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {user.name || "No name"} | {user.role}
+                            </Text>
+                          </Box>
+                          {user.last_login_at && (
+                            <Text size="xs" c="dimmed">
+                              {formatRelativeTime(new Date(user.last_login_at))}
+                            </Text>
+                          )}
+                        </Group>
+                      </Paper>
+                    ))}
+                  </Collapse>
+
+                  {/* Calls section */}
+                  <UnstyledButton
+                    onClick={() => toggleMobileSection(tenant.id, "calls")}
+                    style={{ width: "100%" }}
+                  >
+                    <Group gap="xs">
+                      <IconPhoneCall size={16} />
+                      <Text size="sm" fw={500}>
+                        Calls ({tenant.call_count})
+                      </Text>
+                      {expandedSection[tenant.id]?.calls ? (
+                        <IconChevronDown size={14} />
+                      ) : (
+                        <IconChevronRight size={14} />
+                      )}
+                    </Group>
+                  </UnstyledButton>
+                  <Collapse in={expandedSection[tenant.id]?.calls || false}>
+                    {loadingCalls[tenant.id] && <Text size="xs" c="dimmed">Loading...</Text>}
+                    {tenantCalls[tenant.id]?.length === 0 && (
+                      <Text size="xs" c="dimmed">No calls</Text>
+                    )}
+                    {tenantCalls[tenant.id]?.map((call) => (
+                      <Paper key={call.provider_call_id} p="xs" bg="gray.0" radius="sm" mb="xs">
+                        <UnstyledButton
+                          onClick={() =>
+                            setExpandedCall(
+                              expandedCall === call.provider_call_id ? null : call.provider_call_id
+                            )
+                          }
+                          style={{ width: "100%" }}
+                        >
+                          <Group justify="space-between">
+                            <Box>
+                              <Text size="sm" fw={500}>
+                                {call.from_number}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {formatRelativeTime(new Date(call.started_at))} | {call.status}
+                              </Text>
+                            </Box>
+                            {expandedCall === call.provider_call_id ? (
+                              <IconChevronDown size={14} />
+                            ) : (
+                              <IconChevronRight size={14} />
+                            )}
+                          </Group>
+                        </UnstyledButton>
+                        <Collapse in={expandedCall === call.provider_call_id}>
+                          {call.utterances?.length > 0 ? (
+                            <Stack gap="xs" mt="sm">
+                              {call.utterances.map((u) => (
+                                <Box
+                                  key={u.sequence}
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: u.speaker === "agent" ? "flex-end" : "flex-start",
+                                  }}
+                                >
+                                  <Paper
+                                    p="xs"
+                                    radius="md"
+                                    style={{
+                                      maxWidth: "85%",
+                                      backgroundColor:
+                                        u.speaker === "agent"
+                                          ? "var(--mantine-color-teal-0)"
+                                          : "var(--mantine-color-gray-1)",
+                                    }}
+                                  >
+                                    <Group gap="xs" mb={2}>
+                                      <ThemeIcon
+                                        size="xs"
+                                        color={u.speaker === "agent" ? "teal" : "gray"}
+                                        variant="transparent"
+                                      >
+                                        {u.speaker === "agent" ? (
+                                          <IconRobot size={10} />
+                                        ) : (
+                                          <IconUser size={10} />
+                                        )}
+                                      </ThemeIcon>
+                                      <Text size="xs" fw={500}>
+                                        {formatSpeaker(u.speaker)}
+                                      </Text>
+                                    </Group>
+                                    <Text size="xs">{u.text}</Text>
+                                  </Paper>
+                                </Box>
+                              ))}
+                            </Stack>
+                          ) : (
+                            <Text size="xs" c="dimmed" mt="sm">
+                              No transcript
+                            </Text>
+                          )}
+                        </Collapse>
+                      </Paper>
+                    ))}
+                  </Collapse>
+
+                  {/* Edit button */}
+                  <Button
+                    variant="light"
+                    size="xs"
+                    leftSection={<IconEdit size={14} />}
+                    onClick={() => handleEdit(tenant)}
+                    mt="xs"
+                  >
+                    Edit Plan/Status
+                  </Button>
+                </Stack>
+              </Collapse>
+            </Paper>
+          ))}
+        </Stack>
+      )}
+
+      {/* Desktop layout */}
+      {tenants && tenants.length > 0 && !isMobile && (
+        <Accordion variant="separated">
+          {tenants.map((tenant) => (
+            <Accordion.Item key={tenant.id} value={tenant.id}>
+              <Accordion.Control
+                onClick={() => {
+                  loadUsers(tenant.id);
+                  loadCalls(tenant.id);
+                }}
+              >
+                <Group justify="space-between" wrap="nowrap" style={{ flex: 1 }}>
+                  <Group gap="sm">
+                    <Text fw={600}>{tenant.name}</Text>
+                    <Badge size="sm" color={PLAN_COLORS[tenant.plan] || "gray"}>
+                      {tenant.plan}
+                    </Badge>
+                    <Badge size="sm" color={STATUS_COLORS[tenant.status] || "gray"}>
+                      {tenant.status}
+                    </Badge>
+                  </Group>
+                  <Group gap="xs">
+                    <Badge variant="outline" size="sm">
+                      {tenant.user_count} users
+                    </Badge>
+                    <Badge variant="outline" size="sm">
+                      {tenant.call_count} calls
+                    </Badge>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      leftSection={<IconEdit size={14} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(tenant);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </Group>
+                </Group>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="md">
+                  {/* Configuration */}
+                  <Box>
+                    <Text fw={600} size="sm" mb="xs">
+                      Configuration
+                    </Text>
+                    <Table>
+                      <Table.Tbody>
+                        <Table.Tr>
+                          <Table.Td w={150}>Language</Table.Td>
+                          <Table.Td>{tenant.language}</Table.Td>
+                        </Table.Tr>
+                        {tenant.voice_id && (
+                          <Table.Tr>
+                            <Table.Td>Voice ID</Table.Td>
+                            <Table.Td>{tenant.voice_id}</Table.Td>
+                          </Table.Tr>
+                        )}
+                        {tenant.forward_number && (
+                          <Table.Tr>
+                            <Table.Td>Forward Number</Table.Td>
+                            <Table.Td>{tenant.forward_number}</Table.Td>
+                          </Table.Tr>
+                        )}
+                        {tenant.vip_names && tenant.vip_names.length > 0 && (
+                          <Table.Tr>
+                            <Table.Td>VIP Names</Table.Td>
+                            <Table.Td>{tenant.vip_names.join(", ")}</Table.Td>
+                          </Table.Tr>
+                        )}
+                        <Table.Tr>
+                          <Table.Td style={{ verticalAlign: "top" }}>System Prompt</Table.Td>
+                          <Table.Td>
+                            <Spoiler maxHeight={100} showLabel="Show full" hideLabel="Hide">
+                              <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                                {tenant.system_prompt}
+                              </Text>
+                            </Spoiler>
+                          </Table.Td>
+                        </Table.Tr>
+                      </Table.Tbody>
+                    </Table>
+                  </Box>
+
+                  {/* Users */}
+                  <Box>
+                    <Text fw={600} size="sm" mb="xs">
+                      Users ({tenant.user_count})
+                    </Text>
+                    {loadingUsers[tenant.id] && <Text size="sm" c="dimmed">Loading...</Text>}
+                    {tenantUsers[tenant.id]?.length === 0 && (
+                      <Text size="sm" c="dimmed">No users</Text>
+                    )}
+                    {tenantUsers[tenant.id] && tenantUsers[tenant.id].length > 0 && (
+                      <Table striped>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Phone</Table.Th>
+                            <Table.Th>Name</Table.Th>
+                            <Table.Th>Role</Table.Th>
+                            <Table.Th>Last Login</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {tenantUsers[tenant.id].map((user) => (
+                            <Table.Tr key={user.id}>
+                              <Table.Td>{user.phone}</Table.Td>
+                              <Table.Td>{user.name || "—"}</Table.Td>
+                              <Table.Td>
+                                <Badge size="xs" variant="light">
+                                  {user.role}
+                                </Badge>
+                              </Table.Td>
+                              <Table.Td>
+                                {user.last_login_at
+                                  ? formatRelativeTime(new Date(user.last_login_at))
+                                  : "Never"}
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    )}
+                  </Box>
+
+                  {/* Calls */}
+                  <Box>
+                    <Text fw={600} size="sm" mb="xs">
+                      Recent Calls ({tenant.call_count} total)
+                    </Text>
+                    {loadingCalls[tenant.id] && <Text size="sm" c="dimmed">Loading...</Text>}
+                    {tenantCalls[tenant.id]?.length === 0 && (
+                      <Text size="sm" c="dimmed">No calls</Text>
+                    )}
+                    {tenantCalls[tenant.id] && tenantCalls[tenant.id].length > 0 && (
+                      <Accordion variant="filled" chevronPosition="left">
+                        {tenantCalls[tenant.id].map((call) => (
+                          <Accordion.Item key={call.provider_call_id} value={call.provider_call_id}>
+                            <Accordion.Control>
+                              <Group justify="space-between">
+                                <Group gap="sm">
+                                  <Text size="sm" fw={500}>
+                                    {call.from_number}
+                                  </Text>
+                                  <Text size="xs" c="dimmed">
+                                    {formatRelativeTime(new Date(call.started_at))}
+                                  </Text>
+                                </Group>
+                                <Badge size="xs" variant="light">
+                                  {call.status}
+                                </Badge>
+                              </Group>
+                            </Accordion.Control>
+                            <Accordion.Panel>
+                              {call.screening?.intent_text && (
+                                <Text size="sm" c="dimmed" mb="md">
+                                  Intent: {call.screening.intent_text}
+                                </Text>
+                              )}
+                              {call.utterances?.length > 0 ? (
+                                <Stack gap="sm">
+                                  {call.utterances.map((u) => (
+                                    <Box
+                                      key={u.sequence}
+                                      style={{
+                                        display: "flex",
+                                        justifyContent:
+                                          u.speaker === "agent" ? "flex-end" : "flex-start",
+                                      }}
+                                    >
+                                      <Paper
+                                        p="sm"
+                                        radius="md"
+                                        style={{
+                                          maxWidth: "80%",
+                                          backgroundColor:
+                                            u.speaker === "agent"
+                                              ? "var(--mantine-color-teal-0)"
+                                              : "var(--mantine-color-gray-1)",
+                                        }}
+                                      >
+                                        <Group gap="xs" mb={4}>
+                                          <ThemeIcon
+                                            size="xs"
+                                            color={u.speaker === "agent" ? "teal" : "gray"}
+                                            variant="transparent"
+                                          >
+                                            {u.speaker === "agent" ? (
+                                              <IconRobot size={12} />
+                                            ) : (
+                                              <IconUser size={12} />
+                                            )}
+                                          </ThemeIcon>
+                                          <Text size="xs" fw={500}>
+                                            {formatSpeaker(u.speaker)}
+                                          </Text>
+                                        </Group>
+                                        <Text size="sm">{u.text}</Text>
+                                      </Paper>
+                                    </Box>
+                                  ))}
+                                </Stack>
+                              ) : (
+                                <Text size="sm" c="dimmed">
+                                  No transcript available
+                                </Text>
+                              )}
+                            </Accordion.Panel>
+                          </Accordion.Item>
+                        ))}
+                      </Accordion>
+                    )}
+                  </Box>
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          ))}
+        </Accordion>
+      )}
+
+      {/* Edit Modal */}
+      <Modal
+        opened={editModalOpened}
+        onClose={closeEditModal}
+        title={`Edit: ${editingTenant?.name}`}
+        size="sm"
+      >
+        <Stack gap="md">
+          <Select
+            label="Plan"
+            value={editPlan}
+            onChange={(v) => setEditPlan(v || "")}
+            data={PLAN_OPTIONS}
+          />
+          <Select
+            label="Status"
+            value={editStatus}
+            onChange={(v) => setEditStatus(v || "")}
+            data={STATUS_OPTIONS}
+          />
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" onClick={closeEditModal}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} loading={saving}>
+              Save
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </Stack>
+  );
+}

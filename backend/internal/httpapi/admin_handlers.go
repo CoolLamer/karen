@@ -189,3 +189,110 @@ func (r *Router) handleAdminGetCallEvents(w http.ResponseWriter, req *http.Reque
 
 	writeJSON(w, http.StatusOK, map[string]any{"events": events})
 }
+
+// ============================================================================
+// Admin Users Dashboard Handlers
+// ============================================================================
+
+// handleAdminListTenantsWithDetails returns all tenants with full config and counts.
+func (r *Router) handleAdminListTenantsWithDetails(w http.ResponseWriter, req *http.Request) {
+	tenants, err := r.store.ListAllTenantsWithDetails(req.Context())
+	if err != nil {
+		r.logger.Printf("admin: failed to list tenants with details: %v", err)
+		http.Error(w, `{"error": "failed to list tenants"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"tenants": tenants})
+}
+
+// handleAdminGetTenantUsers returns users for a specific tenant.
+func (r *Router) handleAdminGetTenantUsers(w http.ResponseWriter, req *http.Request) {
+	tenantID := req.PathValue("tenantId")
+	if tenantID == "" {
+		http.Error(w, `{"error": "missing tenant ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	users, err := r.store.ListUsersByTenant(req.Context(), tenantID)
+	if err != nil {
+		r.logger.Printf("admin: failed to list users for tenant %s: %v", tenantID, err)
+		http.Error(w, `{"error": "failed to list users"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"users": users})
+}
+
+// handleAdminGetTenantCalls returns calls with transcripts for a specific tenant.
+func (r *Router) handleAdminGetTenantCalls(w http.ResponseWriter, req *http.Request) {
+	tenantID := req.PathValue("tenantId")
+	if tenantID == "" {
+		http.Error(w, `{"error": "missing tenant ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	limit := 20
+	if l := req.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+
+	calls, err := r.store.ListCallsByTenantWithDetails(req.Context(), tenantID, limit)
+	if err != nil {
+		r.logger.Printf("admin: failed to list calls for tenant %s: %v", tenantID, err)
+		http.Error(w, `{"error": "failed to list calls"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"calls": calls})
+}
+
+// handleAdminUpdateTenantPlanStatus updates a tenant's plan and status.
+func (r *Router) handleAdminUpdateTenantPlanStatus(w http.ResponseWriter, req *http.Request) {
+	tenantID := req.PathValue("tenantId")
+	if tenantID == "" {
+		http.Error(w, `{"error": "missing tenant ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		Plan   string `json:"plan"`
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error": "invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate plan
+	validPlans := []string{"trial", "basic", "pro"}
+	if !slices.Contains(validPlans, body.Plan) {
+		http.Error(w, `{"error": "invalid plan, must be trial, basic, or pro"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate status
+	validStatuses := []string{"active", "suspended", "cancelled"}
+	if !slices.Contains(validStatuses, body.Status) {
+		http.Error(w, `{"error": "invalid status, must be active, suspended, or cancelled"}`, http.StatusBadRequest)
+		return
+	}
+
+	rowsAffected, err := r.store.UpdateTenantPlanStatus(req.Context(), tenantID, body.Plan, body.Status)
+	if err != nil {
+		r.logger.Printf("admin: failed to update tenant %s: %v", tenantID, err)
+		http.Error(w, `{"error": "failed to update tenant"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, `{"error": "tenant not found"}`, http.StatusNotFound)
+		return
+	}
+
+	r.logger.Printf("admin: updated tenant %s plan=%s status=%s", tenantID, body.Plan, body.Status)
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
