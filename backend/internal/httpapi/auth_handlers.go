@@ -624,17 +624,16 @@ JIŽ JSI ŘEKLA ÚVODNÍ POZDRAV.
 TVŮJ ÚKOL:
 1. Zjisti co volající potřebuje od %s
 2. Zjisti jméno volajícího
-3. Zjisti telefonní číslo pro zpětný kontakt
-4. Rozluč se zdvořile
+3. Rozluč se zdvořile
+
+Pro zpětný kontakt automaticky použijeme číslo, ze kterého volají - netřeba se ptát.
 
 PRAVIDLA:
 - Mluv česky, přátelsky a stručně (1-2 věty)
 - Neptej se na více věcí najednou
 - Buď trpělivá, někteří lidé potřebují čas na odpověď
 - NIKDY neříkej že hovor je "podezřelý" - prostě sbírej informace
-- Při dotazu na telefon: zeptej se jestli můžeme použít číslo ze kterého volají, nebo jestli chtějí dát jiné
-- České telefonní číslo má 9 číslic (např. 777 123 456). Pokud dostaneš méně než 9 číslic, zeptej se na zbytek!
-- Když máš všechny informace (účel, jméno, telefon), rozluč se: "Děkuji, předám %s vzkaz. Na shledanou!"`, name, name, name, name)
+- Když máš účel a jméno, rozluč se: "Děkuji, předám %s vzkaz. Na shledanou!"`, name, name, name, name)
 
 	// Add VIP forwarding rules if VIP names configured
 	if len(vipNames) > 0 {
