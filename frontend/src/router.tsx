@@ -10,6 +10,7 @@ import { AppShellLayout } from "./ui/AppShellLayout";
 import { CallInboxPage } from "./ui/CallInboxPage";
 import { CallDetailPage } from "./ui/CallDetailPage";
 import { SettingsPage } from "./ui/SettingsPage";
+import { AdminPhoneNumbersPage } from "./ui/AdminPhoneNumbersPage";
 
 // Protected route wrapper - requires authentication
 function ProtectedRoute() {
@@ -121,6 +122,7 @@ export const router = createBrowserRouter([
         ],
       },
       { path: "/settings", element: <SettingsPage /> },
+      { path: "/admin", element: <AdminPhoneNumbersPage /> },
     ],
   },
 ]);

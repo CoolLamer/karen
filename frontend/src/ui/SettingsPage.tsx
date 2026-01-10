@@ -26,6 +26,7 @@ import {
   IconCheck,
   IconLogout,
   IconAlertCircle,
+  IconSettings,
 } from "@tabler/icons-react";
 import { api, Tenant, TenantPhoneNumber } from "../api";
 import { useAuth } from "../AuthContext";
@@ -280,6 +281,16 @@ export function SettingsPage() {
           </Paper>
 
           <Divider />
+
+          {/* Admin link (only visible to admins - will show 403 if not admin) */}
+          <Button
+            variant="subtle"
+            c="dimmed"
+            leftSection={<IconSettings size={16} />}
+            onClick={() => navigate("/admin")}
+          >
+            Admin Panel
+          </Button>
 
           {/* Logout */}
           <Button

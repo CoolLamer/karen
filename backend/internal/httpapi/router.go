@@ -30,6 +30,9 @@ type RouterConfig struct {
 	// JWT Authentication
 	JWTSecret string
 	JWTExpiry time.Duration
+
+	// Admin access (phone numbers that have admin privileges)
+	AdminPhones []string
 }
 
 type Router struct {
@@ -75,6 +78,12 @@ func (r *Router) routes() {
 
 	// Onboarding (protected)
 	r.mux.HandleFunc("POST /api/onboarding/complete", r.withAuth(r.handleCompleteOnboarding))
+
+	// Admin endpoints (requires admin phone)
+	r.mux.HandleFunc("GET /admin/phone-numbers", r.withAdmin(r.handleAdminListPhoneNumbers))
+	r.mux.HandleFunc("POST /admin/phone-numbers", r.withAdmin(r.handleAdminAddPhoneNumber))
+	r.mux.HandleFunc("DELETE /admin/phone-numbers/{id}", r.withAdmin(r.handleAdminDeletePhoneNumber))
+	r.mux.HandleFunc("PATCH /admin/phone-numbers/{id}", r.withAdmin(r.handleAdminUpdatePhoneNumber))
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {
@@ -91,7 +100,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
 		if req.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

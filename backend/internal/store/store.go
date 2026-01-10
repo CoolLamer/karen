@@ -657,4 +657,79 @@ func scanCallListItems(rows pgx.Rows) ([]CallListItem, error) {
 	return out, rows.Err()
 }
 
+// ============================================================================
+// Admin operations
+// ============================================================================
+
+// AdminPhoneNumber includes tenant info for admin view.
+type AdminPhoneNumber struct {
+	ID               string    `json:"id"`
+	TwilioNumber     string    `json:"twilio_number"`
+	TwilioSID        *string   `json:"twilio_sid,omitempty"`
+	ForwardingSource *string   `json:"forwarding_source,omitempty"`
+	IsPrimary        bool      `json:"is_primary"`
+	TenantID         *string   `json:"tenant_id,omitempty"`
+	TenantName       *string   `json:"tenant_name,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// ListAllPhoneNumbers returns all phone numbers with tenant info (for admin view).
+func (s *Store) ListAllPhoneNumbers(ctx context.Context) ([]AdminPhoneNumber, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT
+			pn.id, pn.twilio_number, pn.twilio_sid, pn.forwarding_source,
+			pn.is_primary, pn.tenant_id, t.name, pn.created_at
+		FROM tenant_phone_numbers pn
+		LEFT JOIN tenants t ON t.id = pn.tenant_id
+		ORDER BY pn.created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var numbers []AdminPhoneNumber
+	for rows.Next() {
+		var pn AdminPhoneNumber
+		if err := rows.Scan(&pn.ID, &pn.TwilioNumber, &pn.TwilioSID, &pn.ForwardingSource,
+			&pn.IsPrimary, &pn.TenantID, &pn.TenantName, &pn.CreatedAt); err != nil {
+			return nil, err
+		}
+		numbers = append(numbers, pn)
+	}
+	return numbers, rows.Err()
+}
+
+// AddPhoneNumberToPool adds a new phone number to the available pool.
+func (s *Store) AddPhoneNumberToPool(ctx context.Context, twilioNumber string, twilioSID *string) (*TenantPhoneNumber, error) {
+	var pn TenantPhoneNumber
+	err := s.db.QueryRow(ctx, `
+		INSERT INTO tenant_phone_numbers (twilio_number, twilio_sid)
+		VALUES ($1, $2)
+		RETURNING id, COALESCE(tenant_id::text, ''), twilio_number, twilio_sid, forwarding_source, is_primary, created_at
+	`, twilioNumber, twilioSID).Scan(&pn.ID, &pn.TenantID, &pn.TwilioNumber, &pn.TwilioSID,
+		&pn.ForwardingSource, &pn.IsPrimary, &pn.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &pn, nil
+}
+
+// DeletePhoneNumber removes a phone number from the system.
+func (s *Store) DeletePhoneNumber(ctx context.Context, id string) error {
+	_, err := s.db.Exec(ctx, `DELETE FROM tenant_phone_numbers WHERE id = $1`, id)
+	return err
+}
+
+// UpdatePhoneNumber updates a phone number's assignment and metadata.
+// Pass nil for tenantID to unassign.
+func (s *Store) UpdatePhoneNumber(ctx context.Context, id string, tenantID *string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE tenant_phone_numbers
+		SET tenant_id = $2
+		WHERE id = $1
+	`, id, tenantID)
+	return err
+}
+
 
