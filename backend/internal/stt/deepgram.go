@@ -69,6 +69,7 @@ func NewDeepgramClient(ctx context.Context, cfg DeepgramConfig) (*DeepgramClient
 
 	if cfg.UtteranceEndMs > 0 {
 		url += fmt.Sprintf("&utterance_end_ms=%d", cfg.UtteranceEndMs)
+		url += "&interim_results=true" // Required by Deepgram when using utterance_end_ms
 	}
 
 	// Set up headers with API key
