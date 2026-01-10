@@ -627,17 +627,6 @@ func (s *callSession) processSTTResults() {
 			return
 		}
 
-		// Drop very low-confidence / very short "junk" turns (often background TV/noise).
-		// We keep this conservative to avoid ignoring real short answers like names.
-		if isLikelyJunkTurn(text, lastConfidence) {
-			s.logger.Printf("media_ws: ignoring likely-junk utterance (confidence=%.2f) text=%q", lastConfidence, text)
-			currentUtterance.Reset()
-			utteranceStartTime = nil
-			lastConfidence = 0
-			bargeInSent = false
-			return
-		}
-
 		// Barge-in is defined as the caller speaking while the agent is speaking.
 		isSpeaking := bargeInSent || s.isAudioPlaying() || s.isResponseActive()
 
@@ -681,18 +670,6 @@ func (s *callSession) processSTTResults() {
 			Content: text,
 		})
 		s.messagesMu.Unlock()
-
-		// Hard-stop marketing / cold-call offers: refuse and hang up (no follow-up).
-		if isLikelyMarketingTurn(text) {
-			s.logger.Printf("media_ws: marketing detected (turn=%d), will refuse and hang up", turnID)
-			s.speakRefuseAndHangup(turnID)
-			// Reset for next utterance (call will end, but keep consistent).
-			currentUtterance.Reset()
-			utteranceStartTime = nil
-			lastConfidence = 0
-			bargeInSent = false
-			return
-		}
 
 		// Speak filler word immediately, then generate and speak response
 		go s.speakFillerAndGenerate(turnID, text)
@@ -878,7 +855,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		completeSentences, remaining := extractCompleteSentences(buffer.String())
 		if completeSentences != "" {
 			sentenceCount++
-			ttsText := stripForwardMarker(completeSentences)
+			ttsText := stripControlMarkers(completeSentences)
 			if ttsText != "" {
 				if sentenceCount == 1 {
 					s.logger.Printf("media_ws: streaming first sentence: %s", ttsText)
@@ -898,7 +875,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	// Speak any remaining text that didn't end with punctuation.
 	remaining := strings.TrimSpace(buffer.String())
 	if remaining != "" && s.isCurrentResponse(respID) {
-		ttsText := stripForwardMarker(remaining)
+		ttsText := stripControlMarkers(remaining)
 		if ttsText != "" {
 			markID, err := s.speakText(ctx, ttsText)
 			if err != nil {
@@ -913,18 +890,23 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		return
 	}
 
-	responseText := strings.TrimSpace(fullResponse.String())
-	if responseText == "" {
+	rawResponseText := strings.TrimSpace(fullResponse.String())
+	if rawResponseText == "" {
 		return
 	}
 
-	s.logger.Printf("media_ws: agent response (full): %s", responseText)
+	plainResponseText := stripControlMarkers(rawResponseText)
+	if plainResponseText == "" {
+		return
+	}
+
+	s.logger.Printf("media_ws: agent response (full): %s", rawResponseText)
 
 	// Add to conversation history
 	s.messagesMu.Lock()
 	s.messages = append(s.messages, llm.Message{
 		Role:    "assistant",
-		Content: responseText,
+		Content: plainResponseText,
 	})
 	s.messagesMu.Unlock()
 
@@ -934,7 +916,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	if s.callID != "" {
 		_ = s.store.InsertUtterance(s.ctx, s.callID, store.Utterance{
 			Speaker:     "agent",
-			Text:        responseText,
+			Text:        plainResponseText,
 			Sequence:    s.utteranceSeq,
 			StartedAt:   &startTime,
 			Interrupted: false,
@@ -942,7 +924,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	}
 
 	// If we need to forward/hang up, wait for the final mark of the response.
-	if isForward(responseText) {
+	if isForward(rawResponseText) {
 		s.logger.Printf("media_ws: detected forward request, will forward after audio finishes")
 		if lastResponseMarkID != 0 {
 			s.audioMu.Lock()
@@ -953,7 +935,18 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		go s.forwardCall(actionCtx)
 		return
 	}
-	if isGoodbye(responseText) {
+	if isHangupMarker(rawResponseText) {
+		s.logger.Printf("media_ws: detected hangup marker, will hang up after audio finishes")
+		if lastResponseMarkID != 0 {
+			s.audioMu.Lock()
+			s.pendingDoneMarkID = lastResponseMarkID
+			s.audioMu.Unlock()
+		}
+		actionCtx := s.beginPendingAction()
+		go s.hangUpCall(actionCtx)
+		return
+	}
+	if isGoodbye(plainResponseText) {
 		s.logger.Printf("media_ws: detected goodbye, will hang up after audio finishes")
 		if lastResponseMarkID != 0 {
 			s.audioMu.Lock()
@@ -1117,59 +1110,23 @@ func isForward(text string) bool {
 	return strings.Contains(text, "[PŘEPOJIT]")
 }
 
-// stripForwardMarker removes the [PŘEPOJIT] marker from text for TTS
-func stripForwardMarker(text string) string {
-	return strings.ReplaceAll(text, "[PŘEPOJIT] ", "")
+// isHangupMarker checks if the response contains the hangup marker.
+// This is intentionally prompt-driven: tenants can decide when to end the call
+// (e.g., marketing/spam) by including the marker in their prompt.
+func isHangupMarker(text string) bool {
+	return strings.Contains(text, "[ZAVĚSIT]") || strings.Contains(text, "[HANGUP]")
 }
 
-func isLikelyMarketingTurn(text string) bool {
-	lower := strings.ToLower(text)
-	keywords := []string{
-		"nabíd",       // nabídka/nabídnout
-		"levn",        // levný/levnější
-		"slev",        // sleva/slevy
-		"akce",        // akce
-		"tarif",       // tarif
-		"pojišt",      // pojištění
-		"energie",     // energie
-		"elektřin",    // elektřina
-		"plyn",        // plyn
-		"úvěr",        // úvěr
-		"uver",        // fallback without diacritics
-		"půjčk",       // půjčka
-		"pujc",        // fallback without diacritics
-		"marketing",   // marketing
-		"telemarketing",
-		"průzkum", // průzkum
-		"pruzkum",
-		"anketa",
-	}
-	for _, kw := range keywords {
-		if strings.Contains(lower, kw) {
-			return true
-		}
-	}
-	return false
-}
-
-func isLikelyJunkTurn(text string, confidence float64) bool {
-	t := strings.TrimSpace(text)
-	if t == "" {
-		return true
-	}
-	// If the provider didn't give confidence, don't filter.
-	if confidence <= 0 {
-		return false
-	}
-	// Very low-confidence is usually noise.
-	if confidence < 0.20 {
-		return true
-	}
-	// Short + low-confidence tends to be TV/noise.
-	if len([]rune(t)) <= 6 && confidence < 0.45 {
-		return true
-	}
-	return false
+// stripControlMarkers removes control markers from text so they are never spoken/stored.
+func stripControlMarkers(text string) string {
+	// Remove both with and without trailing space.
+	text = strings.ReplaceAll(text, "[PŘEPOJIT] ", "")
+	text = strings.ReplaceAll(text, "[PŘEPOJIT]", "")
+	text = strings.ReplaceAll(text, "[ZAVĚSIT] ", "")
+	text = strings.ReplaceAll(text, "[ZAVĚSIT]", "")
+	text = strings.ReplaceAll(text, "[HANGUP] ", "")
+	text = strings.ReplaceAll(text, "[HANGUP]", "")
+	return strings.TrimSpace(text)
 }
 
 func isMeaningfulBargeIn(partial string) bool {
@@ -1188,52 +1145,6 @@ func isMeaningfulBargeIn(partial string) bool {
 		return true
 	}
 	return len([]rune(p)) >= 7
-}
-
-func (s *callSession) speakRefuseAndHangup(turnID uint64) {
-	// Cancel any in-flight response so we don't keep speaking stale content.
-	s.cancelResponse()
-	s.cancelPendingAction()
-
-	// One short spoken sentence + goodbye phrase to ensure hangup trigger.
-	respText := "Děkuji, Lukáš nemá zájem o nabídky. Na shledanou!"
-
-	// Add to conversation history
-	s.messagesMu.Lock()
-	s.messages = append(s.messages, llm.Message{
-		Role:    "assistant",
-		Content: respText,
-	})
-	s.messagesMu.Unlock()
-
-	// Store agent utterance
-	s.utteranceSeq++
-	startTime := time.Now().UTC()
-	if s.callID != "" {
-		_ = s.store.InsertUtterance(s.ctx, s.callID, store.Utterance{
-			Speaker:     "agent",
-			Text:        respText,
-			Sequence:    s.utteranceSeq,
-			StartedAt:   &startTime,
-			Interrupted: false,
-		})
-	}
-
-	// Speak + hang up after audio finishes.
-	ctx, respID := s.beginNewResponse()
-	defer s.endResponse(respID)
-	s.logger.Printf("media_ws: starting response (turn=%d resp=%d) [marketing_refusal]", turnID, respID)
-	markID, err := s.speakText(ctx, respText)
-	if err != nil {
-		s.logger.Printf("media_ws: marketing refusal TTS error: %v", err)
-	}
-	if markID != 0 {
-		s.audioMu.Lock()
-		s.pendingDoneMarkID = markID
-		s.audioMu.Unlock()
-	}
-	actionCtx := s.beginPendingAction()
-	go s.hangUpCall(actionCtx)
 }
 
 // forwardCall forwards the call to the tenant owner's verified phone number

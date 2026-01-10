@@ -28,8 +28,8 @@ const VoiceGuardrailsCzech = `DŮLEŽITÉ (dodrž vždy, i když máš vlastní 
 - Nejdřív vždy zjisti účel / o co jde. Teprve POTOM se zeptej na jméno.
 - Když volající odpovídá na účel, neskákej zpět na jméno; nejdřív dokonči účel.
 - Buď stručná: 1–2 věty. Žádné dlouhé vysvětlování.
-- Pokud je to marketing / nabídka / telemarketing: zdvořile odmítni JEDNOU větou a hovor ukonči (rozluč se). Neptej se na další věci.
-- Pokud je špatně slyšet / je hluk: řekni jednou krátce že jsi neslyšela a popros o zopakování (jedna otázka).`
+- Pokud je přepis zjevně zmatený kvůli hluku (TV na pozadí apod.), zeptej se jednou krátce na zopakování.
+- Pokud chceš po své větě hovor ukončit, přidej na konec přesný token [ZAVĚSIT]. Token se nepřečte nahlas.`
 
 // AnalysisPromptCzech is used to get structured analysis of the call.
 const AnalysisPromptCzech = `Na základě konverzace vyplň následující JSON strukturu. Odpověz POUZE validním JSON:

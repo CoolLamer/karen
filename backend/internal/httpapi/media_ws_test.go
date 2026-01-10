@@ -388,7 +388,7 @@ func TestIsGoodbye_WithContext(t *testing.T) {
 	}
 }
 
-func TestStripForwardMarker(t *testing.T) {
+func TestStripControlMarkers_ForwardMarker(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
@@ -398,13 +398,34 @@ func TestStripForwardMarker(t *testing.T) {
 		{"Dobrý den, [PŘEPOJIT] přepojuji.", "Dobrý den, přepojuji."},
 		{"Text bez markeru", "Text bez markeru"},
 		{"", ""},
-		{"[PŘEPOJIT]", "[PŘEPOJIT]"}, // No space after, shouldn't be stripped
+		{"[PŘEPOJIT]", ""}, // marker is always stripped
 	}
 
 	for _, tt := range tests {
-		result := stripForwardMarker(tt.input)
+		result := stripControlMarkers(tt.input)
 		if result != tt.expected {
-			t.Errorf("stripForwardMarker(%q) = %q, want %q", tt.input, result, tt.expected)
+			t.Errorf("stripControlMarkers(%q) = %q, want %q", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestStripControlMarkers_HangupMarker(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"[ZAVĚSIT] Na shledanou.", "Na shledanou."},
+		{"Na shledanou. [ZAVĚSIT]", "Na shledanou."},
+		{"[HANGUP] Goodbye.", "Goodbye."},
+		{"Text bez markeru", "Text bez markeru"},
+		{"", ""},
+		{"[ZAVĚSIT]", ""},
+	}
+
+	for _, tt := range tests {
+		result := stripControlMarkers(tt.input)
+		if result != tt.expected {
+			t.Errorf("stripControlMarkers(%q) = %q, want %q", tt.input, result, tt.expected)
 		}
 	}
 }
