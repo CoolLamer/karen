@@ -16,7 +16,7 @@ import {
   Loader,
   Alert,
 } from "@mantine/core";
-import { IconArrowLeft, IconRefresh, IconAlertCircle } from "@tabler/icons-react";
+import { IconArrowLeft, IconRefresh, IconAlertCircle, IconCopy, IconCheck } from "@tabler/icons-react";
 import { api, CallListItem, CallEvent } from "../api";
 
 const eventTypeColors: Record<string, string> = {
@@ -39,6 +39,9 @@ const eventTypeColors: Record<string, string> = {
   call_hangup: "red",
   call_ended: "red",
   marketing_call: "orange",
+  vad_speech_started: "lime",
+  vad_utterance_end: "lime",
+  max_turn_timeout: "red",
 };
 
 function formatTime(ts: string): string {
@@ -51,6 +54,15 @@ function formatDateTime(ts: string): string {
   return d.toLocaleString();
 }
 
+function formatEventsForAI(events: CallEvent[]): string {
+  const lines = events.map((e) => {
+    const time = new Date(e.created_at).toLocaleTimeString();
+    const data = e.event_data ? JSON.stringify(e.event_data) : "";
+    return `${time}\n\n${e.event_type}\n${data}`;
+  });
+  return lines.join("\n");
+}
+
 export function AdminLogsPage() {
   const navigate = useNavigate();
   const { providerCallId } = useParams<{ providerCallId?: string }>();
@@ -61,6 +73,14 @@ export function AdminLogsPage() {
   const [isLoadingCalls, setIsLoadingCalls] = useState(true);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyEvents = async () => {
+    const text = formatEventsForAI(events);
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     loadCalls();
@@ -199,14 +219,27 @@ export function AdminLogsPage() {
 
             {/* Event Timeline */}
             <Paper withBorder p="md" style={{ flex: 1, minWidth: 0 }}>
-              <Title order={4} mb="md">
-                Events{" "}
-                {selectedCall && (
-                  <Text span size="sm" c="dimmed">
-                    ({events.length})
-                  </Text>
+              <Group justify="space-between" mb="md">
+                <Title order={4}>
+                  Events{" "}
+                  {selectedCall && (
+                    <Text span size="sm" c="dimmed">
+                      ({events.length})
+                    </Text>
+                  )}
+                </Title>
+                {events.length > 0 && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color={copied ? "green" : "gray"}
+                    leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                    onClick={handleCopyEvents}
+                  >
+                    {copied ? "Copied!" : "Copy for AI"}
+                  </Button>
                 )}
-              </Title>
+              </Group>
               {!selectedCall ? (
                 <Text c="dimmed">Select a call to view events</Text>
               ) : isLoadingEvents ? (

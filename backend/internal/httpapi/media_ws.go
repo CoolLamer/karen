@@ -616,6 +616,10 @@ func (s *callSession) processSTTResults() {
 	// We only finalize a user "turn" on Deepgram's end-of-speech signal (`speech_final`),
 	// with a short grace window to allow late-arriving tokens/segments.
 	const speechFinalGrace = 250 * time.Millisecond
+	// Hard cap on waiting for speech_final. If Deepgram is confused by noise, we force
+	// finalization after this timeout to avoid multi-second delays.
+	const maxTurnTimeout = 4 * time.Second
+
 	var finalizeTimer *time.Timer
 	var finalizeC <-chan time.Time
 	stopFinalizeTimer := func() {
@@ -642,6 +646,34 @@ func (s *callSession) processSTTResults() {
 	cancelFinalize := func() {
 		stopFinalizeTimer()
 		finalizeC = nil
+	}
+
+	// Max turn timeout: force finalization if speech_final doesn't arrive in time.
+	var maxTurnTimer *time.Timer
+	var maxTurnC <-chan time.Time
+	stopMaxTurnTimer := func() {
+		if maxTurnTimer == nil {
+			return
+		}
+		if !maxTurnTimer.Stop() {
+			select {
+			case <-maxTurnTimer.C:
+			default:
+			}
+		}
+	}
+	scheduleMaxTurn := func() {
+		if maxTurnTimer == nil {
+			maxTurnTimer = time.NewTimer(maxTurnTimeout)
+		} else {
+			stopMaxTurnTimer()
+			maxTurnTimer.Reset(maxTurnTimeout)
+		}
+		maxTurnC = maxTurnTimer.C
+	}
+	cancelMaxTurn := func() {
+		stopMaxTurnTimer()
+		maxTurnC = nil
 	}
 
 	// Track whether we already issued a barge-in clear for the current speaking overlap.
@@ -723,18 +755,31 @@ func (s *callSession) processSTTResults() {
 		select {
 		case <-s.ctx.Done():
 			cancelFinalize()
+			cancelMaxTurn()
 			return
 
 		case err := <-s.sttClient.Errors():
 			s.logger.Printf("media_ws: STT error: %v", err)
 			sentry.CaptureException(err)
 			cancelFinalize()
+			cancelMaxTurn()
 			return
 
 		case result, ok := <-s.sttClient.Results():
 			if !ok {
 				cancelFinalize()
+				cancelMaxTurn()
 				return
+			}
+
+			// Handle VAD events from Deepgram (for debugging noise issues).
+			if result.VADSpeechStarted {
+				s.eventLog.LogAsync(s.callID, eventlog.EventVADSpeechStarted, nil)
+				continue
+			}
+			if result.VADUtteranceEnd {
+				s.eventLog.LogAsync(s.callID, eventlog.EventVADUtteranceEnd, nil)
+				continue
 			}
 
 			// Optional instrumentation (keep it light; text is logged at finalize).
@@ -787,6 +832,8 @@ func (s *callSession) processSTTResults() {
 					}
 					currentUtterance.WriteString(strings.TrimSpace(result.Text))
 					lastConfidence = result.Confidence
+					// Start/reset max turn timer - we have text, so ensure we finalize eventually.
+					scheduleMaxTurn()
 				}
 				// If we already saw end-of-speech, keep grace window open for this late segment.
 				if finalizeC != nil {
@@ -796,11 +843,23 @@ func (s *callSession) processSTTResults() {
 
 			// Schedule finalization on end-of-speech (NOT on segment final).
 			if result.SpeechFinal {
+				cancelMaxTurn() // No longer need hard timeout; speech_final arrived.
 				scheduleFinalize()
 			}
 
 		case <-finalizeC:
 			// End-of-speech grace window elapsed; finalize a single user turn.
+			cancelFinalize()
+			cancelMaxTurn()
+			finalizeUtterance()
+
+		case <-maxTurnC:
+			// Hard timeout: speech_final didn't arrive in time (noisy environment).
+			s.logger.Printf("media_ws: MAX TURN TIMEOUT - forcing finalization after 4s")
+			s.eventLog.LogAsync(s.callID, eventlog.EventMaxTurnTimeout, map[string]any{
+				"pending_text": strings.TrimSpace(currentUtterance.String()),
+			})
+			cancelMaxTurn()
 			cancelFinalize()
 			finalizeUtterance()
 		}
