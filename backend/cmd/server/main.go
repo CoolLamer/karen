@@ -36,7 +36,10 @@ func main() {
 
 	a, err := app.New(cfg, logger)
 	if err != nil {
-		sentry.CaptureException(err)
+		if cfg.SentryDSN != "" {
+			sentry.CaptureException(err)
+			sentry.Flush(2 * time.Second)
+		}
 		logger.Fatalf("init app: %v", err)
 	}
 
@@ -69,7 +72,7 @@ func getEnvironment() string {
 	if env := os.Getenv("ENVIRONMENT"); env != "" {
 		return env
 	}
-	return "production"
+	return "development"
 }
 
 

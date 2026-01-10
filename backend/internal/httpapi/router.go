@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -106,6 +105,7 @@ func withSentryRecovery(next http.Handler) http.Handler {
 				hub := sentry.CurrentHub().Clone()
 				hub.Scope().SetRequest(req)
 				hub.RecoverWithContext(req.Context(), err)
+				hub.Flush(2 * time.Second)
 				http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
 			}
 		}()
@@ -130,35 +130,11 @@ func nowUTC() time.Time { return time.Now().UTC() }
 
 // captureError sends an error to Sentry with request context
 func captureError(req *http.Request, err error, msg string) {
-	if hub := sentry.GetHubFromContext(req.Context()); hub != nil {
-		hub.WithScope(func(scope *sentry.Scope) {
-			scope.SetRequest(req)
-			scope.SetExtra("message", msg)
-			hub.CaptureException(err)
-		})
-	} else {
-		sentry.WithScope(func(scope *sentry.Scope) {
-			scope.SetRequest(req)
-			scope.SetExtra("message", msg)
-			sentry.CaptureException(err)
-		})
-	}
-}
-
-// captureMessage sends a message to Sentry with request context
-func captureMessage(req *http.Request, msg string) {
 	sentry.WithScope(func(scope *sentry.Scope) {
 		scope.SetRequest(req)
-		scope.SetLevel(sentry.LevelWarning)
-		sentry.CaptureMessage(msg)
+		scope.SetExtra("message", msg)
+		sentry.CaptureException(err)
 	})
-}
-
-// wrapError creates an error and captures it to Sentry
-func wrapError(req *http.Request, format string, args ...interface{}) error {
-	err := fmt.Errorf(format, args...)
-	captureError(req, err, format)
-	return err
 }
 
 func wsURLFromPublicBase(publicBase string) string {
