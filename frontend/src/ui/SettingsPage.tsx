@@ -27,13 +27,17 @@ import {
   IconLogout,
   IconAlertCircle,
   IconSettings,
+  IconPhone,
 } from "@tabler/icons-react";
 import { api, Tenant, TenantPhoneNumber } from "../api";
 import { useAuth } from "../AuthContext";
 
+// GSM standard code for "forward on no answer" - works across all carriers
+const FORWARD_NO_ANSWER_CODE = "**61*{number}#";
+
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { user, tenant, logout, setTenant } = useAuth();
+  const { user, tenant, logout, setTenant, isAdmin } = useAuth();
 
   const [phoneNumbers, setPhoneNumbers] = useState<TenantPhoneNumber[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +45,7 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [forwardingModalOpen, setForwardingModalOpen] = useState(false);
 
   // Form state
   const [name, setName] = useState(tenant?.name || "");
@@ -105,6 +110,11 @@ export function SettingsPage() {
   };
 
   const karenNumber = phoneNumbers.find((p) => p.is_primary)?.twilio_number || "";
+
+  const getDialCode = () => {
+    if (!karenNumber) return "";
+    return FORWARD_NO_ANSWER_CODE.replace("{number}", karenNumber.replace(/\s/g, ""));
+  };
 
   const planLabel = {
     trial: "Trial",
@@ -200,7 +210,7 @@ export function SettingsPage() {
                     </CopyButton>
                   </Group>
 
-                  <Button variant="light" size="xs">
+                  <Button variant="light" size="xs" onClick={() => setForwardingModalOpen(true)}>
                     Jak nastavit presmerovani
                   </Button>
                 </>
@@ -282,15 +292,17 @@ export function SettingsPage() {
 
           <Divider />
 
-          {/* Admin link (only visible to admins - will show 403 if not admin) */}
-          <Button
-            variant="subtle"
-            c="dimmed"
-            leftSection={<IconSettings size={16} />}
-            onClick={() => navigate("/admin")}
-          >
-            Admin Panel
-          </Button>
+          {/* Admin link (only visible to admins) */}
+          {isAdmin && (
+            <Button
+              variant="subtle"
+              c="dimmed"
+              leftSection={<IconSettings size={16} />}
+              onClick={() => navigate("/admin")}
+            >
+              Admin Panel
+            </Button>
+          )}
 
           {/* Logout */}
           <Button
@@ -303,6 +315,64 @@ export function SettingsPage() {
           </Button>
         </Stack>
       </Container>
+
+      {/* Forwarding instructions modal */}
+      <Modal
+        opened={forwardingModalOpen}
+        onClose={() => setForwardingModalOpen(false)}
+        title="Jak nastavit presmerovani"
+        centered
+      >
+        <Stack gap="md">
+          <Paper p="md" radius="md" withBorder>
+            <Stack gap="md">
+              <Text size="sm" fw={500}>
+                Presmerovani kdyz nezvednes (po 20s)
+              </Text>
+              <Text size="sm" c="dimmed">
+                1. Otevri aplikaci Telefon
+              </Text>
+              <Group>
+                <Text size="sm" c="dimmed">
+                  2. Vytoc:
+                </Text>
+                <Text size="sm" fw={600} ff="monospace">
+                  {getDialCode()}
+                </Text>
+                <CopyButton value={getDialCode()}>
+                  {({ copied, copy }) => (
+                    <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={copy}
+                        color={copied ? "green" : "gray"}
+                      >
+                        {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </CopyButton>
+              </Group>
+              <Text size="sm" c="dimmed">
+                3. Uslysite potvrzeni "Sluzba aktivovana"
+              </Text>
+            </Stack>
+          </Paper>
+
+          <Button
+            variant="light"
+            fullWidth
+            leftSection={<IconPhone size={18} />}
+            disabled={!karenNumber}
+            onClick={() => {
+              window.location.href = `tel:${getDialCode()}`;
+            }}
+          >
+            Vytocit automaticky
+          </Button>
+        </Stack>
+      </Modal>
 
       {/* Logout confirmation modal */}
       <Modal

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -356,9 +357,13 @@ func (r *Router) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		tenant, _ = r.store.GetTenantByID(req.Context(), *user.TenantID)
 	}
 
+	// Check if user is admin
+	isAdmin := slices.Contains(r.cfg.AdminPhones, user.Phone)
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"user":   user,
-		"tenant": tenant,
+		"user":     user,
+		"tenant":   tenant,
+		"is_admin": isAdmin,
 	})
 }
 

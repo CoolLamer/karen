@@ -176,7 +176,7 @@ export const api = {
     }),
 
   // User & Tenant
-  getMe: () => http<{ user: User; tenant?: Tenant }>("/api/me"),
+  getMe: () => http<{ user: User; tenant?: Tenant; is_admin?: boolean }>("/api/me"),
 
   getTenant: () => http<{ tenant: Tenant; phone_numbers: TenantPhoneNumber[] }>("/api/tenant"),
 
