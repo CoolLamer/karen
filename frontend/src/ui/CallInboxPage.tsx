@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Badge, Group, Paper, Stack, Table, Text, Title } from "@mantine/core";
-import { api, CallListItem } from "../api";
+import { Alert, Badge, Group, Paper, Stack, Table, Text, Title } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
+import { api, CallListItem, TenantPhoneNumber } from "../api";
 
 function labelColor(label: string | undefined) {
   switch (label) {
@@ -20,6 +21,7 @@ function labelColor(label: string | undefined) {
 
 export function CallInboxPage() {
   const [calls, setCalls] = React.useState<CallListItem[] | null>(null);
+  const [phoneNumbers, setPhoneNumbers] = React.useState<TenantPhoneNumber[]>([]);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -27,13 +29,32 @@ export function CallInboxPage() {
       .listCalls()
       .then(setCalls)
       .catch((e) => setError(String(e)));
+
+    api
+      .getTenant()
+      .then((data) => setPhoneNumbers(data.phone_numbers || []))
+      .catch(() => {});
   }, []);
+
+  const hasPhoneNumber = phoneNumbers.some((p) => p.is_primary);
+  const karenNumber = phoneNumbers.find((p) => p.is_primary)?.twilio_number;
 
   return (
     <Stack gap="md" py="md">
       <Group justify="space-between">
         <Title order={2}>Call Inbox</Title>
+        {hasPhoneNumber && (
+          <Text size="sm" c="dimmed">
+            Karen cislo: <Text span fw={600}>{karenNumber}</Text>
+          </Text>
+        )}
       </Group>
+
+      {!hasPhoneNumber && calls !== null && (
+        <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
+          Zatim ti nebylo prirazeno telefonni cislo. Jakmile bude dostupne, budeme te informovat.
+        </Alert>
+      )}
 
       {error && (
         <Paper p="md" withBorder>
@@ -43,7 +64,18 @@ export function CallInboxPage() {
 
       {!calls && !error && <Text c="dimmed">Loading…</Text>}
 
-      {calls && (
+      {calls && calls.length === 0 && (
+        <Paper p="xl" withBorder ta="center">
+          <Text c="dimmed" size="lg">
+            Zatim zadne hovory
+          </Text>
+          <Text c="dimmed" size="sm" mt="xs">
+            Jakmile nekdo zavola na tvoje Karen cislo, uvidis hovor zde.
+          </Text>
+        </Paper>
+      )}
+
+      {calls && calls.length > 0 && (
         <Paper withBorder>
           <Table striped highlightOnHover>
             <Table.Thead>

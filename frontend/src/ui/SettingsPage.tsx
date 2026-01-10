@@ -172,38 +172,44 @@ export function SettingsPage() {
           </Paper>
 
           {/* Karen number section */}
-          {karenNumber && (
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Text size="sm" fw={600} tt="uppercase" c="dimmed">
-                  Karen cislo
-                </Text>
+          <Paper p="lg" radius="md" withBorder>
+            <Stack gap="md">
+              <Text size="sm" fw={600} tt="uppercase" c="dimmed">
+                Karen cislo
+              </Text>
 
-                <Group justify="space-between">
-                  <Text size="lg" fw={600}>
-                    {karenNumber}
-                  </Text>
-                  <CopyButton value={karenNumber.replace(/\s/g, "")}>
-                    {({ copied, copy }) => (
-                      <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
-                        <ActionIcon
-                          variant="subtle"
-                          onClick={copy}
-                          color={copied ? "green" : "gray"}
-                        >
-                          {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                        </ActionIcon>
-                      </Tooltip>
-                    )}
-                  </CopyButton>
-                </Group>
+              {karenNumber ? (
+                <>
+                  <Group justify="space-between">
+                    <Text size="lg" fw={600}>
+                      {karenNumber}
+                    </Text>
+                    <CopyButton value={karenNumber.replace(/\s/g, "")}>
+                      {({ copied, copy }) => (
+                        <Tooltip label={copied ? "Skopirovano" : "Kopirovat"}>
+                          <ActionIcon
+                            variant="subtle"
+                            onClick={copy}
+                            color={copied ? "green" : "gray"}
+                          >
+                            {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </CopyButton>
+                  </Group>
 
-                <Button variant="light" size="xs">
-                  Jak nastavit presmerovani
-                </Button>
-              </Stack>
-            </Paper>
-          )}
+                  <Button variant="light" size="xs">
+                    Jak nastavit presmerovani
+                  </Button>
+                </>
+              ) : (
+                <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
+                  Zatim ti nebylo prirazeno telefonni cislo. Jakmile bude dostupne, oznamime ti to.
+                </Alert>
+              )}
+            </Stack>
+          </Paper>
 
           {/* Assistant settings */}
           <Paper p="lg" radius="md" withBorder>
