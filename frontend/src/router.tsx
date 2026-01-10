@@ -13,6 +13,7 @@ import { SettingsPage } from "./ui/SettingsPage";
 import { AdminPhoneNumbersPage } from "./ui/AdminPhoneNumbersPage";
 import { AdminLogsPage } from "./ui/AdminLogsPage";
 import { AdminUsersPage } from "./ui/AdminUsersPage";
+import { AdminShellLayout } from "./ui/AdminShellLayout";
 
 // Protected route wrapper - requires authentication
 function ProtectedRoute() {
@@ -142,10 +143,15 @@ export const router = createBrowserRouter([
         ],
       },
       { path: "/settings", element: <SettingsPage /> },
-      { path: "/admin", element: <AdminPhoneNumbersPage /> },
-      { path: "/admin/logs", element: <AdminLogsPage /> },
-      { path: "/admin/logs/:providerCallId", element: <AdminLogsPage /> },
-      { path: "/admin/users", element: <AdminUsersPage /> },
+      {
+        element: <AdminShellLayout />,
+        children: [
+          { path: "/admin", element: <AdminPhoneNumbersPage /> },
+          { path: "/admin/users", element: <AdminUsersPage /> },
+          { path: "/admin/logs", element: <AdminLogsPage /> },
+          { path: "/admin/logs/:providerCallId", element: <AdminLogsPage /> },
+        ],
+      },
     ],
   },
 ]);
