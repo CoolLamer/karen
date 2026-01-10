@@ -97,6 +97,9 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 	if tenant != nil {
 		params = append(params, twimlParameter{Name: "tenantId", Value: tenant.ID})
 
+		// Get tenant owner's phone number for call forwarding
+		ownerPhone, _ := r.store.GetTenantOwnerPhone(req.Context(), tenant.ID)
+
 		// Pass tenant config as JSON for the call session
 		tenantConfig := map[string]any{
 			"system_prompt":   tenant.SystemPrompt,
@@ -106,6 +109,7 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 			"vip_names":       tenant.VIPNames,
 			"marketing_email": tenant.MarketingEmail,
 			"forward_number":  tenant.ForwardNumber,
+			"owner_phone":     ownerPhone, // User's verified phone for forwarding
 		}
 		configJSON, _ := json.Marshal(tenantConfig)
 		params = append(params, twimlParameter{Name: "tenantConfig", Value: string(configJSON)})

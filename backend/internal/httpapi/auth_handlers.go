@@ -415,6 +415,13 @@ func (r *Router) handleUpdateTenant(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Get current tenant to check for name change
+	currentTenant, err := r.store.GetTenantByID(req.Context(), *authUser.TenantID)
+	if err != nil {
+		http.Error(w, `{"error": "tenant not found"}`, http.StatusNotFound)
+		return
+	}
+
 	// Filter to only allowed fields
 	updates := make(map[string]any)
 	for key, value := range rawUpdates {
@@ -426,6 +433,54 @@ func (r *Router) handleUpdateTenant(w http.ResponseWriter, req *http.Request) {
 	if len(updates) == 0 {
 		http.Error(w, `{"error": "no valid fields to update"}`, http.StatusBadRequest)
 		return
+	}
+
+	// Check if we need to regenerate system prompt
+	// (when name, vip_names, or marketing_email changes and system_prompt is not explicitly set)
+	if _, hasExplicitPrompt := updates["system_prompt"]; !hasExplicitPrompt {
+		needsRegeneration := false
+		newName := currentTenant.Name
+		newVIPNames := currentTenant.VIPNames
+		newMarketingEmail := currentTenant.MarketingEmail
+
+		// Check for name change
+		if newNameVal, ok := updates["name"]; ok {
+			if nameStr, ok := newNameVal.(string); ok && nameStr != "" && nameStr != currentTenant.Name {
+				newName = nameStr
+				// Only regenerate if current prompt appears to be auto-generated (contains old name)
+				if strings.Contains(currentTenant.SystemPrompt, currentTenant.Name) {
+					needsRegeneration = true
+				}
+			}
+		}
+
+		// Check for VIP names change
+		if vipVal, ok := updates["vip_names"]; ok {
+			if vipArr, ok := vipVal.([]interface{}); ok {
+				newVIPNames = make([]string, 0, len(vipArr))
+				for _, v := range vipArr {
+					if s, ok := v.(string); ok && s != "" {
+						newVIPNames = append(newVIPNames, s)
+					}
+				}
+				needsRegeneration = true
+			}
+		}
+
+		// Check for marketing email change
+		if meVal, ok := updates["marketing_email"]; ok {
+			if meStr, ok := meVal.(string); ok {
+				newMarketingEmail = &meStr
+				needsRegeneration = true
+			}
+		}
+
+		// Regenerate prompt if needed
+		if needsRegeneration {
+			newPrompt := generateSystemPromptWithVIPs(newName, newVIPNames, newMarketingEmail)
+			updates["system_prompt"] = newPrompt
+			r.logger.Printf("auth: auto-regenerated system prompt for tenant %s", *authUser.TenantID)
+		}
 	}
 
 	// Apply updates
@@ -557,7 +612,12 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 
 // generateDefaultSystemPrompt creates a default prompt for a new tenant
 func generateDefaultSystemPrompt(name string) string {
-	return fmt.Sprintf(`Jsi Karen, přátelská telefonní asistentka uživatele %s. %s teď nemá čas a ty přijímáš hovory za něj.
+	return generateSystemPromptWithVIPs(name, nil, nil)
+}
+
+// generateSystemPromptWithVIPs creates a system prompt with VIP names and marketing email support
+func generateSystemPromptWithVIPs(name string, vipNames []string, marketingEmail *string) string {
+	basePrompt := fmt.Sprintf(`Jsi Karen, přátelská telefonní asistentka uživatele %s. %s teď nemá čas a ty přijímáš hovory za něj.
 
 JIŽ JSI ŘEKLA ÚVODNÍ POZDRAV.
 
@@ -575,4 +635,25 @@ PRAVIDLA:
 - Při dotazu na telefon: zeptej se jestli můžeme použít číslo ze kterého volají, nebo jestli chtějí dát jiné
 - České telefonní číslo má 9 číslic (např. 777 123 456). Pokud dostaneš méně než 9 číslic, zeptej se na zbytek!
 - Když máš všechny informace (účel, jméno, telefon), rozluč se: "Děkuji, předám %s vzkaz. Na shledanou!"`, name, name, name, name)
+
+	// Add VIP forwarding rules if VIP names configured
+	if len(vipNames) > 0 {
+		vipSection := "\n\nKRIZOVÉ SITUACE - OKAMŽITĚ PŘEPOJIT:\n"
+		vipSection += fmt.Sprintf("- Pokud volající zmíní NEBEZPEČÍ nebo NOUZI týkající se blízkých %s (rodina, přátelé) → řekni: \"[PŘEPOJIT] Rozumím, přepojuji vás přímo.\"\n", name)
+		for _, vip := range vipNames {
+			if vip != "" {
+				vipSection += fmt.Sprintf("- Pokud se volající představí jako \"%s\" → řekni: \"[PŘEPOJIT] Přepojuji tě.\"\n", vip)
+			}
+		}
+		basePrompt += vipSection
+	}
+
+	// Add marketing email handling if configured
+	if marketingEmail != nil && *marketingEmail != "" {
+		basePrompt += fmt.Sprintf("\n\nMARKETING:\n- U marketingu a nabídek: řekni že %s nemá zájem, ale pokud chtějí, mohou nabídku poslat na email %s", name, *marketingEmail)
+	} else {
+		basePrompt += fmt.Sprintf("\n\nMARKETING:\n- U marketingu a nabídek: zdvořile odmítni a řekni že %s nemá zájem", name)
+	}
+
+	return basePrompt
 }

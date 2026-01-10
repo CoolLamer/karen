@@ -41,13 +41,24 @@ func (r *Router) handleGetCall(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	call, err := r.store.GetCallDetail(req.Context(), id)
+	call, callTenantID, err := r.store.GetCallDetailWithTenantCheck(req.Context(), id)
 	if err != nil {
 		http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
 		return
 	}
 
-	// TODO: Add tenant verification - check if call belongs to user's tenant
+	// Security: verify call belongs to user's tenant
+	// Return 404 (not 403) to prevent information leakage about call existence
+	if authUser.TenantID == nil {
+		// User has no tenant, cannot access any calls
+		http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
+		return
+	}
+	if callTenantID == nil || *callTenantID != *authUser.TenantID {
+		// Call belongs to a different tenant or has no tenant
+		http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, call)
 }

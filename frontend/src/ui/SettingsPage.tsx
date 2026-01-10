@@ -52,7 +52,6 @@ export function SettingsPage() {
   const [greetingText, setGreetingText] = useState(tenant?.greeting_text || "");
   const [vipNames, setVipNames] = useState<string[]>(tenant?.vip_names || []);
   const [marketingEmail, setMarketingEmail] = useState(tenant?.marketing_email || "");
-  const [forwardNumber, setForwardNumber] = useState(tenant?.forward_number || "");
 
   useEffect(() => {
     loadTenantData();
@@ -69,7 +68,6 @@ export function SettingsPage() {
         setGreetingText(data.tenant.greeting_text || "");
         setVipNames(data.tenant.vip_names || []);
         setMarketingEmail(data.tenant.marketing_email || "");
-        setForwardNumber(data.tenant.forward_number || "");
       }
     } catch {
       setError("Nepodarilo se nacist data");
@@ -89,7 +87,6 @@ export function SettingsPage() {
         greeting_text: greetingText || undefined,
         vip_names: vipNames.length > 0 ? vipNames : undefined,
         marketing_email: marketingEmail || undefined,
-        forward_number: forwardNumber || undefined,
       });
 
       setTenant(response.tenant);
@@ -257,11 +254,16 @@ export function SettingsPage() {
 
               <TextInput
                 label="Cislo pro presmerovani"
-                description="Cislo, kam Karen prepoji dulezite hovory"
-                placeholder="+420 777 123 456"
+                description="Hovory budou presmerovany na vase registrovane cislo"
                 type="tel"
-                value={forwardNumber}
-                onChange={(e) => setForwardNumber(e.target.value)}
+                value={user?.phone || ""}
+                disabled
+                styles={{
+                  input: {
+                    backgroundColor: "var(--mantine-color-gray-1)",
+                    cursor: "not-allowed",
+                  },
+                }}
               />
             </Stack>
           </Paper>

@@ -350,3 +350,115 @@ func TestCallsWithTenant(t *testing.T) {
 	_, _ = db.Exec(ctx, "DELETE FROM calls WHERE provider_call_id = $1", callSid)
 	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
 }
+
+func TestGetCallDetailWithTenantCheck(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create tenant
+	tenant, err := s.CreateTenant(ctx, "Detail Test Tenant", "Test prompt")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Create call with tenant
+	callSid := "CADETAIL" + time.Now().Format("20060102150405")
+	call := Call{
+		TenantID:       &tenant.ID,
+		Provider:       "twilio",
+		ProviderCallID: callSid,
+		FromNumber:     "+420777123456",
+		ToNumber:       "+420228883001",
+		Status:         "completed",
+		StartedAt:      time.Now(),
+	}
+
+	err = s.UpsertCallWithTenant(ctx, call)
+	if err != nil {
+		t.Fatalf("UpsertCallWithTenant failed: %v", err)
+	}
+
+	// Test GetCallDetailWithTenantCheck
+	detail, tenantID, err := s.GetCallDetailWithTenantCheck(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetailWithTenantCheck failed: %v", err)
+	}
+
+	if detail.ProviderCallID != callSid {
+		t.Errorf("detail.ProviderCallID = %q, want %q", detail.ProviderCallID, callSid)
+	}
+
+	if tenantID == nil {
+		t.Fatal("tenantID should not be nil")
+	}
+	if *tenantID != tenant.ID {
+		t.Errorf("tenantID = %q, want %q", *tenantID, tenant.ID)
+	}
+
+	// Verify that detail.TenantID is also set
+	if detail.TenantID == nil || *detail.TenantID != tenant.ID {
+		t.Errorf("detail.TenantID = %v, want %q", detail.TenantID, tenant.ID)
+	}
+
+	// Test GetCallDetail (wrapper function)
+	detail2, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail failed: %v", err)
+	}
+	if detail2.ProviderCallID != callSid {
+		t.Errorf("detail2.ProviderCallID = %q, want %q", detail2.ProviderCallID, callSid)
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM calls WHERE provider_call_id = $1", callSid)
+	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+}
+
+func TestGetTenantOwnerPhone(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create tenant
+	tenant, err := s.CreateTenant(ctx, "Owner Phone Test", "Test prompt")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Create user and assign to tenant
+	testPhone := "+420555" + time.Now().Format("150405")
+	user, _, err := s.FindOrCreateUser(ctx, testPhone)
+	if err != nil {
+		t.Fatalf("FindOrCreateUser failed: %v", err)
+	}
+
+	err = s.AssignUserToTenant(ctx, user.ID, tenant.ID)
+	if err != nil {
+		t.Fatalf("AssignUserToTenant failed: %v", err)
+	}
+
+	// Test GetTenantOwnerPhone
+	ownerPhone, err := s.GetTenantOwnerPhone(ctx, tenant.ID)
+	if err != nil {
+		t.Fatalf("GetTenantOwnerPhone failed: %v", err)
+	}
+
+	if ownerPhone != testPhone {
+		t.Errorf("ownerPhone = %q, want %q", ownerPhone, testPhone)
+	}
+
+	// Test with non-existent tenant
+	_, err = s.GetTenantOwnerPhone(ctx, "non-existent-tenant-id")
+	if err == nil {
+		t.Error("GetTenantOwnerPhone should fail for non-existent tenant")
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
+	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+}

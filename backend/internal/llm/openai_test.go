@@ -96,21 +96,30 @@ func TestGetSystemPrompt(t *testing.T) {
 
 func TestSystemPromptCzech(t *testing.T) {
 	// Verify the default system prompt contains expected elements
+	// Note: This is now a generic fallback prompt without hardcoded user details
 	prompt := SystemPromptCzech
 
 	expectedPhrases := []string{
-		"Karen",                  // Agent name
-		"Lukáš",                  // Owner name
-		"TVŮJ ÚKOL",              // Task section
-		"KRIZOVÉ SITUACE",        // Emergency section
-		"PŘEPOJIT",               // Forward marker
-		"Annie",                  // VIP name
-		"nabidky@bauerlukas.cz",  // Marketing email
+		"Karen",      // Agent name
+		"TVŮJ ÚKOL",  // Task section
+		"PRAVIDLA",   // Rules section
 	}
 
 	for _, phrase := range expectedPhrases {
 		if !strings.Contains(prompt, phrase) {
 			t.Errorf("SystemPromptCzech should contain %q", phrase)
+		}
+	}
+
+	// The generic prompt should NOT contain hardcoded user-specific values
+	unexpectedPhrases := []string{
+		"Lukáš",                 // Specific owner name (should be tenant-specific)
+		"nabidky@bauerlukas.cz", // Specific email (should be tenant-specific)
+	}
+
+	for _, phrase := range unexpectedPhrases {
+		if strings.Contains(prompt, phrase) {
+			t.Errorf("SystemPromptCzech (generic fallback) should NOT contain hardcoded value %q", phrase)
 		}
 	}
 }

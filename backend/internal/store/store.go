@@ -223,17 +223,25 @@ func (s *Store) InsertScreeningResult(ctx context.Context, callID string, sr Scr
 }
 
 func (s *Store) GetCallDetail(ctx context.Context, providerCallID string) (CallDetail, error) {
+	out, _, err := s.GetCallDetailWithTenantCheck(ctx, providerCallID)
+	return out, err
+}
+
+// GetCallDetailWithTenantCheck retrieves call detail and also returns the tenant_id for verification.
+func (s *Store) GetCallDetailWithTenantCheck(ctx context.Context, providerCallID string) (CallDetail, *string, error) {
 	var out CallDetail
+	var tenantID *string
 
 	var callID string
 	err := s.db.QueryRow(ctx, `
-		SELECT id, provider, provider_call_id, from_number, to_number, status, started_at, ended_at
+		SELECT id, tenant_id, provider, provider_call_id, from_number, to_number, status, started_at, ended_at
 		FROM calls
 		WHERE provider='twilio' AND provider_call_id=$1
-	`, providerCallID).Scan(&callID, &out.Provider, &out.ProviderCallID, &out.FromNumber, &out.ToNumber, &out.Status, &out.StartedAt, &out.EndedAt)
+	`, providerCallID).Scan(&callID, &tenantID, &out.Provider, &out.ProviderCallID, &out.FromNumber, &out.ToNumber, &out.Status, &out.StartedAt, &out.EndedAt)
 	if err != nil {
-		return CallDetail{}, err
+		return CallDetail{}, nil, err
 	}
+	out.TenantID = tenantID
 
 	// Screening result (optional)
 	{
@@ -258,19 +266,19 @@ func (s *Store) GetCallDetail(ctx context.Context, providerCallID string) (CallD
 		ORDER BY sequence ASC
 	`, callID)
 	if err != nil {
-		return out, nil
+		return out, tenantID, nil
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var u Utterance
 		if err := rows.Scan(&u.Speaker, &u.Text, &u.Sequence, &u.StartedAt, &u.EndedAt, &u.STTConfidence, &u.Interrupted); err != nil {
-			return out, nil
+			return out, tenantID, nil
 		}
 		out.Utterances = append(out.Utterances, u)
 	}
 
-	return out, nil
+	return out, tenantID, nil
 }
 
 // ============================================================================
@@ -479,6 +487,15 @@ func (s *Store) UpdateUserName(ctx context.Context, userID, name string) error {
 		UPDATE users SET name = $2 WHERE id = $1
 	`, userID, name)
 	return err
+}
+
+// GetTenantOwnerPhone retrieves the phone number of the tenant owner (for call forwarding).
+func (s *Store) GetTenantOwnerPhone(ctx context.Context, tenantID string) (string, error) {
+	var phone string
+	err := s.db.QueryRow(ctx, `
+		SELECT phone FROM users WHERE tenant_id = $1 AND role = 'owner' LIMIT 1
+	`, tenantID).Scan(&phone)
+	return phone, err
 }
 
 // ============================================================================
