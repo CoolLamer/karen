@@ -25,8 +25,10 @@ type RouterConfig struct {
 	ElevenLabsAPIKey string
 
 	// Voice settings (defaults, can be overridden by tenant)
-	GreetingText string
-	TTSVoiceID   string
+	GreetingText  string
+	TTSVoiceID    string
+	TTSStability  float64 // ElevenLabs voice stability (0.0-1.0)
+	TTSSimilarity float64 // ElevenLabs voice similarity boost (0.0-1.0)
 
 	// JWT Authentication
 	JWTSecret string

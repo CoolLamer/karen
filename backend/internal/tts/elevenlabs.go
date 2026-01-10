@@ -16,14 +16,19 @@ type ElevenLabsClient struct {
 	apiKey     string
 	voiceID    string
 	modelID    string
+	stability  float64
+	similarity float64
 	httpClient *http.Client
 }
 
 // ElevenLabsConfig holds configuration for the ElevenLabs client.
+// Use -1 for Stability/Similarity to use defaults (allows 0.0 as valid value).
 type ElevenLabsConfig struct {
-	APIKey  string
-	VoiceID string // ElevenLabs voice ID
-	ModelID string // e.g., "eleven_flash_v2_5" for low latency
+	APIKey     string
+	VoiceID    string  // ElevenLabs voice ID
+	ModelID    string  // e.g., "eleven_flash_v2_5" for low latency
+	Stability  float64 // Voice stability (0.0-1.0, default 0.5). Use -1 for default.
+	Similarity float64 // Voice similarity boost (0.0-1.0, default 0.75). Use -1 for default.
 }
 
 // NewElevenLabsClient creates a new ElevenLabs client.
@@ -36,10 +41,20 @@ func NewElevenLabsClient(cfg ElevenLabsConfig) *ElevenLabsClient {
 	if voiceID == "" {
 		voiceID = "21m00Tcm4TlvDq8ikWAM" // Rachel - default voice
 	}
+	stability := cfg.Stability
+	if stability < 0 {
+		stability = 0.5 // Default stability
+	}
+	similarity := cfg.Similarity
+	if similarity < 0 {
+		similarity = 0.75 // Default similarity boost
+	}
 	return &ElevenLabsClient{
 		apiKey:     cfg.APIKey,
 		voiceID:    voiceID,
 		modelID:    modelID,
+		stability:  stability,
+		similarity: similarity,
 		httpClient: &http.Client{},
 	}
 }
@@ -64,8 +79,8 @@ func (c *ElevenLabsClient) Synthesize(ctx context.Context, text string) ([]byte,
 		Text:    text,
 		ModelID: c.modelID,
 		VoiceSettings: voiceSettings{
-			Stability:       0.5,
-			SimilarityBoost: 0.75,
+			Stability:       c.stability,
+			SimilarityBoost: c.similarity,
 		},
 	}
 
@@ -104,8 +119,8 @@ func (c *ElevenLabsClient) SynthesizeStream(ctx context.Context, text string) (<
 		Text:    text,
 		ModelID: c.modelID,
 		VoiceSettings: voiceSettings{
-			Stability:       0.5,
-			SimilarityBoost: 0.75,
+			Stability:       c.stability,
+			SimilarityBoost: c.similarity,
 		},
 	}
 
