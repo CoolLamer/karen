@@ -76,6 +76,14 @@ export type AdminTenant = {
   name: string;
 };
 
+export type CallEvent = {
+  id: string;
+  call_id: string;
+  event_type: string;
+  event_data: Record<string, unknown>;
+  created_at: string;
+};
+
 export type AuthResponse = {
   token: string;
   expires_at: string;
@@ -216,4 +224,13 @@ export const api = {
     }),
 
   adminListTenants: () => http<{ tenants: AdminTenant[] }>("/admin/tenants"),
+
+  // Admin call logs
+  adminListCalls: (limit?: number) =>
+    http<{ calls: CallListItem[] }>(`/admin/calls${limit ? `?limit=${limit}` : ""}`),
+
+  adminGetCallEvents: (providerCallId: string) =>
+    http<{ events: CallEvent[] }>(
+      `/admin/calls/${encodeURIComponent(providerCallId)}/events`
+    ),
 };

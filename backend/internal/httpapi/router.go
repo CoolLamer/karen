@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/lukasbauer/karen/internal/eventlog"
 	"github.com/lukasbauer/karen/internal/store"
 )
 
@@ -42,18 +43,20 @@ type RouterConfig struct {
 }
 
 type Router struct {
-	cfg    RouterConfig
-	logger *log.Logger
-	store  *store.Store
-	mux    *http.ServeMux
+	cfg      RouterConfig
+	logger   *log.Logger
+	store    *store.Store
+	eventLog *eventlog.Logger
+	mux      *http.ServeMux
 }
 
-func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store) http.Handler {
+func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store, eventLog *eventlog.Logger) http.Handler {
 	r := &Router{
-		cfg:    cfg,
-		logger: logger,
-		store:  s,
-		mux:    http.NewServeMux(),
+		cfg:      cfg,
+		logger:   logger,
+		store:    s,
+		eventLog: eventLog,
+		mux:      http.NewServeMux(),
 	}
 
 	r.routes()
@@ -91,6 +94,10 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("DELETE /admin/phone-numbers/{id}", r.withAdmin(r.handleAdminDeletePhoneNumber))
 	r.mux.HandleFunc("PATCH /admin/phone-numbers/{id}", r.withAdmin(r.handleAdminUpdatePhoneNumber))
 	r.mux.HandleFunc("GET /admin/tenants", r.withAdmin(r.handleAdminListTenants))
+
+	// Admin call logs (for debugging)
+	r.mux.HandleFunc("GET /admin/calls", r.withAdmin(r.handleAdminListCalls))
+	r.mux.HandleFunc("GET /admin/calls/{providerCallId}/events", r.withAdmin(r.handleAdminGetCallEvents))
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {

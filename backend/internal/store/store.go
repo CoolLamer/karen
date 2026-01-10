@@ -786,4 +786,44 @@ func (s *Store) ListAllTenants(ctx context.Context) ([]AdminTenant, error) {
 	return tenants, rows.Err()
 }
 
+// ============================================================================
+// Call event operations
+// ============================================================================
+
+// CallEvent represents a logged event for a call
+type CallEvent struct {
+	ID        string          `json:"id"`
+	CallID    string          `json:"call_id"`
+	EventType string          `json:"event_type"`
+	EventData json.RawMessage `json:"event_data"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
+// ListCallEvents retrieves events for a specific call
+func (s *Store) ListCallEvents(ctx context.Context, callID string, limit int) ([]CallEvent, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, call_id, event_type, event_data, created_at
+		FROM call_events
+		WHERE call_id = $1
+		ORDER BY created_at ASC
+		LIMIT $2
+	`, callID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []CallEvent
+	for rows.Next() {
+		var e CallEvent
+		var eventData []byte
+		if err := rows.Scan(&e.ID, &e.CallID, &e.EventType, &eventData, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		e.EventData = json.RawMessage(eventData)
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}
+
 

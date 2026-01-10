@@ -175,9 +175,14 @@ export function AdminPhoneNumbersPage() {
               </Button>
               <Title order={2}>Admin: Phone Numbers</Title>
             </Group>
-            <Button leftSection={<IconPlus size={16} />} onClick={() => setAddModalOpen(true)}>
-              Add Number
-            </Button>
+            <Group>
+              <Button variant="light" onClick={() => navigate("/admin/logs")}>
+                View Logs
+              </Button>
+              <Button leftSection={<IconPlus size={16} />} onClick={() => setAddModalOpen(true)}>
+                Add Number
+              </Button>
+            </Group>
           </Group>
 
           {/* Stats */}
