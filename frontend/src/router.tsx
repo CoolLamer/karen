@@ -12,6 +12,7 @@ import { CallDetailPage } from "./ui/CallDetailPage";
 import { SettingsPage } from "./ui/SettingsPage";
 import { AdminPhoneNumbersPage } from "./ui/AdminPhoneNumbersPage";
 import { AdminLogsPage } from "./ui/AdminLogsPage";
+import { AdminUsersPage } from "./ui/AdminUsersPage";
 
 // Protected route wrapper - requires authentication
 function ProtectedRoute() {
@@ -144,6 +145,7 @@ export const router = createBrowserRouter([
       { path: "/admin", element: <AdminPhoneNumbersPage /> },
       { path: "/admin/logs", element: <AdminLogsPage /> },
       { path: "/admin/logs/:providerCallId", element: <AdminLogsPage /> },
+      { path: "/admin/users", element: <AdminUsersPage /> },
     ],
   },
 ]);

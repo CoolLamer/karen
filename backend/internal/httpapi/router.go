@@ -99,6 +99,12 @@ func (r *Router) routes() {
 	// Admin call logs (for debugging)
 	r.mux.HandleFunc("GET /admin/calls", r.withAdmin(r.handleAdminListCalls))
 	r.mux.HandleFunc("GET /admin/calls/{providerCallId}/events", r.withAdmin(r.handleAdminGetCallEvents))
+
+	// Admin users dashboard
+	r.mux.HandleFunc("GET /admin/tenants/details", r.withAdmin(r.handleAdminListTenantsWithDetails))
+	r.mux.HandleFunc("GET /admin/tenants/{tenantId}/users", r.withAdmin(r.handleAdminGetTenantUsers))
+	r.mux.HandleFunc("GET /admin/tenants/{tenantId}/calls", r.withAdmin(r.handleAdminGetTenantCalls))
+	r.mux.HandleFunc("PATCH /admin/tenants/{tenantId}", r.withAdmin(r.handleAdminUpdateTenantPlanStatus))
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {
