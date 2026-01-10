@@ -70,6 +70,7 @@ func NewDeepgramClient(ctx context.Context, cfg DeepgramConfig) (*DeepgramClient
 	if cfg.UtteranceEndMs > 0 {
 		url += fmt.Sprintf("&utterance_end_ms=%d", cfg.UtteranceEndMs)
 		url += "&interim_results=true" // Required by Deepgram when using utterance_end_ms
+		url += "&vad_events=true"      // Enable VAD events for debugging noise issues
 	}
 
 	// Set up headers with API key
@@ -167,6 +168,26 @@ func (c *DeepgramClient) readLoop() {
 		var resp deepgramResponse
 		if err := json.Unmarshal(msg, &resp); err != nil {
 			log.Printf("deepgram: failed to parse response: %v", err)
+			continue
+		}
+
+		// Emit VAD events through the results channel for logging in event log.
+		if resp.Type == "SpeechStarted" {
+			log.Printf("deepgram: VAD speech started")
+			select {
+			case <-c.done:
+				return
+			case c.results <- TranscriptResult{VADSpeechStarted: true}:
+			}
+			continue
+		}
+		if resp.Type == "UtteranceEnd" {
+			log.Printf("deepgram: VAD utterance end")
+			select {
+			case <-c.done:
+				return
+			case c.results <- TranscriptResult{VADUtteranceEnd: true}:
+			}
 			continue
 		}
 
