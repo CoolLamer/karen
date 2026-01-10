@@ -186,7 +186,7 @@ export function SettingsPage() {
           <Paper p="lg" radius="md" withBorder>
             <Stack gap="md">
               <Text size="sm" fw={600} tt="uppercase" c="dimmed">
-                Karen cislo
+                Zvednu cislo
               </Text>
 
               {karenNumber ? (
