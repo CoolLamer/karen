@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -68,6 +69,9 @@ func (r *Router) routes() {
 	// Health check
 	r.mux.HandleFunc("GET /healthz", r.handleHealthz)
 
+	// Sentry test endpoint (temporary - remove after verification)
+	r.mux.HandleFunc("GET /debug/sentry-test", r.handleSentryTest)
+
 	// Twilio webhooks (no auth - signature verified)
 	r.mux.HandleFunc("POST /telephony/inbound", r.handleTwilioInbound)
 	r.mux.HandleFunc("POST /telephony/status", r.handleTwilioStatus)
@@ -113,6 +117,23 @@ func (r *Router) routes() {
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
+}
+
+// handleSentryTest triggers a test error to verify Sentry integration
+func (r *Router) handleSentryTest(w http.ResponseWriter, req *http.Request) {
+	testErr := fmt.Errorf("sentry test error triggered at %s", time.Now().UTC().Format(time.RFC3339))
+	sentry.WithScope(func(scope *sentry.Scope) {
+		scope.SetRequest(req)
+		scope.SetLevel(sentry.LevelError)
+		scope.SetTag("test", "true")
+		sentry.CaptureException(testErr)
+	})
+	sentry.Flush(2 * time.Second)
+	r.logger.Printf("sentry test: error sent to Sentry")
+	writeJSON(w, http.StatusOK, map[string]string{
+		"status":  "ok",
+		"message": "Test error sent to Sentry. Check your Sentry dashboard.",
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
