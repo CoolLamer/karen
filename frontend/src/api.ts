@@ -296,4 +296,10 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ plan, status }),
     }),
+
+  adminResetUserOnboarding: (userId: string) =>
+    http<{ success: boolean; previous_tenant_id?: string }>(
+      `/admin/users/${encodeURIComponent(userId)}/reset-onboarding`,
+      { method: "PATCH" }
+    ),
 };

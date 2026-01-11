@@ -305,3 +305,54 @@ func (r *Router) handleAdminUpdateTenantPlanStatus(w http.ResponseWriter, req *h
 	r.logger.Printf("admin: updated tenant %s plan=%s status=%s", tenantID, body.Plan, body.Status)
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
+
+// handleAdminResetUserOnboarding resets a user's onboarding status.
+// This is a "smart reset" that preserves the tenant for data/call history
+// but releases phone numbers and clears the user's tenant_id and name.
+func (r *Router) handleAdminResetUserOnboarding(w http.ResponseWriter, req *http.Request) {
+	userID := req.PathValue("userId")
+	if userID == "" {
+		http.Error(w, `{"error": "missing user ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Verify user exists
+	user, err := r.store.GetUserByID(req.Context(), userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error": "user not found"}`, http.StatusNotFound)
+			return
+		}
+		r.logger.Printf("admin: failed to get user %s: %v", userID, err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to get user"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Check if user is already not onboarded
+	if user.TenantID == nil {
+		http.Error(w, `{"error": "user is not onboarded"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Perform the reset
+	previousTenantID, err := r.store.ResetUserOnboarding(req.Context(), userID)
+	if err != nil {
+		r.logger.Printf("admin: failed to reset onboarding for user %s: %v", userID, err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to reset onboarding"}`, http.StatusInternalServerError)
+		return
+	}
+
+	tenantIDStr := "nil"
+	if previousTenantID != nil {
+		tenantIDStr = *previousTenantID
+	}
+	r.logger.Printf("admin: reset onboarding for user %s (phone: %s, previous tenant: %s)",
+		userID, user.Phone, tenantIDStr)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":            true,
+		"previous_tenant_id": previousTenantID,
+	})
+}

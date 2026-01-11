@@ -30,6 +30,7 @@ import {
   IconPhoneCall,
   IconRobot,
   IconUser,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { api, AdminTenantDetail, AdminUser, CallDetail } from "../api";
 
@@ -100,6 +101,12 @@ export function AdminUsersPage() {
   const [editStatus, setEditStatus] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
+  // Reset onboarding modal
+  const [resetModalOpened, { open: openResetModal, close: closeResetModal }] = useDisclosure(false);
+  const [resettingUser, setResettingUser] = React.useState<AdminUser | null>(null);
+  const [resettingTenantId, setResettingTenantId] = React.useState<string | null>(null);
+  const [resetting, setResetting] = React.useState(false);
+
   React.useEffect(() => {
     api
       .adminListTenantsWithDetails()
@@ -164,6 +171,38 @@ export function AdminUsersPage() {
       setError("Failed to update tenant");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetOnboarding = (user: AdminUser, tenantId: string) => {
+    setResettingUser(user);
+    setResettingTenantId(tenantId);
+    openResetModal();
+  };
+
+  const handleConfirmReset = async () => {
+    if (!resettingUser || !resettingTenantId) return;
+    setResetting(true);
+    try {
+      await api.adminResetUserOnboarding(resettingUser.id);
+      // Remove user from local state for that tenant
+      setTenantUsers((prev) => ({
+        ...prev,
+        [resettingTenantId]: prev[resettingTenantId]?.filter((u) => u.id !== resettingUser.id) || [],
+      }));
+      // Update tenant user count
+      setTenants((prev) =>
+        prev?.map((t) =>
+          t.id === resettingTenantId ? { ...t, user_count: t.user_count - 1 } : t
+        ) ?? null
+      );
+      setSuccess(`Reset onboarding for ${resettingUser.phone}`);
+      closeResetModal();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch {
+      setError("Failed to reset onboarding");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -353,20 +392,31 @@ export function AdminUsersPage() {
                     )}
                     {tenantUsers[tenant.id]?.map((user) => (
                       <Paper key={user.id} p="xs" bg="gray.0" radius="sm" mb="xs">
-                        <Group justify="space-between">
-                          <Box>
-                            <Text size="sm" fw={500}>
+                        <Group justify="space-between" wrap="nowrap">
+                          <Box style={{ minWidth: 0 }}>
+                            <Text size="sm" fw={500} truncate>
                               {user.phone}
                             </Text>
-                            <Text size="xs" c="dimmed">
+                            <Text size="xs" c="dimmed" truncate>
                               {user.name || "No name"} | {user.role}
                             </Text>
                           </Box>
-                          {user.last_login_at && (
-                            <Text size="xs" c="dimmed">
-                              {formatRelativeTime(new Date(user.last_login_at))}
-                            </Text>
-                          )}
+                          <Group gap="xs" wrap="nowrap">
+                            {user.last_login_at && (
+                              <Text size="xs" c="dimmed">
+                                {formatRelativeTime(new Date(user.last_login_at))}
+                              </Text>
+                            )}
+                            <Button
+                              variant="subtle"
+                              color="orange"
+                              size="xs"
+                              p={4}
+                              onClick={() => handleResetOnboarding(user, tenant.id)}
+                            >
+                              <IconRefresh size={14} />
+                            </Button>
+                          </Group>
                         </Group>
                       </Paper>
                     ))}
@@ -594,6 +644,7 @@ export function AdminUsersPage() {
                             <Table.Th>Name</Table.Th>
                             <Table.Th>Role</Table.Th>
                             <Table.Th>Last Login</Table.Th>
+                            <Table.Th w={100}>Actions</Table.Th>
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
@@ -610,6 +661,17 @@ export function AdminUsersPage() {
                                 {user.last_login_at
                                   ? formatRelativeTime(new Date(user.last_login_at))
                                   : "Never"}
+                              </Table.Td>
+                              <Table.Td>
+                                <Button
+                                  variant="subtle"
+                                  color="orange"
+                                  size="xs"
+                                  leftSection={<IconRefresh size={14} />}
+                                  onClick={() => handleResetOnboarding(user, tenant.id)}
+                                >
+                                  Reset
+                                </Button>
                               </Table.Td>
                             </Table.Tr>
                           ))}
@@ -739,6 +801,36 @@ export function AdminUsersPage() {
             </Button>
             <Button onClick={handleSaveEdit} loading={saving}>
               Save
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Reset Onboarding Modal */}
+      <Modal
+        opened={resetModalOpened}
+        onClose={closeResetModal}
+        title="Reset Onboarding"
+        size="sm"
+      >
+        <Stack gap="md">
+          <Alert color="orange" variant="light">
+            This will reset onboarding for <strong>{resettingUser?.phone}</strong>.
+            <Text size="sm" mt="sm">
+              <strong>What happens:</strong>
+            </Text>
+            <Text size="sm" component="ul" style={{ paddingLeft: 20, marginTop: 4 }}>
+              <li>User&apos;s phone number will be released back to the pool</li>
+              <li>User will need to complete onboarding again</li>
+              <li>Tenant and call history are preserved</li>
+            </Text>
+          </Alert>
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" onClick={closeResetModal}>
+              Cancel
+            </Button>
+            <Button color="orange" onClick={handleConfirmReset} loading={resetting}>
+              Reset Onboarding
             </Button>
           </Group>
         </Stack>
