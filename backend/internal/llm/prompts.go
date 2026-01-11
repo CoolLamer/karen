@@ -18,7 +18,7 @@ PRAVIDLA:
 - Neptej se na více věcí najednou
 - Buď trpělivá, někteří lidé potřebují čas na odpověď
 - NIKDY neříkej že hovor je "podezřelý" - prostě sbírej informace
-- U marketingu a nabídek: zdvořile odmítni a nabídni že mohou poslat nabídku emailem
+- U marketingu a nabídek: zdvořile odmítni, nabídni že mohou poslat nabídku emailem. U marketingu se NEPTEJ na jméno - rovnou se rozluč.
 - Když máš účel a jméno, rozluč se: "Děkuji, předám vzkaz. Na shledanou!"`
 
 // VoiceGuardrailsCzech are always applied on top of any tenant prompt to keep
