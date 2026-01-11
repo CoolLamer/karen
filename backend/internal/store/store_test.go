@@ -624,6 +624,106 @@ func TestGreetingUtteranceStorage(t *testing.T) {
 	_, _ = db.Exec(ctx, "DELETE FROM calls WHERE provider_call_id = $1", callSid)
 }
 
+func TestScreeningResultLeadLabel(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create tenant
+	tenant, err := s.CreateTenant(ctx, "Lead Label Test Tenant", "Test prompt")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Create call with tenant
+	callSid := "CALEAD" + time.Now().Format("20060102150405")
+	call := Call{
+		TenantID:       &tenant.ID,
+		Provider:       "twilio",
+		ProviderCallID: callSid,
+		FromNumber:     "+420777123456",
+		ToNumber:       "+420228883001",
+		Status:         "completed",
+		StartedAt:      time.Now(),
+	}
+
+	err = s.UpsertCallWithTenant(ctx, call)
+	if err != nil {
+		t.Fatalf("UpsertCallWithTenant failed: %v", err)
+	}
+
+	// Get call ID for inserting screening result
+	detail, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail failed: %v", err)
+	}
+
+	// Insert screening result with lead_label
+	sr := ScreeningResult{
+		LegitimacyLabel:      "legitimní",
+		LegitimacyConfidence: 0.95,
+		LeadLabel:            "hot_lead",
+		IntentCategory:       "obchodní",
+		IntentText:           "Zájem o nákup produktu",
+		EntitiesJSON:         []byte(`{}`),
+		CreatedAt:            time.Now(),
+	}
+
+	err = s.InsertScreeningResult(ctx, detail.ID, sr)
+	if err != nil {
+		t.Fatalf("InsertScreeningResult failed: %v", err)
+	}
+
+	// Test GetCallDetail includes lead_label
+	detailWithScreening, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail with screening failed: %v", err)
+	}
+	if detailWithScreening.Screening == nil {
+		t.Fatal("screening should not be nil")
+	}
+	if detailWithScreening.Screening.LeadLabel != "hot_lead" {
+		t.Errorf("lead_label = %q, want %q", detailWithScreening.Screening.LeadLabel, "hot_lead")
+	}
+
+	// Test ListCallsByTenant includes lead_label
+	calls, err := s.ListCallsByTenant(ctx, tenant.ID, 100)
+	if err != nil {
+		t.Fatalf("ListCallsByTenant failed: %v", err)
+	}
+	if len(calls) != 1 {
+		t.Fatalf("got %d calls, want 1", len(calls))
+	}
+	if calls[0].Screening == nil {
+		t.Fatal("screening should not be nil in list")
+	}
+	if calls[0].Screening.LeadLabel != "hot_lead" {
+		t.Errorf("lead_label in list = %q, want %q", calls[0].Screening.LeadLabel, "hot_lead")
+	}
+
+	// Test updating screening result with different lead_label
+	sr.LeadLabel = "follow_up"
+	err = s.InsertScreeningResult(ctx, detail.ID, sr)
+	if err != nil {
+		t.Fatalf("InsertScreeningResult (update) failed: %v", err)
+	}
+
+	detailUpdated, err := s.GetCallDetail(ctx, callSid)
+	if err != nil {
+		t.Fatalf("GetCallDetail after update failed: %v", err)
+	}
+	if detailUpdated.Screening.LeadLabel != "follow_up" {
+		t.Errorf("lead_label after update = %q, want %q", detailUpdated.Screening.LeadLabel, "follow_up")
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM call_screening_results WHERE call_id = $1", detail.ID)
+	_, _ = db.Exec(ctx, "DELETE FROM calls WHERE provider_call_id = $1", callSid)
+	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+}
+
 func TestCallListIncludesEndedBy(t *testing.T) {
 	db := getTestDB(t)
 	defer db.Close()

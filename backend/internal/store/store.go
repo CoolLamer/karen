@@ -17,6 +17,14 @@ func New(db *pgxpool.Pool) *Store {
 	return &Store{db: db}
 }
 
+// stringOrDefault returns the string value or a default if nil
+func stringOrDefault(s *string, def string) string {
+	if s == nil {
+		return def
+	}
+	return *s
+}
+
 // Tenant represents a customer/organization
 type Tenant struct {
 	ID             string     `json:"id"`
@@ -87,6 +95,7 @@ type Call struct {
 type ScreeningResult struct {
 	LegitimacyLabel      string          `json:"legitimacy_label"`
 	LegitimacyConfidence float64         `json:"legitimacy_confidence"`
+	LeadLabel            string          `json:"lead_label"`
 	IntentCategory       string          `json:"intent_category"`
 	IntentText           string          `json:"intent_text"`
 	EntitiesJSON         json.RawMessage `json:"entities_json"`
@@ -152,7 +161,7 @@ func (s *Store) UpdateCallEndedBy(ctx context.Context, providerCallID string, en
 func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.started_at, c.ended_at, c.ended_by,
-		       r.legitimacy_label, r.legitimacy_confidence, r.intent_category, r.intent_text, r.entities_json, r.created_at
+		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
 		LEFT JOIN call_screening_results r ON r.call_id = c.id
 		ORDER BY c.started_at DESC
@@ -168,6 +177,7 @@ func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error
 		var item CallListItem
 		var legitimacyLabel *string
 		var legitimacyConfidence *float64
+		var leadLabel *string
 		var intentCategory *string
 		var intentText *string
 		var entities []byte
@@ -175,7 +185,7 @@ func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error
 
 		err := rows.Scan(
 			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.StartedAt, &item.EndedAt, &item.EndedBy,
-			&legitimacyLabel, &legitimacyConfidence, &intentCategory, &intentText, &entities, &screeningCreatedAt,
+			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -185,6 +195,7 @@ func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error
 			sr := ScreeningResult{
 				LegitimacyLabel:      *legitimacyLabel,
 				LegitimacyConfidence: *legitimacyConfidence,
+				LeadLabel:            stringOrDefault(leadLabel, "nezjisteno"),
 				IntentCategory:       *intentCategory,
 				IntentText:           *intentText,
 				CreatedAt:            *screeningCreatedAt,
@@ -222,16 +233,17 @@ func (s *Store) InsertUtterance(ctx context.Context, callID string, u Utterance)
 // InsertScreeningResult inserts a screening result for a call.
 func (s *Store) InsertScreeningResult(ctx context.Context, callID string, sr ScreeningResult) error {
 	_, err := s.db.Exec(ctx, `
-		INSERT INTO call_screening_results (call_id, legitimacy_label, legitimacy_confidence, intent_category, intent_text, entities_json, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO call_screening_results (call_id, legitimacy_label, legitimacy_confidence, lead_label, intent_category, intent_text, entities_json, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (call_id) DO UPDATE SET
 			legitimacy_label = EXCLUDED.legitimacy_label,
 			legitimacy_confidence = EXCLUDED.legitimacy_confidence,
+			lead_label = EXCLUDED.lead_label,
 			intent_category = EXCLUDED.intent_category,
 			intent_text = EXCLUDED.intent_text,
 			entities_json = EXCLUDED.entities_json,
 			created_at = EXCLUDED.created_at
-	`, callID, sr.LegitimacyLabel, sr.LegitimacyConfidence, sr.IntentCategory, sr.IntentText, sr.EntitiesJSON, sr.CreatedAt)
+	`, callID, sr.LegitimacyLabel, sr.LegitimacyConfidence, sr.LeadLabel, sr.IntentCategory, sr.IntentText, sr.EntitiesJSON, sr.CreatedAt)
 	return err
 }
 
@@ -263,10 +275,10 @@ func (s *Store) GetCallDetailWithTenantCheck(ctx context.Context, providerCallID
 		var sr ScreeningResult
 		var entities []byte
 		err := s.db.QueryRow(ctx, `
-			SELECT legitimacy_label, legitimacy_confidence, intent_category, intent_text, entities_json, created_at
+			SELECT legitimacy_label, legitimacy_confidence, lead_label, intent_category, intent_text, entities_json, created_at
 			FROM call_screening_results
 			WHERE call_id=$1
-		`, callID).Scan(&sr.LegitimacyLabel, &sr.LegitimacyConfidence, &sr.IntentCategory, &sr.IntentText, &entities, &sr.CreatedAt)
+		`, callID).Scan(&sr.LegitimacyLabel, &sr.LegitimacyConfidence, &sr.LeadLabel, &sr.IntentCategory, &sr.IntentText, &entities, &sr.CreatedAt)
 		if err == nil {
 			sr.EntitiesJSON = json.RawMessage(entities)
 			out.Screening = &sr
@@ -635,7 +647,7 @@ func (s *Store) ListCallsByTenant(ctx context.Context, tenantID string, limit in
 	rows, err := s.db.Query(ctx, `
 		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.started_at, c.ended_at, c.ended_by,
 		       c.first_viewed_at, c.resolved_at, c.resolved_by,
-		       r.legitimacy_label, r.legitimacy_confidence, r.intent_category, r.intent_text, r.entities_json, r.created_at
+		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
 		LEFT JOIN call_screening_results r ON r.call_id = c.id
 		WHERE c.tenant_id = $1
@@ -657,6 +669,7 @@ func scanCallListItems(rows pgx.Rows) ([]CallListItem, error) {
 		var item CallListItem
 		var legitimacyLabel *string
 		var legitimacyConfidence *float64
+		var leadLabel *string
 		var intentCategory *string
 		var intentText *string
 		var entities []byte
@@ -665,7 +678,7 @@ func scanCallListItems(rows pgx.Rows) ([]CallListItem, error) {
 		err := rows.Scan(
 			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.StartedAt, &item.EndedAt, &item.EndedBy,
 			&item.FirstViewedAt, &item.ResolvedAt, &item.ResolvedBy,
-			&legitimacyLabel, &legitimacyConfidence, &intentCategory, &intentText, &entities, &screeningCreatedAt,
+			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -675,6 +688,7 @@ func scanCallListItems(rows pgx.Rows) ([]CallListItem, error) {
 			sr := ScreeningResult{
 				LegitimacyLabel:      *legitimacyLabel,
 				LegitimacyConfidence: *legitimacyConfidence,
+				LeadLabel:            stringOrDefault(leadLabel, "nezjisteno"),
 				IntentCategory:       *intentCategory,
 				IntentText:           *intentText,
 				CreatedAt:            *screeningCreatedAt,
@@ -929,7 +943,7 @@ func (s *Store) ListCallsByTenantWithDetails(ctx context.Context, tenantID strin
 	rows, err := s.db.Query(ctx, `
 		SELECT c.id, c.tenant_id, c.provider, c.provider_call_id, c.from_number, c.to_number,
 		       c.status, c.started_at, c.ended_at, c.ended_by,
-		       r.legitimacy_label, r.legitimacy_confidence, r.intent_category, r.intent_text, r.entities_json, r.created_at
+		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
 		LEFT JOIN call_screening_results r ON r.call_id = c.id
 		WHERE c.tenant_id = $1
@@ -949,6 +963,7 @@ func (s *Store) ListCallsByTenantWithDetails(ctx context.Context, tenantID strin
 		var callID string
 		var legitimacyLabel *string
 		var legitimacyConfidence *float64
+		var leadLabel *string
 		var intentCategory *string
 		var intentText *string
 		var entities []byte
@@ -957,7 +972,7 @@ func (s *Store) ListCallsByTenantWithDetails(ctx context.Context, tenantID strin
 		err := rows.Scan(
 			&callID, &cd.TenantID, &cd.Provider, &cd.ProviderCallID, &cd.FromNumber, &cd.ToNumber,
 			&cd.Status, &cd.StartedAt, &cd.EndedAt, &cd.EndedBy,
-			&legitimacyLabel, &legitimacyConfidence, &intentCategory, &intentText, &entities, &screeningCreatedAt,
+			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -967,6 +982,7 @@ func (s *Store) ListCallsByTenantWithDetails(ctx context.Context, tenantID strin
 			sr := ScreeningResult{
 				LegitimacyLabel:      *legitimacyLabel,
 				LegitimacyConfidence: *legitimacyConfidence,
+				LeadLabel:            stringOrDefault(leadLabel, "nezjisteno"),
 				IntentCategory:       *intentCategory,
 				IntentText:           *intentText,
 				CreatedAt:            *screeningCreatedAt,

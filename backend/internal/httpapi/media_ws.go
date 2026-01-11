@@ -1462,6 +1462,7 @@ func (s *callSession) analyzeCall() {
 	sr := store.ScreeningResult{
 		LegitimacyLabel:      result.LegitimacyLabel,
 		LegitimacyConfidence: result.LegitimacyConfidence,
+		LeadLabel:            result.LeadLabel,
 		IntentCategory:       result.IntentCategory,
 		IntentText:           result.IntentText,
 		EntitiesJSON:         entitiesJSON,

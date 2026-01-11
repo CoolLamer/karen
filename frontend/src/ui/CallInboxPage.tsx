@@ -18,10 +18,6 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import {
   IconAlertCircle,
-  IconCheck,
-  IconX,
-  IconQuestionMark,
-  IconMail,
   IconPhone,
   IconChevronRight,
   IconCircleFilled,
@@ -29,20 +25,7 @@ import {
   IconCircle,
 } from "@tabler/icons-react";
 import { api, CallListItem, TenantPhoneNumber } from "../api";
-
-function getLegitimacyConfig(label: string | undefined) {
-  switch (label) {
-    case "legitimate":
-    case "legitimní":
-      return { color: "green", label: "Legitimní", icon: <IconCheck size={12} /> };
-    case "marketing":
-      return { color: "yellow", label: "Marketing", icon: <IconMail size={12} /> };
-    case "spam":
-      return { color: "red", label: "Spam", icon: <IconX size={12} /> };
-    default:
-      return { color: "gray", label: "Neznámé", icon: <IconQuestionMark size={12} /> };
-  }
-}
+import { getLegitimacyConfig, getLeadLabelConfig } from "./callLabels";
 
 function formatStatus(status: string) {
   switch (status) {
@@ -198,7 +181,8 @@ export function CallInboxPage() {
       {calls && calls.length > 0 && isMobile && (
         <Stack gap="sm">
           {calls.map((c) => {
-            const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
+            const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label, 12);
+            const lead = getLeadLabelConfig(c.screening?.lead_label, 12);
             const intent = c.screening?.intent_text ?? "";
             const resolutionStatus = getResolutionStatus(c);
             const isResolved = resolutionStatus === "resolved";
@@ -222,7 +206,7 @@ export function CallInboxPage() {
                     opacity: isResolved ? 0.7 : 1,
                   }}
                 >
-                  {/* Row 1: Resolution icon + Phone number + Legitimacy badge + Chevron */}
+                  {/* Row 1: Resolution icon + Phone number + Legitimacy badge + Lead badge + Chevron */}
                   <Group justify="space-between" wrap="nowrap" mb={4}>
                     <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                       {/* Resolution status indicator */}
@@ -259,6 +243,15 @@ export function CallInboxPage() {
                         style={{ flexShrink: 0 }}
                       >
                         {legitimacy.label}
+                      </Badge>
+                      <Badge
+                        color={lead.color}
+                        variant="light"
+                        leftSection={lead.icon}
+                        size="sm"
+                        style={{ flexShrink: 0 }}
+                      >
+                        {lead.label}
                       </Badge>
                     </Group>
                     <IconChevronRight size={20} color="gray" style={{ flexShrink: 0 }} />
@@ -299,6 +292,7 @@ export function CallInboxPage() {
                 <Table.Th>Čas</Table.Th>
                 <Table.Th>Od</Table.Th>
                 <Table.Th>Hodnocení</Table.Th>
+                <Table.Th>Lead</Table.Th>
                 <Table.Th>Účel</Table.Th>
                 <Table.Th>Stav</Table.Th>
               </Table.Tr>
@@ -306,6 +300,7 @@ export function CallInboxPage() {
             <Table.Tbody>
               {calls.map((c) => {
                 const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
+                const lead = getLeadLabelConfig(c.screening?.lead_label);
                 const intent = c.screening?.intent_text ?? "";
                 const resolutionStatus = getResolutionStatus(c);
                 const isResolved = resolutionStatus === "resolved";
@@ -367,6 +362,15 @@ export function CallInboxPage() {
                     <Table.Td>
                       <Badge color={legitimacy.color} variant="light" leftSection={legitimacy.icon}>
                         {legitimacy.label}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        color={lead.color}
+                        variant="light"
+                        leftSection={lead.icon}
+                      >
+                        {lead.label}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
