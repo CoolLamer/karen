@@ -206,7 +206,7 @@ export function CallInboxPage() {
                     opacity: isResolved ? 0.7 : 1,
                   }}
                 >
-                  {/* Row 1: Resolution icon + Phone number + Legitimacy badge + Lead badge + Chevron */}
+                  {/* Row 1: Resolution icon + Phone number + Lead badge + Chevron */}
                   <Group justify="space-between" wrap="nowrap" mb={4}>
                     <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                       {/* Resolution status indicator */}
@@ -219,31 +219,22 @@ export function CallInboxPage() {
                       >
                         <ActionIcon
                           variant="subtle"
-                          size="sm"
+                          size="md"
                           color={isResolved ? "teal" : isNew ? "blue" : "gray"}
                           onClick={(e) => handleToggleResolved(e, c.provider_call_id, isResolved)}
                         >
                           {isResolved ? (
-                            <IconCircleCheck size={18} />
+                            <IconCircleCheck size={20} />
                           ) : isNew ? (
-                            <IconCircleFilled size={10} />
+                            <IconCircleFilled size={12} />
                           ) : (
-                            <IconCircle size={18} />
+                            <IconCircle size={20} />
                           )}
                         </ActionIcon>
                       </Tooltip>
-                      <Text size="sm" fw={isNew ? 700 : 600} truncate>
+                      <Text size="sm" fw={isNew ? 700 : 600} truncate style={{ flex: 1, minWidth: 0 }}>
                         {c.from_number}
                       </Text>
-                      <Badge
-                        color={legitimacy.color}
-                        variant="light"
-                        leftSection={legitimacy.icon}
-                        size="sm"
-                        style={{ flexShrink: 0 }}
-                      >
-                        {legitimacy.label}
-                      </Badge>
                       <Badge
                         color={lead.color}
                         variant="light"
@@ -257,10 +248,15 @@ export function CallInboxPage() {
                     <IconChevronRight size={20} color="gray" style={{ flexShrink: 0 }} />
                   </Group>
 
-                  {/* Row 2: to_number + relative time */}
-                  <Text size="xs" c="dimmed" mb="xs" pl={30}>
-                    na {c.to_number} | {formatRelativeTime(new Date(c.started_at))}
-                  </Text>
+                  {/* Row 2: to_number + relative time + legitimacy label */}
+                  <Group gap="xs" mb="xs" pl={30}>
+                    <Text size="xs" c="dimmed">
+                      na {c.to_number} | {formatRelativeTime(new Date(c.started_at))}
+                    </Text>
+                    <Text size="xs" c={legitimacy.color} fw={500}>
+                      • {legitimacy.label}
+                    </Text>
+                  </Group>
 
                   {/* Row 3: Intent text */}
                   {intent && (
@@ -326,16 +322,16 @@ export function CallInboxPage() {
                       >
                         <ActionIcon
                           variant="subtle"
-                          size="sm"
+                          size="md"
                           color={isResolved ? "teal" : isNew ? "blue" : "gray"}
                           onClick={(e) => handleToggleResolved(e, c.provider_call_id, isResolved)}
                         >
                           {isResolved ? (
-                            <IconCircleCheck size={18} />
+                            <IconCircleCheck size={20} />
                           ) : isNew ? (
-                            <IconCircleFilled size={10} />
+                            <IconCircleFilled size={12} />
                           ) : (
-                            <IconCircle size={18} />
+                            <IconCircle size={20} />
                           )}
                         </ActionIcon>
                       </Tooltip>
