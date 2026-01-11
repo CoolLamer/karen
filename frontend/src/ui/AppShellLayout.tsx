@@ -13,8 +13,6 @@ import {
   Modal,
   Text,
   Stack,
-  Code,
-  List,
   CopyButton,
   Paper,
 } from "@mantine/core";
@@ -37,8 +35,11 @@ export function AppShellLayout() {
     api.getTenant().then((data) => setPhoneNumbers(data.phone_numbers || [])).catch(() => {});
   }, []);
 
+  // Initial fetch + polling every 30 seconds for real-time updates
   React.useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   // Refetch when navigating (e.g., after viewing/resolving calls)
@@ -99,58 +100,59 @@ export function AppShellLayout() {
         onClose={closeModal}
         title="Jak nastavit přesměrování"
         size="md"
+        centered
       >
         <Stack gap="md">
-          <Text size="sm">
-            Přesměrujte hovory z vašeho telefonu na Karen číslo, když nemůžete zvednout.
-          </Text>
-
-          <Paper p="md" withBorder radius="md" bg="gray.0">
-            <Text size="sm" fw={500} mb="xs">
-              Vaše Karen číslo:
-            </Text>
-            <Group gap="xs">
-              <Code style={{ fontSize: "1.1rem" }}>{karenNumber}</Code>
-              <CopyButton value={karenNumber || ""}>
-                {({ copied, copy }) => (
-                  <Tooltip label={copied ? "Zkopírováno!" : "Kopírovat"}>
-                    <ActionIcon
-                      color={copied ? "teal" : "gray"}
-                      variant="subtle"
-                      onClick={copy}
-                    >
-                      {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                    </ActionIcon>
-                  </Tooltip>
-                )}
-              </CopyButton>
-            </Group>
+          <Paper p="md" radius="md" withBorder>
+            <Stack gap="md">
+              <Text size="sm" fw={500}>
+                Přesměrování když nezvedneš (po 20s)
+              </Text>
+              <Text size="sm" c="dimmed">
+                1. Otevři aplikaci Telefon
+              </Text>
+              <Group>
+                <Text size="sm" c="dimmed">
+                  2. Vytoč:
+                </Text>
+                <Text size="sm" fw={600} ff="monospace">
+                  **61*{karenNumber}#
+                </Text>
+                <CopyButton value={`**61*${karenNumber}#`}>
+                  {({ copied, copy }) => (
+                    <Tooltip label={copied ? "Zkopírováno!" : "Kopírovat"}>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={copy}
+                        color={copied ? "teal" : "gray"}
+                      >
+                        {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </CopyButton>
+              </Group>
+              <Text size="sm" c="dimmed">
+                3. Uslyšíte potvrzení „Služba aktivována"
+              </Text>
+            </Stack>
           </Paper>
 
-          <Text size="sm" fw={500}>
-            Postup pro nastavení:
-          </Text>
-          <List size="sm" spacing="xs">
-            <List.Item>
-              Otevřete <strong>Nastavení</strong> &gt; <strong>Telefon</strong> &gt;{" "}
-              <strong>Přesměrování hovorů</strong>
-            </List.Item>
-            <List.Item>
-              Vyberte <strong>"Při obsazení"</strong> nebo <strong>"Při nedostupnosti"</strong>
-            </List.Item>
-            <List.Item>
-              Zadejte Karen číslo: <Code>{karenNumber}</Code>
-            </List.Item>
-            <List.Item>Uložte nastavení</List.Item>
-          </List>
+          <Button
+            variant="light"
+            fullWidth
+            leftSection={<IconPhone size={18} />}
+            disabled={!karenNumber}
+            onClick={() => {
+              window.location.href = `tel:**61*${karenNumber}%23`;
+            }}
+          >
+            Vytočit automaticky
+          </Button>
 
-          <Text size="xs" c="dimmed">
-            Tip: Můžete také nastavit podmíněné přesměrování přes kód operátora. Kontaktujte svého
-            operátora pro více informací.
-          </Text>
-
-          <Button onClick={closeModal} fullWidth>
-            Rozumím
+          <Button variant="subtle" onClick={closeModal} fullWidth>
+            Zavřít
           </Button>
         </Stack>
       </Modal>
