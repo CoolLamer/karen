@@ -35,6 +35,7 @@ const AnalysisPromptCzech = `Na základě konverzace vyplň následující JSON 
 {
   "legitimacy_label": "legitimní|marketing|spam|podvod",
   "legitimacy_confidence": 0.0-1.0,
+  "lead_label": "hot_lead|urgentni|follow_up|informacni|nezjisteno",
   "intent_category": "obchodní|osobní|servis|informace|stížnost|jiné",
   "intent_text": "krátký popis účelu hovoru česky",
   "entities": {
@@ -45,4 +46,11 @@ const AnalysisPromptCzech = `Na základě konverzace vyplň následující JSON 
   },
   "suggested_response": "co by měl agent říct",
   "should_end_call": false
-}`
+}
+
+Pravidla pro lead_label:
+- hot_lead: Jasný záměr koupit, objednat nebo uzavřít obchod
+- urgentni: Naléhavá záležitost, termín, stížnost vyžadující okamžitou akci
+- follow_up: Projevený zájem, vyžaduje zpětné zavolání
+- informacni: Pouze dotaz na informace, žádná akce potřeba
+- nezjisteno: Nelze určit`

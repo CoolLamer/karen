@@ -16,14 +16,11 @@ import {
   IconArrowLeft,
   IconRobot,
   IconUser,
-  IconCheck,
-  IconX,
-  IconQuestionMark,
-  IconMail,
   IconCircleCheck,
   IconCircle,
 } from "@tabler/icons-react";
 import { api, CallDetail } from "../api";
+import { getLegitimacyConfig, getLeadLabelConfig } from "./callLabels";
 
 function formatStatus(status: string) {
   switch (status) {
@@ -37,20 +34,6 @@ function formatStatus(status: string) {
       return "Vyzvání";
     default:
       return status;
-  }
-}
-
-function getLegitimacyConfig(label: string) {
-  switch (label) {
-    case "legitimate":
-    case "legitimní":
-      return { color: "green", label: "Legitimní", icon: <IconCheck size={14} /> };
-    case "marketing":
-      return { color: "yellow", label: "Marketing", icon: <IconMail size={14} /> };
-    case "spam":
-      return { color: "red", label: "Spam", icon: <IconX size={14} /> };
-    default:
-      return { color: "gray", label: "Neznámé", icon: <IconQuestionMark size={14} /> };
   }
 }
 
@@ -126,6 +109,7 @@ export function CallDetailPage() {
   };
 
   const legitimacyConfig = getLegitimacyConfig(call?.screening?.legitimacy_label ?? "unknown");
+  const leadConfig = getLeadLabelConfig(call?.screening?.lead_label);
 
   return (
     <Stack gap="md" py="md">
@@ -189,14 +173,24 @@ export function CallDetailPage() {
                 </Group>
               </Stack>
               <Stack gap="xs" align="flex-end">
-                <Badge
-                  variant="light"
-                  color={legitimacyConfig.color}
-                  size="lg"
-                  leftSection={legitimacyConfig.icon}
-                >
-                  {legitimacyConfig.label}
-                </Badge>
+                <Group gap="xs">
+                  <Badge
+                    variant="light"
+                    color={legitimacyConfig.color}
+                    size="lg"
+                    leftSection={legitimacyConfig.icon}
+                  >
+                    {legitimacyConfig.label}
+                  </Badge>
+                  <Badge
+                    variant="light"
+                    color={leadConfig.color}
+                    size="lg"
+                    leftSection={leadConfig.icon}
+                  >
+                    {leadConfig.label}
+                  </Badge>
+                </Group>
                 {typeof call.screening?.legitimacy_confidence === "number" && (
                   <Box w={100}>
                     <Text size="xs" c="dimmed" ta="right" mb={4}>

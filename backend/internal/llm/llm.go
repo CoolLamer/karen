@@ -6,6 +6,7 @@ import "context"
 type ScreeningResult struct {
 	LegitimacyLabel      string            `json:"legitimacy_label"`      // legitimní, marketing, spam, podvod
 	LegitimacyConfidence float64           `json:"legitimacy_confidence"` // 0-1
+	LeadLabel            string            `json:"lead_label"`            // hot_lead, urgentni, follow_up, informacni, nezjisteno
 	IntentCategory       string            `json:"intent_category"`       // obchodní, osobní, servis, etc.
 	IntentText           string            `json:"intent_text"`           // Brief description in Czech
 	Entities             map[string]string `json:"entities"`              // Extracted entities (name, company, etc.)

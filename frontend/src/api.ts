@@ -1,6 +1,7 @@
 export type ScreeningResult = {
   legitimacy_label: string;
   legitimacy_confidence: number;
+  lead_label: string;
   intent_category: string;
   intent_text: string;
   entities_json: unknown;
