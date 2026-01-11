@@ -29,6 +29,9 @@ const (
 	EventVADSpeechStarted EventType = "vad_speech_started"
 	EventVADUtteranceEnd  EventType = "vad_utterance_end"
 	EventMaxTurnTimeout   EventType = "max_turn_timeout"
+	EventTTSStarted       EventType = "tts_started"
+	EventTTSCompleted     EventType = "tts_completed"
+	EventTTSError         EventType = "tts_error"
 )
 
 // Logger provides async event logging to the database

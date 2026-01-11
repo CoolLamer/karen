@@ -193,6 +193,7 @@ func (c *DeepgramClient) readLoop() {
 
 		// Skip non-results messages
 		if resp.Type != "Results" {
+			log.Printf("deepgram: unknown message type: %q", resp.Type)
 			continue
 		}
 

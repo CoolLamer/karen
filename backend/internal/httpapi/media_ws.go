@@ -1086,9 +1086,18 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 }
 
 func (s *callSession) speakText(ctx context.Context, text string) (uint64, error) {
+	ttsStartTime := time.Now()
+	s.eventLog.LogAsync(s.callID, eventlog.EventTTSStarted, map[string]any{
+		"text_length": len(text),
+	})
+
 	// Get audio from TTS
 	audioCh, err := s.ttsClient.SynthesizeStream(ctx, text)
 	if err != nil {
+		s.eventLog.LogAsync(s.callID, eventlog.EventTTSError, map[string]any{
+			"error":       err.Error(),
+			"text_length": len(text),
+		})
 		return 0, err
 	}
 
@@ -1096,6 +1105,12 @@ func (s *callSession) speakText(ctx context.Context, text string) (uint64, error
 	for chunk := range audioCh {
 		select {
 		case <-ctx.Done():
+			s.eventLog.LogAsync(s.callID, eventlog.EventTTSCompleted, map[string]any{
+				"text_length": len(text),
+				"duration_ms": time.Since(ttsStartTime).Milliseconds(),
+				"interrupted": true,
+				"reason":      "context_cancelled",
+			})
 			return 0, ctx.Err()
 		case <-s.bargeInCh:
 			// Barge-in detected - stop sending audio
@@ -1103,6 +1118,12 @@ func (s *callSession) speakText(ctx context.Context, text string) (uint64, error
 			// Drain remaining audio
 			for range audioCh {
 			}
+			s.eventLog.LogAsync(s.callID, eventlog.EventTTSCompleted, map[string]any{
+				"text_length": len(text),
+				"duration_ms": time.Since(ttsStartTime).Milliseconds(),
+				"interrupted": true,
+				"reason":      "barge_in",
+			})
 			return 0, nil
 		default:
 		}
@@ -1119,6 +1140,11 @@ func (s *callSession) speakText(ctx context.Context, text string) (uint64, error
 		s.connMu.Unlock()
 
 		if err != nil {
+			s.eventLog.LogAsync(s.callID, eventlog.EventTTSError, map[string]any{
+				"error":       err.Error(),
+				"text_length": len(text),
+				"duration_ms": time.Since(ttsStartTime).Milliseconds(),
+			})
 			return 0, fmt.Errorf("failed to send audio: %w", err)
 		}
 	}
@@ -1141,6 +1167,13 @@ func (s *callSession) speakText(ctx context.Context, text string) (uint64, error
 		// If the mark wasn't sent, don't keep the pending counter inflated.
 		_ = s.decAudioPending()
 	}
+
+	s.eventLog.LogAsync(s.callID, eventlog.EventTTSCompleted, map[string]any{
+		"text_length": len(text),
+		"duration_ms": time.Since(ttsStartTime).Milliseconds(),
+		"interrupted": false,
+	})
+
 	return markID, err
 }
 
