@@ -525,6 +525,44 @@ func (s *Store) GetTenantOwnerPhone(ctx context.Context, tenantID string) (strin
 	return phone, err
 }
 
+// ResetUserOnboarding performs a "smart reset" of a user's onboarding status.
+// It clears the user's tenant_id and name (allowing re-onboarding) and releases
+// any phone numbers associated with that tenant back to the pool.
+// The tenant itself is preserved for call history purposes.
+// Returns the user's previous tenant_id (if any) for logging purposes.
+func (s *Store) ResetUserOnboarding(ctx context.Context, userID string) (*string, error) {
+	// First get the user to find their tenant_id
+	var previousTenantID *string
+	err := s.db.QueryRow(ctx, `
+		SELECT tenant_id FROM users WHERE id = $1
+	`, userID).Scan(&previousTenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// If user has a tenant, release any phone numbers for that tenant back to pool
+	if previousTenantID != nil {
+		_, err = s.db.Exec(ctx, `
+			UPDATE tenant_phone_numbers
+			SET tenant_id = NULL, is_primary = false
+			WHERE tenant_id = $1
+		`, *previousTenantID)
+		if err != nil {
+			return previousTenantID, err
+		}
+	}
+
+	// Clear the user's tenant_id and name (this makes them "not onboarded")
+	_, err = s.db.Exec(ctx, `
+		UPDATE users SET tenant_id = NULL, name = NULL WHERE id = $1
+	`, userID)
+	if err != nil {
+		return previousTenantID, err
+	}
+
+	return previousTenantID, nil
+}
+
 // ============================================================================
 // Phone number operations
 // ============================================================================
