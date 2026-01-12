@@ -33,7 +33,7 @@ import {
   IconRobot,
   IconCreditCard,
 } from "@tabler/icons-react";
-import { RedirectSetupAccordion } from "./components/RedirectSetupAccordion";
+import { ForwardingSetupModal } from "./ForwardingSetupModal";
 import { api, Tenant, TenantPhoneNumber } from "../api";
 import { useAuth } from "../AuthContext";
 
@@ -386,31 +386,11 @@ export function SettingsPage() {
       </Container>
 
       {/* Forwarding instructions modal */}
-      <Modal
+      <ForwardingSetupModal
         opened={forwardingModalOpen}
         onClose={() => setForwardingModalOpen(false)}
-        title="Jak nastavit přesměrování"
-        centered
-        size="lg"
-      >
-        <Stack gap="md">
-          <Alert color="blue" variant="light">
-            <Text size="sm">
-              Přesměrování se nastavuje vytočením speciálního kódu na telefonu.
-              Otevři tuto stránku na mobilu a klikni na tlačítko – automaticky se vytočí
-              aktivační kód a na obrazovce uvidíš potvrzení od operátora.
-            </Text>
-            <Text size="sm" mt="xs" c="dimmed">
-              Na počítači tlačítko nefunguje – musíš kód vytočit ručně nebo otevřít stránku na telefonu.
-            </Text>
-          </Alert>
-          <Text size="sm" c="dimmed">
-            Pro kompletní pokrytí doporučujeme nastavit všechny tři typy přesměrování.
-          </Text>
-
-          <RedirectSetupAccordion karenNumber={karenNumber} defaultValue="noAnswer" />
-        </Stack>
-      </Modal>
+        karenNumber={karenNumber}
+      />
 
       {/* Logout confirmation modal */}
       <Modal

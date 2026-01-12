@@ -11,26 +11,13 @@ import {
   Badge,
   Button,
   Modal,
-  Text,
-  Stack,
-  CopyButton,
-  Accordion,
-  Alert,
-  Box,
-  List,
 } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
-import { IconSettings, IconPhone, IconCopy, IconCheck, IconQuestionMark } from "@tabler/icons-react";
+import { IconSettings, IconPhone, IconQuestionMark } from "@tabler/icons-react";
 import { FAQ } from "./landing/components";
 import { SHARED_CONTENT } from "./landing/content/shared";
+import { ForwardingSetupModal } from "./ForwardingSetupModal";
 import { api, TenantPhoneNumber } from "../api";
-import {
-  REDIRECT_CODES,
-  REDIRECT_ORDER,
-  PHONE_SETTINGS_INSTRUCTIONS,
-  getDialCode,
-  getDeactivationCode,
-} from "../constants/redirectCodes";
 
 export function AppShellLayout() {
   const [unresolvedCount, setUnresolvedCount] = React.useState(0);
@@ -112,124 +99,11 @@ export function AppShellLayout() {
         </Container>
       </AppShell.Main>
 
-      {/* Forwarding Setup Modal */}
-      <Modal
+      <ForwardingSetupModal
         opened={modalOpened}
         onClose={closeModal}
-        title="Jak nastavit přesměrování"
-        size="lg"
-        centered
-      >
-        <Stack gap="md">
-          <Alert color="blue" variant="light">
-            Pro kompletní pokrytí doporučujeme nastavit všechny tři typy přesměrování.
-          </Alert>
-
-          <Accordion variant="separated" defaultValue="noAnswer">
-            {REDIRECT_ORDER.map((type) => {
-              const code = REDIRECT_CODES[type];
-              const dialCode = karenNumber ? getDialCode(type, karenNumber) : "";
-              const deactivateCode = getDeactivationCode(type);
-              return (
-                <Accordion.Item key={type} value={type}>
-                  <Accordion.Control>
-                    <Group>
-                      <Text fw={500}>{code.label}</Text>
-                    </Group>
-                  </Accordion.Control>
-                  <Accordion.Panel>
-                    <Stack gap="sm">
-                      <Text size="sm" c="dimmed">{code.description}</Text>
-
-                      <Text size="xs" fw={500} c="teal">Aktivovat:</Text>
-                      <Group gap="xs">
-                        <Text size="sm" ff="monospace">{dialCode}</Text>
-                        <CopyButton value={dialCode}>
-                          {({ copied, copy }) => (
-                            <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
-                              <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
-                                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                        </CopyButton>
-                      </Group>
-                      <Button
-                        variant="light"
-                        size="xs"
-                        leftSection={<IconPhone size={14} />}
-                        disabled={!karenNumber}
-                        onClick={() => { window.location.href = `tel:${dialCode}`; }}
-                      >
-                        Vytočit
-                      </Button>
-
-                      <Text size="xs" fw={500} c="red" mt="xs">Deaktivovat:</Text>
-                      <Group gap="xs">
-                        <Text size="sm" ff="monospace">{deactivateCode}</Text>
-                        <CopyButton value={deactivateCode}>
-                          {({ copied, copy }) => (
-                            <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
-                              <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
-                                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                        </CopyButton>
-                      </Group>
-                      <Button
-                        variant="subtle"
-                        size="xs"
-                        color="red"
-                        leftSection={<IconPhone size={14} />}
-                        onClick={() => { window.location.href = `tel:${deactivateCode}`; }}
-                      >
-                        Vytočit
-                      </Button>
-                    </Stack>
-                  </Accordion.Panel>
-                </Accordion.Item>
-              );
-            })}
-
-            {/* Phone settings alternative */}
-            <Accordion.Item value="phone-settings">
-              <Accordion.Control>
-                <Text fw={500}>Nastavení v telefonu (alternativa)</Text>
-              </Accordion.Control>
-              <Accordion.Panel>
-                <Stack gap="md">
-                  <Text size="sm" c="dimmed">
-                    Místo vytáčení kódů můžeš přesměrování nastavit přímo v nastavení telefonu.
-                  </Text>
-
-                  <Box>
-                    <Text size="sm" fw={500}>{PHONE_SETTINGS_INSTRUCTIONS.iphone.title}</Text>
-                    <List size="sm" c="dimmed" mt="xs">
-                      {PHONE_SETTINGS_INSTRUCTIONS.iphone.steps.map((step, i) => (
-                        <List.Item key={i}>{step}</List.Item>
-                      ))}
-                    </List>
-                  </Box>
-
-                  <Box>
-                    <Text size="sm" fw={500}>{PHONE_SETTINGS_INSTRUCTIONS.android.title}</Text>
-                    <List size="sm" c="dimmed" mt="xs">
-                      {PHONE_SETTINGS_INSTRUCTIONS.android.steps.map((step, i) => (
-                        <List.Item key={i}>{step}</List.Item>
-                      ))}
-                    </List>
-                  </Box>
-                </Stack>
-              </Accordion.Panel>
-            </Accordion.Item>
-          </Accordion>
-
-          <Button variant="subtle" onClick={closeModal} fullWidth>
-            Zavřít
-          </Button>
-        </Stack>
-      </Modal>
+        karenNumber={karenNumber}
+      />
 
       {/* FAQ Modal */}
       <Modal
