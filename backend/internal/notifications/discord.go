@@ -28,8 +28,9 @@ func NewDiscord(webhookURL string, logger *log.Logger) *Discord {
 }
 
 // Enabled returns true if the webhook is configured.
+// Safe to call on nil receiver.
 func (d *Discord) Enabled() bool {
-	return d.webhookURL != ""
+	return d != nil && d.webhookURL != ""
 }
 
 // discordMessage is the payload for Discord webhook.
@@ -54,7 +55,7 @@ type embedField struct {
 
 // send posts a message to Discord webhook asynchronously.
 // Errors are logged but don't affect caller.
-func (d *Discord) send(ctx context.Context, msg discordMessage) {
+func (d *Discord) send(_ context.Context, msg discordMessage) {
 	if !d.Enabled() {
 		return
 	}
@@ -66,7 +67,8 @@ func (d *Discord) send(ctx context.Context, msg discordMessage) {
 			return
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "POST", d.webhookURL, bytes.NewReader(body))
+		// Use background context since the HTTP handler may return before this runs
+		req, err := http.NewRequestWithContext(context.Background(), "POST", d.webhookURL, bytes.NewReader(body))
 		if err != nil {
 			d.logger.Printf("discord: failed to create request: %v", err)
 			return
