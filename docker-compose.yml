@@ -29,6 +29,7 @@ services:
       TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID:-}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-prod}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
       LOG_LEVEL: debug
     depends_on:
       db:

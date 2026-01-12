@@ -42,6 +42,9 @@ type Config struct {
 
 	// Admin access
 	AdminPhones []string
+
+	// Notifications
+	DiscordWebhookURL string
 }
 
 func LoadConfigFromEnv() Config {
@@ -90,6 +93,9 @@ func LoadConfigFromEnv() Config {
 
 		// Admin access
 		AdminPhones: parseAdminPhones(os.Getenv("ADMIN_PHONES")),
+
+		// Notifications
+		DiscordWebhookURL: os.Getenv("DISCORD_WEBHOOK_URL"),
 	}
 }
 

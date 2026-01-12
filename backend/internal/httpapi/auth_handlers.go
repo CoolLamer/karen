@@ -256,6 +256,10 @@ func (r *Router) handleVerifyCode(w http.ResponseWriter, req *http.Request) {
 
 	r.logger.Printf("auth: user %s logged in (new: %v)", body.Phone, isNew)
 
+	if isNew {
+		r.discord.NotifyNewUser(req.Context(), body.Phone)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"token":      token,
 		"expires_at": expiresAt.Format(time.RFC3339),
@@ -606,6 +610,7 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 			r.logger.Printf("auth: assigned phone number %s to tenant %s", phoneNumber.TwilioNumber, tenant.ID)
 		} else {
 			r.logger.Printf("auth: no available phone numbers for tenant %s", tenant.ID)
+			r.discord.NotifyPhoneNumbersExhausted(req.Context(), tenant.ID, tenant.Name)
 		}
 	}
 

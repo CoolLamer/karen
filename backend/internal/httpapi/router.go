@@ -9,6 +9,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/lukasbauer/karen/internal/eventlog"
+	"github.com/lukasbauer/karen/internal/notifications"
 	"github.com/lukasbauer/karen/internal/store"
 )
 
@@ -41,6 +42,9 @@ type RouterConfig struct {
 
 	// Admin access (phone numbers that have admin privileges)
 	AdminPhones []string
+
+	// Notifications
+	DiscordWebhookURL string
 }
 
 type Router struct {
@@ -48,6 +52,7 @@ type Router struct {
 	logger   *log.Logger
 	store    *store.Store
 	eventLog *eventlog.Logger
+	discord  *notifications.Discord
 	mux      *http.ServeMux
 }
 
@@ -57,6 +62,7 @@ func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store, eventLog *e
 		logger:   logger,
 		store:    s,
 		eventLog: eventLog,
+		discord:  notifications.NewDiscord(cfg.DiscordWebhookURL, logger),
 		mux:      http.NewServeMux(),
 	}
 
