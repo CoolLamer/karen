@@ -15,6 +15,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/lukasbauer/karen/internal/store"
 )
 
@@ -521,10 +522,20 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 			http.Error(w, `{"error": "already onboarded"}`, http.StatusBadRequest)
 			return
 		}
-		// Tenant doesn't exist - clear the stale reference so we can re-onboard
-		if err := r.store.ClearUserTenant(req.Context(), authUser.ID); err != nil {
-			r.logger.Printf("auth: failed to clear stale tenant reference: %v", err)
+		// Only clear the tenant reference if the tenant truly doesn't exist (not a DB error)
+		if errors.Is(err, pgx.ErrNoRows) {
+			if err := r.store.ClearUserTenant(req.Context(), authUser.ID); err != nil {
+				r.logger.Printf("auth: failed to clear stale tenant reference: %v", err)
+				sentry.CaptureException(err)
+				http.Error(w, `{"error": "failed to clear stale tenant reference"}`, http.StatusInternalServerError)
+				return
+			}
+		} else if err != nil {
+			// Database error - don't proceed, return error
+			r.logger.Printf("auth: failed to check existing tenant: %v", err)
 			sentry.CaptureException(err)
+			http.Error(w, `{"error": "failed to check tenant status"}`, http.StatusInternalServerError)
+			return
 		}
 	}
 

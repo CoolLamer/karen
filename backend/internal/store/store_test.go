@@ -207,6 +207,63 @@ func TestTenantUserAssignment(t *testing.T) {
 	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
 }
 
+func TestClearUserTenant(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create tenant
+	tenant, err := s.CreateTenant(ctx, "Clear Tenant Test", "Test prompt")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Create user and assign to tenant
+	testPhone := "+420777" + time.Now().Format("150405")
+	user, _, err := s.FindOrCreateUser(ctx, testPhone)
+	if err != nil {
+		t.Fatalf("FindOrCreateUser failed: %v", err)
+	}
+
+	err = s.AssignUserToTenant(ctx, user.ID, tenant.ID)
+	if err != nil {
+		t.Fatalf("AssignUserToTenant failed: %v", err)
+	}
+
+	// Verify user has tenant
+	user2, _ := s.GetUserByID(ctx, user.ID)
+	if user2.TenantID == nil || *user2.TenantID != tenant.ID {
+		t.Fatalf("user should have tenant_id = %q, got %v", tenant.ID, user2.TenantID)
+	}
+
+	// Clear tenant reference
+	err = s.ClearUserTenant(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ClearUserTenant failed: %v", err)
+	}
+
+	// Verify tenant reference is cleared
+	user3, err := s.GetUserByID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetUserByID after clear failed: %v", err)
+	}
+	if user3.TenantID != nil {
+		t.Errorf("user tenant_id = %v, want nil", user3.TenantID)
+	}
+
+	// Clear on user without tenant should not error
+	err = s.ClearUserTenant(ctx, user.ID)
+	if err != nil {
+		t.Errorf("ClearUserTenant on user without tenant should not error: %v", err)
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
+	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+}
+
 func TestPhoneNumberRouting(t *testing.T) {
 	db := getTestDB(t)
 	defer db.Close()
