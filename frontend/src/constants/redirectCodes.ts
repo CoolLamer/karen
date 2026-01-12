@@ -12,19 +12,19 @@ export const REDIRECT_CODES: Record<RedirectType, RedirectCode> = {
     code: "**61*{number}#",
     deactivateCode: "##61#",
     label: "Když nezvednu",
-    description: "Přesměrování po 5 zazvoněních - když telefon nezvedneš",
+    description: "Když nezvedneš do 5 zazvonění, hovor se přesměruje na Karen",
   },
   busy: {
     code: "**67*{number}#",
     deactivateCode: "##67#",
     label: "Když mám obsazeno",
-    description: "Přesměrování když probíhá jiný hovor nebo odmítneš volání",
+    description: "Když máš obsazeno nebo odmítneš hovor, přesměruje se na Karen",
   },
   unreachable: {
     code: "**62*{number}#",
     deactivateCode: "##62#",
     label: "Když jsem nedostupný",
-    description: "Přesměrování když nemáš signál nebo je telefon vypnutý",
+    description: "Když nemáš signál nebo máš vypnutý telefon, hovor jde na Karen",
   },
 };
 

@@ -9,3 +9,4 @@ export { CTASection } from "./CTASection";
 export { SegmentSelector } from "./SegmentSelector";
 export { PainPoints } from "./PainPoints";
 export { ExampleCall } from "./ExampleCall";
+export { FAQ } from "./FAQ";
