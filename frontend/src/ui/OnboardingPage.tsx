@@ -57,7 +57,7 @@ const CARRIER_CODES: Record<string, { noAnswer: string; description: string }> =
 
 export function OnboardingPage() {
   const navigate = useNavigate();
-  const { setTenant, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
 
   const [step, setStep] = useState<OnboardingStep>(0);
   const [name, setName] = useState("");
@@ -89,7 +89,8 @@ export function OnboardingPage() {
       const response = await api.completeOnboarding(name.trim());
       setAuthToken(response.token);
       setTenantState(response.tenant);
-      setTenant(response.tenant);
+      // Don't call setTenant here - it would set needsOnboarding=false and
+      // trigger a redirect before onboarding steps are complete
 
       if (response.phone_number) {
         setPhoneNumbers([response.phone_number]);
@@ -128,8 +129,8 @@ export function OnboardingPage() {
         if (marketingOption === "email" && marketingEmail) {
           updateData.marketing_email = marketingEmail;
         }
-        const response = await api.updateTenant(updateData);
-        setTenant(response.tenant);
+        await api.updateTenant(updateData);
+        // Don't update auth context here - refreshUser() in handleFinish() will do it
       } catch {
         // Non-critical, continue anyway - user can configure later
       }
