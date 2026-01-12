@@ -27,19 +27,20 @@ func stringOrDefault(s *string, def string) string {
 
 // Tenant represents a customer/organization
 type Tenant struct {
-	ID             string     `json:"id"`
-	Name           string     `json:"name"`
-	SystemPrompt   string     `json:"system_prompt"`
-	GreetingText   *string    `json:"greeting_text,omitempty"`
-	VoiceID        *string    `json:"voice_id,omitempty"`
-	Language       string     `json:"language"`
-	VIPNames       []string   `json:"vip_names"`
-	MarketingEmail *string    `json:"marketing_email,omitempty"`
-	ForwardNumber  *string    `json:"forward_number,omitempty"`
-	Plan           string     `json:"plan"`
-	Status         string     `json:"status"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	SystemPrompt     string     `json:"system_prompt"`
+	GreetingText     *string    `json:"greeting_text,omitempty"`
+	VoiceID          *string    `json:"voice_id,omitempty"`
+	Language         string     `json:"language"`
+	VIPNames         []string   `json:"vip_names"`
+	MarketingEmail   *string    `json:"marketing_email,omitempty"`
+	ForwardNumber    *string    `json:"forward_number,omitempty"`
+	MaxTurnTimeoutMs *int       `json:"max_turn_timeout_ms,omitempty"` // Hard timeout for speech_final in ms
+	Plan             string     `json:"plan"`
+	Status           string     `json:"status"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 // User represents an authenticated user
@@ -317,15 +318,15 @@ func (s *Store) GetTenantByTwilioNumber(ctx context.Context, twilioNumber string
 	var t Tenant
 	err := s.db.QueryRow(ctx, `
 		SELECT t.id, t.name, t.system_prompt, t.greeting_text, t.voice_id, t.language,
-		       t.vip_names, t.marketing_email, t.forward_number, t.plan, t.status,
-		       t.created_at, t.updated_at
+		       t.vip_names, t.marketing_email, t.forward_number, t.max_turn_timeout_ms,
+		       t.plan, t.status, t.created_at, t.updated_at
 		FROM tenants t
 		JOIN tenant_phone_numbers pn ON pn.tenant_id = t.id
 		WHERE pn.twilio_number = $1 AND t.status = 'active'
 	`, twilioNumber).Scan(
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
-		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.Plan, &t.Status,
-		&t.CreatedAt, &t.UpdatedAt,
+		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
+		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -338,15 +339,15 @@ func (s *Store) GetTenantByForwardingSource(ctx context.Context, forwardingSourc
 	var t Tenant
 	err := s.db.QueryRow(ctx, `
 		SELECT t.id, t.name, t.system_prompt, t.greeting_text, t.voice_id, t.language,
-		       t.vip_names, t.marketing_email, t.forward_number, t.plan, t.status,
-		       t.created_at, t.updated_at
+		       t.vip_names, t.marketing_email, t.forward_number, t.max_turn_timeout_ms,
+		       t.plan, t.status, t.created_at, t.updated_at
 		FROM tenants t
 		JOIN tenant_phone_numbers pn ON pn.tenant_id = t.id
 		WHERE pn.forwarding_source = $1 AND t.status = 'active'
 	`, forwardingSource).Scan(
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
-		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.Plan, &t.Status,
-		&t.CreatedAt, &t.UpdatedAt,
+		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
+		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -359,14 +360,14 @@ func (s *Store) GetTenantByID(ctx context.Context, id string) (*Tenant, error) {
 	var t Tenant
 	err := s.db.QueryRow(ctx, `
 		SELECT id, name, system_prompt, greeting_text, voice_id, language,
-		       vip_names, marketing_email, forward_number, plan, status,
-		       created_at, updated_at
+		       vip_names, marketing_email, forward_number, max_turn_timeout_ms,
+		       plan, status, created_at, updated_at
 		FROM tenants
 		WHERE id = $1
 	`, id).Scan(
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
-		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.Plan, &t.Status,
-		&t.CreatedAt, &t.UpdatedAt,
+		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
+		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -381,12 +382,12 @@ func (s *Store) CreateTenant(ctx context.Context, name, systemPrompt string) (*T
 		INSERT INTO tenants (name, system_prompt)
 		VALUES ($1, $2)
 		RETURNING id, name, system_prompt, greeting_text, voice_id, language,
-		          vip_names, marketing_email, forward_number, plan, status,
-		          created_at, updated_at
+		          vip_names, marketing_email, forward_number, max_turn_timeout_ms,
+		          plan, status, created_at, updated_at
 	`, name, systemPrompt).Scan(
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
-		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.Plan, &t.Status,
-		&t.CreatedAt, &t.UpdatedAt,
+		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
+		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -406,11 +407,12 @@ func (s *Store) UpdateTenant(ctx context.Context, id string, updates map[string]
 		    voice_id = COALESCE($5, voice_id),
 		    vip_names = COALESCE($6, vip_names),
 		    marketing_email = COALESCE($7, marketing_email),
-		    forward_number = COALESCE($8, forward_number)
+		    forward_number = COALESCE($8, forward_number),
+		    max_turn_timeout_ms = COALESCE($9, max_turn_timeout_ms)
 		WHERE id = $1
 	`, id, updates["name"], updates["system_prompt"], updates["greeting_text"],
 		updates["voice_id"], updates["vip_names"], updates["marketing_email"],
-		updates["forward_number"])
+		updates["forward_number"], updates["max_turn_timeout_ms"])
 	return err
 }
 
@@ -835,21 +837,22 @@ type AdminTenant struct {
 
 // AdminTenantDetail is a full tenant view for admin dashboard with counts.
 type AdminTenantDetail struct {
-	ID             string     `json:"id"`
-	Name           string     `json:"name"`
-	SystemPrompt   string     `json:"system_prompt"`
-	GreetingText   *string    `json:"greeting_text,omitempty"`
-	VoiceID        *string    `json:"voice_id,omitempty"`
-	Language       string     `json:"language"`
-	VIPNames       []string   `json:"vip_names"`
-	MarketingEmail *string    `json:"marketing_email,omitempty"`
-	ForwardNumber  *string    `json:"forward_number,omitempty"`
-	Plan           string     `json:"plan"`
-	Status         string     `json:"status"`
-	UserCount      int        `json:"user_count"`
-	CallCount      int        `json:"call_count"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	SystemPrompt     string     `json:"system_prompt"`
+	GreetingText     *string    `json:"greeting_text,omitempty"`
+	VoiceID          *string    `json:"voice_id,omitempty"`
+	Language         string     `json:"language"`
+	VIPNames         []string   `json:"vip_names"`
+	MarketingEmail   *string    `json:"marketing_email,omitempty"`
+	ForwardNumber    *string    `json:"forward_number,omitempty"`
+	MaxTurnTimeoutMs *int       `json:"max_turn_timeout_ms,omitempty"`
+	Plan             string     `json:"plan"`
+	Status           string     `json:"status"`
+	UserCount        int        `json:"user_count"`
+	CallCount        int        `json:"call_count"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 // AdminUser is a user view for admin dashboard.
@@ -933,8 +936,8 @@ func (s *Store) ListAllTenantsWithDetails(ctx context.Context) ([]AdminTenantDet
 	rows, err := s.db.Query(ctx, `
 		SELECT
 			t.id, t.name, t.system_prompt, t.greeting_text, t.voice_id, t.language,
-			t.vip_names, t.marketing_email, t.forward_number, t.plan, t.status,
-			t.created_at, t.updated_at,
+			t.vip_names, t.marketing_email, t.forward_number, t.max_turn_timeout_ms,
+			t.plan, t.status, t.created_at, t.updated_at,
 			COALESCE((SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id), 0) as user_count,
 			COALESCE((SELECT COUNT(*) FROM calls c WHERE c.tenant_id = t.id), 0) as call_count
 		FROM tenants t
@@ -950,8 +953,8 @@ func (s *Store) ListAllTenantsWithDetails(ctx context.Context) ([]AdminTenantDet
 		var t AdminTenantDetail
 		if err := rows.Scan(
 			&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
-			&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.Plan, &t.Status,
-			&t.CreatedAt, &t.UpdatedAt, &t.UserCount, &t.CallCount,
+			&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
+			&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt, &t.UserCount, &t.CallCount,
 		); err != nil {
 			return nil, err
 		}
