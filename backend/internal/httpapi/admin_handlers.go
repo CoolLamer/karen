@@ -167,6 +167,29 @@ func (r *Router) handleAdminListCalls(w http.ResponseWriter, req *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"calls": calls})
 }
 
+// handleAdminGetCallDetail returns call details with transcript (utterances) for a specific call.
+func (r *Router) handleAdminGetCallDetail(w http.ResponseWriter, req *http.Request) {
+	providerCallID := req.PathValue("providerCallId")
+	if providerCallID == "" {
+		http.Error(w, `{"error": "missing call ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	call, err := r.store.GetCallDetail(req.Context(), providerCallID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error": "call not found"}`, http.StatusNotFound)
+			return
+		}
+		r.logger.Printf("admin: failed to get call detail %s: %v", providerCallID, err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to get call detail"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, call)
+}
+
 // handleAdminGetCallEvents returns events for a specific call.
 func (r *Router) handleAdminGetCallEvents(w http.ResponseWriter, req *http.Request) {
 	providerCallID := req.PathValue("providerCallId")

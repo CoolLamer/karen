@@ -101,6 +101,7 @@ func (r *Router) routes() {
 
 	// Admin call logs (for debugging)
 	r.mux.HandleFunc("GET /admin/calls", r.withAdmin(r.handleAdminListCalls))
+	r.mux.HandleFunc("GET /admin/calls/{providerCallId}", r.withAdmin(r.handleAdminGetCallDetail))
 	r.mux.HandleFunc("GET /admin/calls/{providerCallId}/events", r.withAdmin(r.handleAdminGetCallEvents))
 
 	// Admin users dashboard

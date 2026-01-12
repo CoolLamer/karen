@@ -276,6 +276,9 @@ export const api = {
   adminListCalls: (limit?: number) =>
     http<{ calls: CallListItem[] }>(`/admin/calls${limit ? `?limit=${limit}` : ""}`),
 
+  adminGetCallDetail: (providerCallId: string) =>
+    http<CallDetail>(`/admin/calls/${encodeURIComponent(providerCallId)}`),
+
   adminGetCallEvents: (providerCallId: string) =>
     http<{ events: CallEvent[] }>(
       `/admin/calls/${encodeURIComponent(providerCallId)}/events`
