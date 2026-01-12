@@ -8,6 +8,7 @@ type AuthState = {
   tenant: Tenant | null;
   needsOnboarding: boolean;
   isAdmin: boolean;
+  onboardingInProgress: boolean; // Session-only, not persisted
 };
 
 type AuthContextType = AuthState & {
@@ -15,6 +16,8 @@ type AuthContextType = AuthState & {
   logout: () => Promise<void>;
   setTenant: (tenant: Tenant) => void;
   refreshUser: () => Promise<void>;
+  startOnboarding: () => void;
+  finishOnboarding: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -27,42 +30,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tenant: null,
     needsOnboarding: false,
     isAdmin: false,
+    onboardingInProgress: false,
   });
 
   const loadUser = async () => {
     const token = getAuthToken();
     if (!token) {
-      setState({
+      setState((prev) => ({
         isLoading: false,
         isAuthenticated: false,
         user: null,
         tenant: null,
         needsOnboarding: false,
         isAdmin: false,
-      });
+        onboardingInProgress: prev.onboardingInProgress,
+      }));
       return;
     }
 
     try {
       const data = await api.getMe();
-      setState({
+      setState((prev) => ({
         isLoading: false,
         isAuthenticated: true,
         user: data.user,
         tenant: data.tenant ?? null,
-        needsOnboarding: !data.tenant,
+        // Only needs onboarding if no tenant AND not currently in onboarding flow
+        needsOnboarding: !data.tenant && !prev.onboardingInProgress,
         isAdmin: data.is_admin ?? false,
-      });
+        onboardingInProgress: prev.onboardingInProgress, // Preserve session flag
+      }));
     } catch {
       setAuthToken(null);
-      setState({
+      setState((prev) => ({
         isLoading: false,
         isAuthenticated: false,
         user: null,
         tenant: null,
         needsOnboarding: false,
         isAdmin: false,
-      });
+        onboardingInProgress: prev.onboardingInProgress,
+      }));
     }
   };
 
@@ -78,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       needsOnboarding: !user.tenant_id,
       isAdmin: false, // Will be set correctly when loadUser completes
+      onboardingInProgress: prev.onboardingInProgress,
     }));
     // Load full user data including tenant and admin status
     loadUser();
@@ -97,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       tenant: null,
       needsOnboarding: false,
       isAdmin: false,
+      onboardingInProgress: false,
     });
   };
 
@@ -112,6 +122,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadUser();
   };
 
+  const startOnboarding = () => {
+    setState((prev) => ({ ...prev, onboardingInProgress: true }));
+  };
+
+  const finishOnboarding = async () => {
+    setState((prev) => ({ ...prev, onboardingInProgress: false }));
+    await loadUser(); // Refresh state - now backend tenant determines needsOnboarding
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -120,6 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         setTenant,
         refreshUser,
+        startOnboarding,
+        finishOnboarding,
       }}
     >
       {children}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -57,7 +57,7 @@ const CARRIER_CODES: Record<string, { noAnswer: string; description: string }> =
 
 export function OnboardingPage() {
   const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { startOnboarding, finishOnboarding } = useAuth();
 
   const [step, setStep] = useState<OnboardingStep>(0);
   const [name, setName] = useState("");
@@ -75,6 +75,11 @@ export function OnboardingPage() {
 
   const primaryPhone = phoneNumbers.find((p) => p.is_primary)?.twilio_number;
   const hasPhoneNumber = !!primaryPhone;
+
+  // Call when component mounts to prevent redirects during onboarding
+  useEffect(() => {
+    startOnboarding();
+  }, [startOnboarding]);
 
   const handleCompleteOnboarding = async () => {
     if (!name.trim()) {
@@ -139,7 +144,7 @@ export function OnboardingPage() {
   };
 
   const handleFinish = async () => {
-    await refreshUser();
+    await finishOnboarding(); // Clear flag and refresh
     navigate("/");
   };
 
