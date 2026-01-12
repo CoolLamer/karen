@@ -18,6 +18,7 @@ import {
   Alert,
   Box,
   List,
+  Spoiler,
 } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { IconSettings, IconPhone, IconCopy, IconCheck, IconQuestionMark } from "@tabler/icons-react";
@@ -122,8 +123,18 @@ export function AppShellLayout() {
       >
         <Stack gap="md">
           <Alert color="blue" variant="light">
-            Pro kompletní pokrytí doporučujeme nastavit všechny tři typy přesměrování.
+            <Text size="sm">
+              Přesměrování se nastavuje vytočením speciálního kódu na telefonu.
+              Otevři tuto stránku na mobilu a klikni na tlačítko – automaticky se vytočí
+              aktivační kód a na obrazovce uvidíš potvrzení od operátora.
+            </Text>
+            <Text size="sm" mt="xs" c="dimmed">
+              Na počítači tlačítko nefunguje – musíš kód vytočit ručně nebo otevřít stránku na telefonu.
+            </Text>
           </Alert>
+          <Text size="sm" c="dimmed">
+            Pro kompletní pokrytí doporučujeme nastavit všechny tři typy přesměrování.
+          </Text>
 
           <Accordion variant="separated" defaultValue="noAnswer">
             {REDIRECT_ORDER.map((type) => {
@@ -141,51 +152,53 @@ export function AppShellLayout() {
                     <Stack gap="sm">
                       <Text size="sm" c="dimmed">{code.description}</Text>
 
-                      <Text size="xs" fw={500} c="teal">Aktivovat:</Text>
-                      <Group gap="xs">
-                        <Text size="sm" ff="monospace">{dialCode}</Text>
-                        <CopyButton value={dialCode}>
-                          {({ copied, copy }) => (
-                            <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
-                              <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
-                                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                        </CopyButton>
-                      </Group>
                       <Button
                         variant="light"
-                        size="xs"
                         leftSection={<IconPhone size={14} />}
                         disabled={!karenNumber}
                         onClick={() => { window.location.href = `tel:${dialCode}`; }}
                       >
-                        Vytočit
+                        Aktivovat přesměrování
                       </Button>
+                      <Spoiler maxHeight={0} showLabel="Zobrazit kód" hideLabel="Skrýt kód">
+                        <Group gap="xs">
+                          <Text size="sm" ff="monospace">{dialCode}</Text>
+                          <CopyButton value={dialCode}>
+                            {({ copied, copy }) => (
+                              <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
+                                <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
+                                  {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
+                          </CopyButton>
+                        </Group>
+                      </Spoiler>
 
-                      <Text size="xs" fw={500} c="red" mt="xs">Deaktivovat:</Text>
-                      <Group gap="xs">
-                        <Text size="sm" ff="monospace">{deactivateCode}</Text>
-                        <CopyButton value={deactivateCode}>
-                          {({ copied, copy }) => (
-                            <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
-                              <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
-                                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                        </CopyButton>
-                      </Group>
                       <Button
                         variant="subtle"
                         size="xs"
                         color="red"
                         leftSection={<IconPhone size={14} />}
                         onClick={() => { window.location.href = `tel:${deactivateCode}`; }}
+                        mt="xs"
                       >
-                        Vytočit
+                        Zrušit přesměrování
                       </Button>
+                      <Spoiler maxHeight={0} showLabel="Zobrazit kód" hideLabel="Skrýt kód">
+                        <Group gap="xs">
+                          <Text size="sm" ff="monospace">{deactivateCode}</Text>
+                          <CopyButton value={deactivateCode}>
+                            {({ copied, copy }) => (
+                              <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
+                                <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
+                                  {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
+                          </CopyButton>
+                        </Group>
+                      </Spoiler>
                     </Stack>
                   </Accordion.Panel>
                 </Accordion.Item>
