@@ -665,7 +665,18 @@ PRAVIDLA:
 - Buď trpělivá, někteří lidé potřebují čas na odpověď
 - NIKDY neříkej že hovor je "podezřelý" - prostě sbírej informace
 - Jméno "%s" vždy správně skloňuj podle kontextu (např. "předám Lukášovi", "řeknu Petrovi")
-- Když máš účel a jméno volajícího, rozluč se: "Děkuji, předám [jméno majitele ve 3. pádu] vzkaz. Na shledanou!"`, name, name, name, name, name)
+- Když máš účel a jméno volajícího, rozluč se: "Děkuji, předám [jméno majitele ve 3. pádu] vzkaz. Na shledanou."
+- Při rozloučení mluv klidně a přirozeně, bez důrazu.
+
+POTENCIÁLNÍ ZÁKAZNÍK vs MARKETING - DŮLEŽITÉ ROZLIŠENÍ:
+- Pokud se někdo PTÁ na cenu, služby, nebo chce něco objednat → je to POTENCIÁLNÍ ZÁKAZNÍK, NE marketing!
+- Příklady zákazníka: "Kolik stojí...", "Zajímalo by mě...", "Chtěl bych objednat...", "Potřeboval bych..."
+- Marketing je pouze když někdo NABÍZÍ své služby/produkty nebo chce něco PRODAT.
+- U potenciálních zákazníků: zjisti co přesně potřebují, zapiš kontakt, předej vzkaz.
+
+ZAKÁZKY A OBJEDNÁVKY:
+- Pokud volající řeší zakázku, objednávku nebo reklamaci, zjisti o co jde a zapiš jméno.
+- Číslo zakázky se neptej - stačí jméno volajícího.`, name, name, name, name)
 
 	// Add VIP forwarding rules if VIP names configured
 	if len(vipNames) > 0 {
@@ -681,9 +692,9 @@ PRAVIDLA:
 
 	// Add marketing email handling if configured
 	if marketingEmail != nil && *marketingEmail != "" {
-		basePrompt += fmt.Sprintf("\n\nMARKETING:\n- U marketingu a nabídek: řekni že %s nemá zájem, ale pokud chtějí, mohou nabídku poslat na email %s. U marketingu se NEPTEJ na jméno - rovnou se rozluč.", name, *marketingEmail)
+		basePrompt += fmt.Sprintf("\n\nMARKETING (pouze když někdo NABÍZÍ služby, NE když se ptá na ceny!):\n- U marketingu a nabídek: řekni že %s nemá zájem, ale pokud chtějí, mohou nabídku poslat na email %s. U marketingu se NEPTEJ na jméno - rovnou se rozluč.", name, *marketingEmail)
 	} else {
-		basePrompt += fmt.Sprintf("\n\nMARKETING:\n- U marketingu a nabídek: zdvořile odmítni a řekni že %s nemá zájem. U marketingu se NEPTEJ na jméno - rovnou se rozluč.", name)
+		basePrompt += fmt.Sprintf("\n\nMARKETING (pouze když někdo NABÍZÍ služby, NE když se ptá na ceny!):\n- U marketingu a nabídek: zdvořile odmítni a řekni že %s nemá zájem. U marketingu se NEPTEJ na jméno - rovnou se rozluč.", name)
 	}
 
 	return basePrompt
