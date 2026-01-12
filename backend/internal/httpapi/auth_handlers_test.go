@@ -518,3 +518,134 @@ func TestCompleteOnboardingIntegration(t *testing.T) {
 	_, _ = db.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
 	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenantID)
 }
+
+func TestCompleteOnboardingWithOrphanedTenant(t *testing.T) {
+	r, db, cleanup := getTestRouterWithDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create a test user
+	testPhone := "+420222" + time.Now().Format("150405")
+	user, _, err := r.store.FindOrCreateUser(ctx, testPhone)
+	if err != nil {
+		t.Fatalf("FindOrCreateUser failed: %v", err)
+	}
+
+	// Assign user to a fake tenant ID (simulates orphaned reference)
+	orphanedTenantID := "orphaned-tenant-" + time.Now().Format("150405")
+	_, err = db.Exec(ctx, "UPDATE users SET tenant_id = $1 WHERE id = $2", orphanedTenantID, user.ID)
+	if err != nil {
+		t.Fatalf("failed to set orphaned tenant_id: %v", err)
+	}
+
+	// Verify user has orphaned tenant_id
+	updatedUser, _ := r.store.GetUserByID(ctx, user.ID)
+	if updatedUser.TenantID == nil || *updatedUser.TenantID != orphanedTenantID {
+		t.Fatalf("user should have orphaned tenant_id, got %v", updatedUser.TenantID)
+	}
+
+	// Create auth context with orphaned tenant_id
+	authUser := &AuthUser{
+		ID:       user.ID,
+		TenantID: &orphanedTenantID,
+		Phone:    testPhone,
+	}
+	reqCtx := context.WithValue(ctx, userContextKey, authUser)
+
+	// Complete onboarding - should succeed since orphaned tenant is cleared
+	body := `{"name": "Orphan Test User"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/onboarding/complete", strings.NewReader(body))
+	req = req.WithContext(reqCtx)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	r.handleCompleteOnboarding(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Check response contains new tenant
+	if resp["tenant"] == nil {
+		t.Error("response should contain tenant")
+	}
+	tenant := resp["tenant"].(map[string]any)
+	if tenant["name"] != "Orphan Test User" {
+		t.Errorf("tenant name = %q, want %q", tenant["name"], "Orphan Test User")
+	}
+
+	// Verify user's tenant_id was updated to new tenant
+	finalUser, _ := r.store.GetUserByID(ctx, user.ID)
+	newTenantID := tenant["id"].(string)
+	if finalUser.TenantID == nil || *finalUser.TenantID != newTenantID {
+		t.Errorf("user tenant_id = %v, want %q", finalUser.TenantID, newTenantID)
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
+	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", newTenantID)
+}
+
+func TestCompleteOnboardingAlreadyOnboarded(t *testing.T) {
+	r, db, cleanup := getTestRouterWithDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create a test user and tenant
+	testPhone := "+420333" + time.Now().Format("150405")
+	user, _, err := r.store.FindOrCreateUser(ctx, testPhone)
+	if err != nil {
+		t.Fatalf("FindOrCreateUser failed: %v", err)
+	}
+
+	tenant, err := r.store.CreateTenant(ctx, "Existing Tenant", "Test prompt")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	err = r.store.AssignUserToTenant(ctx, user.ID, tenant.ID)
+	if err != nil {
+		t.Fatalf("AssignUserToTenant failed: %v", err)
+	}
+
+	// Create auth context with existing tenant
+	authUser := &AuthUser{
+		ID:       user.ID,
+		TenantID: &tenant.ID,
+		Phone:    testPhone,
+	}
+	reqCtx := context.WithValue(ctx, userContextKey, authUser)
+
+	// Try to complete onboarding - should fail since already onboarded
+	body := `{"name": "Should Not Work"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/onboarding/complete", strings.NewReader(body))
+	req = req.WithContext(reqCtx)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	r.handleCompleteOnboarding(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["error"] != "already onboarded" {
+		t.Errorf("error = %q, want %q", resp["error"], "already onboarded")
+	}
+
+	// Cleanup
+	_, _ = db.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
+	_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+}

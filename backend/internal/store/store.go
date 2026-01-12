@@ -508,6 +508,15 @@ func (s *Store) AssignUserToTenant(ctx context.Context, userID, tenantID string)
 	return err
 }
 
+// ClearUserTenant removes the tenant association from a user.
+// Used to fix orphaned tenant_id references when the tenant no longer exists.
+func (s *Store) ClearUserTenant(ctx context.Context, userID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE users SET tenant_id = NULL WHERE id = $1
+	`, userID)
+	return err
+}
+
 // UpdateUserName updates a user's name.
 func (s *Store) UpdateUserName(ctx context.Context, userID, name string) error {
 	_, err := s.db.Exec(ctx, `
