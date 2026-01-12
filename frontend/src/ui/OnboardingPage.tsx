@@ -17,7 +17,7 @@ import {
   Tooltip,
   Alert,
   Anchor,
-  Stepper,
+  Progress,
   TagsInput,
   Radio,
   List,
@@ -30,11 +30,6 @@ import {
   IconPhone,
   IconConfetti,
   IconAlertCircle,
-  IconUser,
-  IconDeviceMobile,
-  IconUsers,
-  IconMail,
-  IconTestPipe,
 } from "@tabler/icons-react";
 import { api, Tenant, TenantPhoneNumber, setAuthToken } from "../api";
 import { useAuth } from "../AuthContext";
@@ -150,15 +145,16 @@ export function OnboardingPage() {
   return (
     <Box mih="100vh" bg="gray.0">
       <Container size="sm" py={40}>
-        {/* Stepper */}
-        <Stepper active={step} mb="xl" size="sm">
-          <Stepper.Step label="Vítej" icon={<IconRobot size={18} />} />
-          <Stepper.Step label="Jméno" icon={<IconUser size={18} />} />
-          <Stepper.Step label="Kontakty" icon={<IconUsers size={18} />} />
-          <Stepper.Step label="Marketing" icon={<IconMail size={18} />} />
-          <Stepper.Step label="Číslo" icon={<IconDeviceMobile size={18} />} />
-          <Stepper.Step label="Hotovo" icon={<IconCheck size={18} />} />
-        </Stepper>
+        {/* Progress indicator */}
+        {step > 0 && step < 5 && (
+          <Stack gap="xs" mb="xl">
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Krok {step} z 5</Text>
+              <Text size="sm" c="dimmed">{Math.round((step / 5) * 100)}%</Text>
+            </Group>
+            <Progress value={(step / 5) * 100} size="sm" radius="xl" />
+          </Stack>
+        )}
 
         <Paper p="xl" radius="md" withBorder>
           {/* Step 0: Welcome + Value Proposition */}
