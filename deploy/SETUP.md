@@ -34,13 +34,51 @@ mkdir -p /opt/karen
 
 # Create .env file with your credentials
 cat > /opt/karen/.env << 'EOF'
+# Database
 POSTGRES_PASSWORD=your_secure_password_here
+
+# Twilio (required)
 TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_VERIFY_SERVICE_SID=VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Voice AI Providers (required for calls)
+DEEPGRAM_API_KEY=your_deepgram_api_key
+OPENAI_API_KEY=your_openai_api_key
+ELEVENLABS_API_KEY=your_elevenlabs_api_key
+
+# JWT Authentication (required - generate a secure random string!)
+JWT_SECRET=generate-a-secure-random-string-here
+
+# Admin access (comma-separated phone numbers in E.164 format)
+ADMIN_PHONES=+420777123456,+420777654321
+
+# Error monitoring (optional)
+SENTRY_DSN=
+
+# Hotjar analytics (optional, used during build)
+VITE_HOTJAR_ID=
 EOF
 
 # Secure the .env file
 chmod 600 /opt/karen/.env
 ```
+
+### Environment Variable Reference
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `POSTGRES_PASSWORD` | Yes | PostgreSQL database password |
+| `TWILIO_AUTH_TOKEN` | Yes | Twilio auth token for webhook validation |
+| `TWILIO_ACCOUNT_SID` | Yes | Twilio account SID |
+| `TWILIO_VERIFY_SERVICE_SID` | Yes | Twilio Verify service for SMS OTP |
+| `JWT_SECRET` | Yes | Secret key for JWT signing (generate random!) |
+| `DEEPGRAM_API_KEY` | Yes | Deepgram API key for speech-to-text |
+| `OPENAI_API_KEY` | Yes | OpenAI API key for LLM |
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key for text-to-speech |
+| `ADMIN_PHONES` | Recommended | Comma-separated admin phone numbers |
+| `SENTRY_DSN` | No | Sentry DSN for error tracking |
+| `VITE_HOTJAR_ID` | No | Hotjar Site ID (set in GitHub secrets) |
 
 ## Deployment
 

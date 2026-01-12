@@ -195,11 +195,33 @@ Traefik must be told which network to use, otherwise it may select the internal 
 
 ## Relevant code locations
 
-- Twilio inbound webhook: `backend/internal/httpapi/twilio_handlers.go`
-- Media WS session: `backend/internal/httpapi/media_ws.go`
-- STT client: `backend/internal/stt/deepgram.go`
-- LLM client/prompt: `backend/internal/llm/openai.go`, `backend/internal/llm/prompts.go`
-- TTS client: `backend/internal/tts/elevenlabs.go`
-- Env/config: `backend/internal/app/config.go`, `backend/env.example`
-- Production compose: `deploy/docker-compose.coolify.yml`
+### Backend
+- **Entry point**: `backend/cmd/server/main.go`
+- **Config loading**: `backend/internal/app/config.go`
+- **HTTP Router**: `backend/internal/httpapi/router.go`
+- **Twilio handlers**: `backend/internal/httpapi/twilio_handlers.go`
+- **Media WS session**: `backend/internal/httpapi/media_ws.go` (1,500+ lines, core voice flow)
+- **Auth handlers**: `backend/internal/httpapi/auth.go`
+- **API handlers**: `backend/internal/httpapi/api.go`
+- **Admin handlers**: `backend/internal/httpapi/admin.go`
+- **Database layer**: `backend/internal/store/store.go`
+- **STT client**: `backend/internal/stt/deepgram.go`
+- **LLM client**: `backend/internal/llm/openai.go`
+- **LLM prompts**: `backend/internal/llm/prompts.go`
+- **TTS client**: `backend/internal/tts/elevenlabs.go`
+- **Event logging**: `backend/internal/eventlog/eventlog.go`
+- **Migrations**: `backend/migrations/*.sql` (7 migration files)
+
+### Frontend
+- **Entry point**: `frontend/src/main.tsx`
+- **Router**: `frontend/src/router.tsx`
+- **Auth context**: `frontend/src/AuthContext.tsx`
+- **API client**: `frontend/src/api.ts`
+- **Pages**: `frontend/src/ui/*.tsx`
+
+### Deployment
+- **Env example**: `backend/env.example`
+- **Production compose**: `deploy/docker-compose.coolify.yml`
+- **Setup guide**: `deploy/SETUP.md`
+- **CI/CD**: `.github/workflows/deploy.yml`
 
