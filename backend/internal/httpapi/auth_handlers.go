@@ -513,10 +513,19 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	// Check if already has tenant
+	// Check if already has tenant - but verify the tenant actually exists
+	// This handles the case where user has a tenant_id but the tenant was deleted
 	if authUser.TenantID != nil {
-		http.Error(w, `{"error": "already onboarded"}`, http.StatusBadRequest)
-		return
+		existingTenant, err := r.store.GetTenantByID(req.Context(), *authUser.TenantID)
+		if err == nil && existingTenant != nil {
+			http.Error(w, `{"error": "already onboarded"}`, http.StatusBadRequest)
+			return
+		}
+		// Tenant doesn't exist - clear the stale reference so we can re-onboard
+		if err := r.store.ClearUserTenant(req.Context(), authUser.ID); err != nil {
+			r.logger.Printf("auth: failed to clear stale tenant reference: %v", err)
+			sentry.CaptureException(err)
+		}
 	}
 
 	var body struct {
