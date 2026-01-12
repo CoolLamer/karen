@@ -12,8 +12,17 @@ Single-repo project for a **Twilio-forwarded call screener** that captures **int
 - Captures caller intent, screens spam/marketing, forwards VIP calls
 - Web app first, mobile apps (Android + iOS) planned
 
+### Current Status
+- Multi-tenant architecture with phone-based authentication
+- Full onboarding flow with automatic phone number assignment
+- Web dashboard with call inbox, transcripts, and settings
+- Admin panel for managing phone numbers and tenants
+
 **Documentation:**
-- [docs/PRODUCTIZATION.md](docs/PRODUCTIZATION.md) - Product roadmap & architecture
+- [architecture.md](architecture.md) - Technical architecture & database schema
+- [deployment.md](deployment.md) - Deployment & infrastructure setup
+- [docs/VOICE_AGENT_FLOW.md](docs/VOICE_AGENT_FLOW.md) - Voice AI flow details
+- [docs/PRODUCTIZATION.md](docs/PRODUCTIZATION.md) - Product roadmap
 - [docs/UX.md](docs/UX.md) - User flows & screen designs
 - [docs/MARKETING_CZ.md](docs/MARKETING_CZ.md) - Czech marketing strategy
 

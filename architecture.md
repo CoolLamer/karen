@@ -208,55 +208,96 @@ Best practice:
 
 ---
 
-## Database Schema (Suggested)
+## Database Schema (Implemented)
+
+### `tenants`
+Multi-tenant organizations/customers.
+- `id` (uuid, pk)
+- `name` (text)
+- `system_prompt` (text) — Custom AI agent prompt
+- `greeting_text` (text) — Custom greeting
+- `voice_id` (text) — ElevenLabs voice ID
+- `language` (text, default 'cs') — STT/TTS language
+- `vip_names` (text[]) — Names to forward immediately
+- `marketing_email` (text) — Email for marketing redirects
+- `forward_number` (text) — Number to forward urgent calls
+- `plan` (text: trial/basic/pro)
+- `status` (text: active/suspended/cancelled)
+- `created_at`, `updated_at` (timestamptz)
+
+### `users`
+Authenticated users (phone-based auth).
+- `id` (uuid, pk)
+- `tenant_id` (uuid, fk → tenants)
+- `phone` (text, unique) — E.164 format
+- `phone_verified` (bool)
+- `name` (text)
+- `role` (text: owner/admin/member)
+- `last_login_at` (timestamptz)
+- `created_at`, `updated_at` (timestamptz)
+
+### `tenant_phone_numbers`
+Phone numbers assigned to tenants (for incoming calls).
+- `id` (uuid, pk)
+- `tenant_id` (uuid, fk → tenants, nullable) — NULL = available for assignment
+- `twilio_number` (text, unique) — E.164 format
+- `twilio_sid` (text) — Twilio Phone Number SID
+- `forwarding_source` (text) — User's original number (fallback routing)
+- `is_primary` (bool)
+- `created_at` (timestamptz)
+
+### `user_sessions`
+JWT session tracking for logout/invalidation.
+- `id` (uuid, pk)
+- `user_id` (uuid, fk → users)
+- `token_hash` (text) — SHA256 of JWT
+- `expires_at` (timestamptz)
+- `revoked_at` (timestamptz)
+- `created_at` (timestamptz)
 
 ### `calls`
 - `id` (uuid, pk)
+- `tenant_id` (uuid, fk → tenants)
 - `provider` (text)
-- `provider_call_id` (text, unique)
+- `provider_call_id` (text, unique per provider)
 - `from_number` (text)
 - `to_number` (text)
-- `started_at`, `ended_at` (timestamptz)
 - `status` (text: in_progress/completed/failed)
-- `prompt_id` (uuid, fk)
-- `recording_url` (text, nullable)
+- `started_at`, `ended_at` (timestamptz)
+- `ended_by` (text: agent/caller/null) — Who initiated hangup
+- `first_viewed_at` (timestamptz) — When call was first viewed
+- `resolved_at` (timestamptz) — When marked as resolved
+- `resolved_by` (uuid, fk → users) — Who resolved
 
 ### `call_utterances`
 - `id` (uuid, pk)
-- `call_id` (uuid, fk)
+- `call_id` (uuid, fk → calls)
 - `speaker` (text: caller/agent/system)
 - `text` (text)
-- `started_at`, `ended_at` (timestamptz, nullable)
-- `stt_confidence` (float, nullable)
 - `sequence` (int) — stable ordering
+- `started_at`, `ended_at` (timestamptz)
+- `stt_confidence` (float)
 - `interrupted` (bool)
 
-### `call_summaries`
-- `call_id` (uuid, pk/fk)
-- `summary_text` (text)
-- `summary_json` (jsonb) — intent + entities + legitimacy label + confidence + rationale
-- `created_at` (timestamptz)
-
-Recommended addition:
-
 ### `call_screening_results`
-- `call_id` (uuid, pk/fk)
-- `legitimacy_label` (text: legitimate/marketing/spam/unknown)
+AI analysis of each call.
+- `call_id` (uuid, pk/fk → calls)
+- `legitimacy_label` (text: legitimní/marketing/spam/podvod/unknown)
 - `legitimacy_confidence` (float)
-- `intent_category` (text) — configurable taxonomy
-- `intent_text` (text) — one-sentence “why they called”
+- `lead_label` (text: hot_lead/urgentni/follow_up/informacni/nezjisteno)
+- `intent_category` (text) — obchodní/osobní/servis/etc
+- `intent_text` (text) — one-sentence "why they called"
 - `entities_json` (jsonb) — name/company/callback/etc
 - `needs_follow_up` (bool)
 - `created_at` (timestamptz)
 
-### `prompts`
+### `call_events`
+Comprehensive event log for debugging/replay.
 - `id` (uuid, pk)
-- `name` (text)
-- `template` (text)
+- `call_id` (uuid, fk → calls)
+- `event_type` (text) — call_started, stt_result, turn_finalized, barge_in, llm_started, goodbye_detected, etc.
+- `event_data` (jsonb)
 - `created_at` (timestamptz)
-
-Optional:
-- `call_events` (jsonb append-only) for debugging/replay.
 
 ---
 
@@ -341,21 +382,44 @@ Important UX policy:
 
 ---
 
-## APIs (Suggested)
+## APIs (Implemented)
 
-### Public (Telephony)
-- `POST /telephony/inbound` → returns provider instructions (connect stream)
-- `POST /telephony/status` → call state callbacks
-- `WS /media` → bidirectional audio + control events
+### Health & Webhooks (Public)
+- `GET /healthz` — Health check
+- `POST /telephony/inbound` — Twilio inbound call webhook (returns TwiML)
+- `POST /telephony/status` — Twilio call status updates
+- `GET /media` — WebSocket upgrade for Twilio Media Stream
 
-### Internal
-- `POST /sessions/{callId}/events` (optional, for replay)
-- `POST /summaries/{callId}/finalize` (worker)
-- `GET /calls/{callId}` (dashboard)
+### Authentication (Public)
+- `POST /auth/send-code` — Initiate SMS OTP via Twilio Verify
+- `POST /auth/verify-code` — Verify OTP, returns JWT token
+- `POST /auth/refresh` — Refresh JWT token
+- `POST /auth/logout` — Logout (invalidate session)
 
-For the “app view”:
-- `GET /screening?from=...&to=...&label=...` (list)
-- `GET /screening/{callId}` (detail with transcript + classification)
+### Protected User API (requires JWT)
+- `GET /api/me` — Get authenticated user profile + tenant info
+- `GET /api/calls` — List calls for user's tenant
+- `GET /api/calls/unresolved-count` — Count unresolved calls
+- `GET /api/calls/{id}` — Get call details with transcripts
+- `PATCH /api/calls/{id}` — Mark call as viewed/resolved
+- `DELETE /api/calls/{id}` — Delete call record
+- `GET /api/tenant` — Get tenant settings
+- `PATCH /api/tenant` — Update tenant config (name, greeting, VIP, email)
+- `POST /api/onboarding/complete` — Complete onboarding (create tenant + assign phone)
+
+### Admin API (requires admin phone)
+- `GET /admin/phone-numbers` — List all phone numbers
+- `POST /admin/phone-numbers` — Add phone number to pool
+- `DELETE /admin/phone-numbers/{id}` — Remove phone number
+- `PATCH /admin/phone-numbers/{id}` — Assign/unassign phone number
+- `GET /admin/tenants` — List all tenants
+- `GET /admin/tenants/details` — Detailed tenant list with metrics
+- `GET /admin/tenants/{tenantId}/users` — List tenant users
+- `GET /admin/tenants/{tenantId}/calls` — List tenant calls
+- `PATCH /admin/tenants/{tenantId}` — Update tenant plan/status
+- `PATCH /admin/users/{userId}/reset-onboarding` — Reset user onboarding
+- `GET /admin/calls` — List recent calls (debug)
+- `GET /admin/calls/{providerCallId}/events` — Get call event timeline
 
 ---
 
@@ -392,13 +456,29 @@ Observability:
 
 ---
 
-## MVP Milestones (Pragmatic Build Order)
-- **M1**: Inbound call redirect + “hello” + hangup; store call record.
-- **M2**: Streaming STT → LLM → TTS loop; store transcript.
-- **M3**: Barge-in support + turn detection tuned for low latency.
-- **M4**: Intent extraction + legitimacy classification (structured JSON); store in DB.
-- **M5**: Prompt management per number/customer + basic dashboard (list + detail).
-- **M6**: Optional enrichment (number reputation) + escalation policy.
+## Implementation Status
+
+### Completed Features
+- **Voice Call Flow**: Inbound call handling with real-time STT → LLM → TTS loop
+- **Barge-in Support**: Caller can interrupt agent; audio stops immediately
+- **Turn Detection**: Configurable endpointing for natural conversation flow
+- **Intent Extraction**: AI extracts caller intent, name, company, callback number
+- **Legitimacy Classification**: Legitimate/marketing/spam/fraud classification
+- **Lead Classification**: Hot lead/urgent/follow-up/informational labels
+- **Multi-Tenant Architecture**: Full tenant isolation with per-tenant configuration
+- **Phone Authentication**: SMS OTP via Twilio Verify + JWT sessions
+- **Web Dashboard**: Call inbox, call details, settings management
+- **Admin Panel**: Phone number pool management, tenant management, user management
+- **Onboarding Flow**: 5-step wizard for new users
+- **Call Resolution Tracking**: First viewed, resolved status tracking
+
+### Future Enhancements
+- Call recording storage
+- Number reputation enrichment
+- Mobile apps (Android/iOS)
+- Stripe billing integration
+- Call analytics dashboard
+- Multi-language support
 
 ---
 

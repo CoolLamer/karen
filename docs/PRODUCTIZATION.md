@@ -404,34 +404,38 @@ JWT_EXPIRY=24h
 
 ## Phased Implementation
 
-### Phase 1: Database Multi-Tenancy + Auth
-1. Add `tenants` table
-2. Add `users` table
-3. Add `tenant_phone_numbers` table
-4. Add `tenant_id` to `calls` table
-5. Implement Twilio Verify phone auth
-6. Implement JWT session management
-7. Implement routing by `To` number
-8. Use tenant's prompt instead of hardcoded
+### Phase 1: Database Multi-Tenancy + Auth ✅ COMPLETE
+1. ✅ Add `tenants` table
+2. ✅ Add `users` table
+3. ✅ Add `tenant_phone_numbers` table (with phone pool for auto-assignment)
+4. ✅ Add `tenant_id` to `calls` table
+5. ✅ Implement Twilio Verify phone auth
+6. ✅ Implement JWT session management
+7. ✅ Implement routing by `To` number
+8. ✅ Use tenant's prompt instead of hardcoded
+9. ✅ Add `call_events` table for debugging
+10. ✅ Add call resolution tracking (first_viewed_at, resolved_at)
+11. ✅ Add lead classification (hot_lead, urgent, follow_up, etc.)
 
-### Phase 2: Web App Self-Service
-1. Landing page (explain value proposition)
-2. Phone login UI (send code → verify)
-3. Onboarding wizard (personalize → get number → setup forwarding → test)
-4. Call inbox dashboard
-5. Call detail with transcript
-6. Settings (profile, assistant config)
-7. Prompt customization UI
+### Phase 2: Web App Self-Service ✅ COMPLETE
+1. ✅ Landing page (explain value proposition)
+2. ✅ Phone login UI (send code → verify)
+3. ✅ Onboarding wizard (5 steps: welcome → name → VIP → marketing → phone setup)
+4. ✅ Call inbox dashboard (with resolution status, lead labels)
+5. ✅ Call detail with transcript
+6. ✅ Settings (profile, greeting, VIP contacts, marketing email)
+7. ✅ Admin panel (phone pool management, tenant management, user management)
+8. ✅ Hotjar analytics integration
 
 See [UX.md](UX.md) for detailed screen designs and user flows.
 
-### Phase 3: Billing & Scale
+### Phase 3: Billing & Scale (PLANNED)
 1. Stripe integration
 2. Usage metering (minutes, calls)
 3. Plan limits enforcement
 4. Horizontal scaling if needed
 
-### Phase 4: Mobile Apps
+### Phase 4: Mobile Apps (PLANNED)
 1. React Native or native development
 2. Push notifications (APNs + FCM)
 3. Call forwarding shortcuts (one-tap enable/disable)

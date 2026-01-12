@@ -114,24 +114,57 @@ Notes:
 ---
 
 ## Environment Variables (Backend)
-Minimum set:
-- **`DATABASE_URL`**: Postgres connection string
-- **`TWILIO_AUTH_TOKEN`**: used to validate webhook signatures
-- **`TWILIO_ACCOUNT_SID`**: optional (if you call Twilio APIs)
-- **`PUBLIC_BASE_URL`**: e.g. `https://api.zvednu.cz` (for constructing stream URLs)
-- **`STT_PROVIDER` / `STT_API_KEY`**: streaming speech-to-text
-- **`TTS_PROVIDER` / `TTS_API_KEY`**: text-to-speech (if not using prerecorded prompts)
-- **`LLM_API_KEY`**: for classification + short dialog prompts
-- **`LOG_LEVEL`**
 
-Optional:
-- **`REDIS_URL`**
-- **`SENTRY_DSN`** (or other error reporting)
+### Required:
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `TWILIO_AUTH_TOKEN` | Used to validate webhook signatures |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID (for Verify API) |
+| `TWILIO_VERIFY_SERVICE_SID` | Twilio Verify service for SMS OTP |
+| `JWT_SECRET` | Secret key for JWT token signing (required in production!) |
+| `PUBLIC_BASE_URL` | e.g. `https://api.zvednu.cz` (for WebSocket URL construction) |
+
+### Voice AI Providers:
+| Variable | Description |
+|----------|-------------|
+| `DEEPGRAM_API_KEY` | Deepgram API key for STT |
+| `OPENAI_API_KEY` | OpenAI API key for LLM |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key for TTS |
+
+### STT Settings (Optional):
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STT_ENDPOINTING_MS` | 800 | Silence threshold for turn detection (200-4000ms) |
+| `STT_UTTERANCE_END_MS` | 1000 | Hard timeout after last speech (500-5000ms) |
+
+### TTS Settings (Optional):
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GREETING_TEXT` | (Czech default) | Default greeting when answering calls |
+| `TTS_VOICE_ID` | (ElevenLabs default) | ElevenLabs voice ID |
+| `TTS_STABILITY` | 0.5 | Voice stability (0.0-1.0) |
+| `TTS_SIMILARITY` | 0.75 | Voice similarity boost (0.0-1.0) |
+
+### Authentication & Admin:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_EXPIRY` | 24h | JWT token expiration duration |
+| `ADMIN_PHONES` | (none) | Comma-separated admin phone numbers (E.164 format) |
+
+### Monitoring (Optional):
+| Variable | Description |
+|----------|-------------|
+| `SENTRY_DSN` | Sentry DSN for error tracking |
+| `LOG_LEVEL` | debug/info/warn/error (default: info) |
 
 ---
 
 ## Environment Variables (Frontend)
-- **`VITE_API_BASE_URL`**: e.g. `https://api.zvednu.cz`
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_BASE_URL` | Backend API URL (e.g. `https://api.zvednu.cz`) |
+| `VITE_HOTJAR_ID` | Hotjar Site ID for analytics (optional) |
 
 ---
 
