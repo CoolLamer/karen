@@ -9,6 +9,7 @@
 #   JWT_SECRET - Secret key for JWT token signing
 #   ADMIN_PHONES - Comma-separated list of admin phone numbers in E.164 format (e.g. +420123456789)
 #   SENTRY_DSN - Sentry DSN for error monitoring (optional)
+#   DISCORD_WEBHOOK_URL - Discord webhook for notifications (optional)
 #   DEEPGRAM_API_KEY - Deepgram API key for speech-to-text
 #   OPENAI_API_KEY - OpenAI API key for LLM
 #   ELEVENLABS_API_KEY - ElevenLabs API key for text-to-speech
@@ -48,6 +49,7 @@ services:
       TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID}
       JWT_SECRET: ${JWT_SECRET}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
       LOG_LEVEL: info
       ADMIN_PHONES: ${ADMIN_PHONES}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}

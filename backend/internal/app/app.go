@@ -70,6 +70,7 @@ func (a *App) Router() http.Handler {
 		JWTSecret:             a.cfg.JWTSecret,
 		JWTExpiry:             a.cfg.JWTExpiry,
 		AdminPhones:           a.cfg.AdminPhones,
+		DiscordWebhookURL:     a.cfg.DiscordWebhookURL,
 	}
 	return httpapi.NewRouter(routerCfg, a.logger, a.store, a.eventLog)
 }
