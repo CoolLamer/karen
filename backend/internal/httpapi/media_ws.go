@@ -1215,7 +1215,7 @@ func (s *callSession) speakGreeting() {
 	} else if s.cfg.GreetingText != "" {
 		greeting = s.cfg.GreetingText
 	} else {
-		greeting = "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"
+		greeting = "Dobrý den, tady asistentka Karen. Majitel telefonu teď nemůže přijmout hovor, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"
 	}
 
 	s.logger.Printf("media_ws: speaking greeting: %s", greeting)
