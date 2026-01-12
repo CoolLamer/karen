@@ -62,6 +62,33 @@ export const SHARED_CONTENT: SharedContent = {
       description: "Urgentní hovory vám Karen přepojí okamžitě na váš telefon.",
     },
   },
+  faq: [
+    {
+      question: "Budou mi lidi volat na jiné číslo?",
+      answer:
+        "Ne, lidi vám volají stále na vaše původní telefonní číslo. Karen se zapojí pouze když hovor nezvedneš nebo odmítneš – pak se hovor automaticky přesměruje na asistentku. Volající nepozná rozdíl, prostě někdo zvedne telefon.",
+    },
+    {
+      question: "Jak nastavím přesměrování hovorů?",
+      answer:
+        'Přesměrování se nastavuje vytočením speciálního kódu na telefonu. Otevřete aplikaci Zvednu na mobilu, přejděte do nastavení a klikněte na tlačítko "Aktivovat přesměrování" – automaticky se vytočí aktivační kód a na obrazovce uvidíte potvrzení od operátora. Na počítači tlačítko nefunguje, musíte to udělat na telefonu.',
+    },
+    {
+      question: "Můžu si změnit jméno asistentky?",
+      answer:
+        'Ano! V nastavení si můžete upravit "Představení" – tam si nastavíte jak se asistentka představí volajícímu. Například: "Dobrý den, tady Alfréd, pan Novák právě nemá čas, můžete říct mě co potřebujete."',
+    },
+    {
+      question: "Funguje to s mým operátorem?",
+      answer:
+        "Ano, Zvednu funguje se všemi českými operátory (O2, T-Mobile, Vodafone) i virtuálními operátory. Přesměrování hovorů je standardní funkce GSM sítě.",
+    },
+    {
+      question: "Co když nechci přijímat spam?",
+      answer:
+        "Karen automaticky rozpozná marketingové hovory a spam. V přehledu hovorů uvidíte jen ty důležité – spam je označený a můžete ho ignorovat.",
+    },
+  ],
   cta: {
     title: "Začněte používat Zvednu ještě dnes",
     subtitle: "Registrace je zdarma. Za 2 minuty budete mít svou asistentku.",

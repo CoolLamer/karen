@@ -51,6 +51,11 @@ export interface FeatureDefinition {
   description: string;
 }
 
+export interface FAQItem {
+  question: string;
+  answer: string;
+}
+
 export interface SharedContent {
   brand: {
     name: string;
@@ -59,6 +64,7 @@ export interface SharedContent {
   };
   howItWorks: HowItWorksStep[];
   features: Record<string, FeatureDefinition>;
+  faq: FAQItem[];
   cta: {
     title: string;
     subtitle: string;

@@ -7,6 +7,7 @@ import {
   HowItWorks,
   Features,
   ExampleCall,
+  FAQ,
   CTASection,
   Footer,
 } from "./components";
@@ -30,6 +31,7 @@ export function LandingPage() {
       <HowItWorks steps={SHARED_CONTENT.howItWorks} />
       <Features features={allFeatures} />
       <ExampleCall />
+      <FAQ items={SHARED_CONTENT.faq} />
       <CTASection
         title={SHARED_CONTENT.cta.title}
         subtitle={SHARED_CONTENT.cta.subtitle}

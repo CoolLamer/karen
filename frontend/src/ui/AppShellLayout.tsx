@@ -20,7 +20,9 @@ import {
   List,
 } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
-import { IconSettings, IconPhone, IconCopy, IconCheck } from "@tabler/icons-react";
+import { IconSettings, IconPhone, IconCopy, IconCheck, IconQuestionMark } from "@tabler/icons-react";
+import { FAQ } from "./landing/components";
+import { SHARED_CONTENT } from "./landing/content/shared";
 import { api, TenantPhoneNumber } from "../api";
 import {
   REDIRECT_CODES,
@@ -34,6 +36,7 @@ export function AppShellLayout() {
   const [unresolvedCount, setUnresolvedCount] = React.useState(0);
   const [phoneNumbers, setPhoneNumbers] = React.useState<TenantPhoneNumber[]>([]);
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
+  const [faqOpened, { open: openFaq, close: closeFaq }] = useDisclosure(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const location = useLocation();
 
@@ -90,6 +93,11 @@ export function AppShellLayout() {
                 </Button>
               )
             )}
+            <Tooltip label="Nápověda">
+              <ActionIcon variant="subtle" size="lg" onClick={openFaq}>
+                <IconQuestionMark size={20} />
+              </ActionIcon>
+            </Tooltip>
             <Tooltip label="Nastavení">
               <ActionIcon component={Link} to="/settings" variant="subtle" size="lg">
                 <IconSettings size={20} />
@@ -221,6 +229,17 @@ export function AppShellLayout() {
             Zavřít
           </Button>
         </Stack>
+      </Modal>
+
+      {/* FAQ Modal */}
+      <Modal
+        opened={faqOpened}
+        onClose={closeFaq}
+        title="Časté dotazy"
+        size="lg"
+        centered
+      >
+        <FAQ items={SHARED_CONTENT.faq} compact />
       </Modal>
     </AppShell>
   );
