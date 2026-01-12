@@ -40,8 +40,9 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    environment:
-      VITE_API_BASE_URL: http://localhost:8080
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+        VITE_HOTJAR_ID: ${VITE_HOTJAR_ID:-}
     depends_on:
       - backend
     ports:

@@ -58,6 +58,7 @@ jobs:
             ${{ steps.image.outputs.frontend }}:${{ github.sha }}
           build-args: |
             VITE_API_BASE_URL=https://api.zvednu.cz
+            VITE_HOTJAR_ID=${{ secrets.VITE_HOTJAR_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
