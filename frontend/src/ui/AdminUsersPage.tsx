@@ -8,6 +8,7 @@ import {
   Container,
   Group,
   Modal,
+  NumberInput,
   Paper,
   Select,
   Stack,
@@ -99,6 +100,7 @@ export function AdminUsersPage() {
   const [editingTenant, setEditingTenant] = React.useState<AdminTenantDetail | null>(null);
   const [editPlan, setEditPlan] = React.useState("");
   const [editStatus, setEditStatus] = React.useState("");
+  const [editMaxTurnTimeout, setEditMaxTurnTimeout] = React.useState<number | "">("");
   const [saving, setSaving] = React.useState(false);
 
   // Reset onboarding modal
@@ -151,6 +153,7 @@ export function AdminUsersPage() {
     setEditingTenant(tenant);
     setEditPlan(tenant.plan);
     setEditStatus(tenant.status);
+    setEditMaxTurnTimeout(tenant.max_turn_timeout_ms || "");
     openEditModal();
   };
 
@@ -158,10 +161,17 @@ export function AdminUsersPage() {
     if (!editingTenant) return;
     setSaving(true);
     try {
-      await api.adminUpdateTenantPlanStatus(editingTenant.id, editPlan, editStatus);
+      const maxTimeout = editMaxTurnTimeout ? Number(editMaxTurnTimeout) : undefined;
+      await api.adminUpdateTenant(editingTenant.id, {
+        plan: editPlan,
+        status: editStatus,
+        max_turn_timeout_ms: maxTimeout,
+      });
       setTenants((prev) =>
         prev?.map((t) =>
-          t.id === editingTenant.id ? { ...t, plan: editPlan, status: editStatus } : t
+          t.id === editingTenant.id
+            ? { ...t, plan: editPlan, status: editStatus, max_turn_timeout_ms: maxTimeout }
+            : t
         ) ?? null
       );
       setSuccess(`Updated ${editingTenant.name}`);
@@ -354,6 +364,10 @@ export function AdminUsersPage() {
                             <Text span fw={500}>VIP:</Text> {tenant.vip_names.join(", ")}
                           </Text>
                         )}
+                        <Text size="xs">
+                          <Text span fw={500}>Max Turn Timeout:</Text>{" "}
+                          {tenant.max_turn_timeout_ms ? `${tenant.max_turn_timeout_ms}ms` : "default (4000ms)"}
+                        </Text>
                         <Box>
                           <Text size="xs" fw={500} mb={2}>
                             System Prompt:
@@ -614,6 +628,14 @@ export function AdminUsersPage() {
                           </Table.Tr>
                         )}
                         <Table.Tr>
+                          <Table.Td>Max Turn Timeout</Table.Td>
+                          <Table.Td>
+                            {tenant.max_turn_timeout_ms
+                              ? `${tenant.max_turn_timeout_ms}ms`
+                              : "default (4000ms)"}
+                          </Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
                           <Table.Td style={{ verticalAlign: "top" }}>System Prompt</Table.Td>
                           <Table.Td>
                             <Spoiler maxHeight={100} showLabel="Show full" hideLabel="Hide">
@@ -794,6 +816,16 @@ export function AdminUsersPage() {
             value={editStatus}
             onChange={(v) => setEditStatus(v || "")}
             data={STATUS_OPTIONS}
+          />
+          <NumberInput
+            label="Max Turn Timeout (ms)"
+            description="Hard timeout for speech_final (default: 4000)"
+            placeholder="4000"
+            min={1000}
+            max={15000}
+            step={500}
+            value={editMaxTurnTimeout}
+            onChange={(val) => setEditMaxTurnTimeout(val === "" ? "" : Number(val))}
           />
           <Group justify="flex-end" mt="md">
             <Button variant="subtle" onClick={closeEditModal}>

@@ -155,17 +155,18 @@ type twilioClear struct {
 
 // TenantConfig holds tenant-specific settings for the call
 type TenantConfig struct {
-	TenantID       string   `json:"tenant_id,omitempty"`
-	SystemPrompt   string   `json:"system_prompt,omitempty"`
-	GreetingText   *string  `json:"greeting_text,omitempty"`
-	VoiceID        *string  `json:"voice_id,omitempty"`
-	Language       string   `json:"language,omitempty"`
-	Endpointing    *int     `json:"endpointing,omitempty"`     // STT endpointing in ms (default 800)
-	UtteranceEnd   *int     `json:"utterance_end,omitempty"`   // Hard timeout after last speech in ms (default 1500)
-	VIPNames       []string `json:"vip_names,omitempty"`
-	MarketingEmail *string  `json:"marketing_email,omitempty"`
-	ForwardNumber  *string  `json:"forward_number,omitempty"`
-	OwnerPhone     string   `json:"owner_phone,omitempty"` // User's verified phone for forwarding
+	TenantID         string   `json:"tenant_id,omitempty"`
+	SystemPrompt     string   `json:"system_prompt,omitempty"`
+	GreetingText     *string  `json:"greeting_text,omitempty"`
+	VoiceID          *string  `json:"voice_id,omitempty"`
+	Language         string   `json:"language,omitempty"`
+	Endpointing      *int     `json:"endpointing,omitempty"`        // STT endpointing in ms (default 800)
+	UtteranceEnd     *int     `json:"utterance_end,omitempty"`      // Hard timeout after last speech in ms (default 1500)
+	MaxTurnTimeoutMs *int     `json:"max_turn_timeout_ms,omitempty"` // Hard cap on waiting for speech_final in ms (default 4000)
+	VIPNames         []string `json:"vip_names,omitempty"`
+	MarketingEmail   *string  `json:"marketing_email,omitempty"`
+	ForwardNumber    *string  `json:"forward_number,omitempty"`
+	OwnerPhone       string   `json:"owner_phone,omitempty"` // User's verified phone for forwarding
 }
 
 // callSession manages a single call's voice AI session
@@ -620,7 +621,12 @@ func (s *callSession) processSTTResults() {
 	const speechFinalGrace = 250 * time.Millisecond
 	// Hard cap on waiting for speech_final. If Deepgram is confused by noise, we force
 	// finalization after this timeout to avoid multi-second delays.
-	const maxTurnTimeout = 4 * time.Second
+	// Default is 4 seconds, but can be overridden per-tenant.
+	maxTurnTimeout := 4 * time.Second
+	if s.tenantCfg.MaxTurnTimeoutMs != nil && *s.tenantCfg.MaxTurnTimeoutMs > 0 {
+		maxTurnTimeout = time.Duration(*s.tenantCfg.MaxTurnTimeoutMs) * time.Millisecond
+		s.logger.Printf("media_ws: using tenant max_turn_timeout: %v", maxTurnTimeout)
+	}
 
 	var finalizeTimer *time.Timer
 	var finalizeC <-chan time.Time

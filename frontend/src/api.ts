@@ -54,6 +54,7 @@ export type Tenant = {
   vip_names?: string[];
   marketing_email?: string;
   forward_number?: string;
+  max_turn_timeout_ms?: number;
   plan: string;
   status: string;
 };
@@ -90,6 +91,7 @@ export type AdminTenantDetail = {
   vip_names?: string[];
   marketing_email?: string;
   forward_number?: string;
+  max_turn_timeout_ms?: number;
   plan: string;
   status: string;
   user_count: number;
@@ -291,10 +293,13 @@ export const api = {
       `/admin/tenants/${encodeURIComponent(tenantId)}/calls?limit=${limit}`
     ),
 
-  adminUpdateTenantPlanStatus: (tenantId: string, plan: string, status: string) =>
+  adminUpdateTenant: (
+    tenantId: string,
+    data: { plan: string; status: string; max_turn_timeout_ms?: number }
+  ) =>
     http<{ success: boolean }>(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
       method: "PATCH",
-      body: JSON.stringify({ plan, status }),
+      body: JSON.stringify(data),
     }),
 
   adminResetUserOnboarding: (userId: string) =>

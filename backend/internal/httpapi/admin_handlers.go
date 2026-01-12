@@ -258,8 +258,8 @@ func (r *Router) handleAdminGetTenantCalls(w http.ResponseWriter, req *http.Requ
 	writeJSON(w, http.StatusOK, map[string]any{"calls": calls})
 }
 
-// handleAdminUpdateTenantPlanStatus updates a tenant's plan and status.
-func (r *Router) handleAdminUpdateTenantPlanStatus(w http.ResponseWriter, req *http.Request) {
+// handleAdminUpdateTenant updates a tenant's plan, status, and config settings.
+func (r *Router) handleAdminUpdateTenant(w http.ResponseWriter, req *http.Request) {
 	tenantID := req.PathValue("tenantId")
 	if tenantID == "" {
 		http.Error(w, `{"error": "missing tenant ID"}`, http.StatusBadRequest)
@@ -267,8 +267,9 @@ func (r *Router) handleAdminUpdateTenantPlanStatus(w http.ResponseWriter, req *h
 	}
 
 	var body struct {
-		Plan   string `json:"plan"`
-		Status string `json:"status"`
+		Plan             string `json:"plan"`
+		Status           string `json:"status"`
+		MaxTurnTimeoutMs *int   `json:"max_turn_timeout_ms,omitempty"`
 	}
 
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
@@ -290,6 +291,14 @@ func (r *Router) handleAdminUpdateTenantPlanStatus(w http.ResponseWriter, req *h
 		return
 	}
 
+	// Validate max_turn_timeout_ms if provided
+	if body.MaxTurnTimeoutMs != nil {
+		if *body.MaxTurnTimeoutMs < 1000 || *body.MaxTurnTimeoutMs > 15000 {
+			http.Error(w, `{"error": "max_turn_timeout_ms must be between 1000 and 15000"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
 	rowsAffected, err := r.store.UpdateTenantPlanStatus(req.Context(), tenantID, body.Plan, body.Status)
 	if err != nil {
 		r.logger.Printf("admin: failed to update tenant %s: %v", tenantID, err)
@@ -302,7 +311,20 @@ func (r *Router) handleAdminUpdateTenantPlanStatus(w http.ResponseWriter, req *h
 		return
 	}
 
-	r.logger.Printf("admin: updated tenant %s plan=%s status=%s", tenantID, body.Plan, body.Status)
+	// Update max_turn_timeout_ms if provided
+	if body.MaxTurnTimeoutMs != nil {
+		err := r.store.UpdateTenant(req.Context(), tenantID, map[string]any{
+			"max_turn_timeout_ms": *body.MaxTurnTimeoutMs,
+		})
+		if err != nil {
+			r.logger.Printf("admin: failed to update tenant config %s: %v", tenantID, err)
+			http.Error(w, `{"error": "failed to update tenant config"}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	r.logger.Printf("admin: updated tenant %s plan=%s status=%s max_turn_timeout_ms=%v",
+		tenantID, body.Plan, body.Status, body.MaxTurnTimeoutMs)
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
