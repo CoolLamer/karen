@@ -14,10 +14,13 @@ import {
   Code,
   Loader,
   Alert,
+  Tabs,
+  Box,
+  ThemeIcon,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconRefresh, IconAlertCircle, IconCopy, IconCheck } from "@tabler/icons-react";
-import { api, CallListItem, CallEvent } from "../api";
+import { IconRefresh, IconAlertCircle, IconCopy, IconCheck, IconRobot, IconUser, IconMessage, IconCode } from "@tabler/icons-react";
+import { api, CallListItem, CallEvent, CallDetail } from "../api";
 
 const eventTypeColors: Record<string, string> = {
   call_started: "blue",
@@ -70,11 +73,14 @@ export function AdminLogsPage() {
 
   const [calls, setCalls] = useState<CallListItem[]>([]);
   const [selectedCall, setSelectedCall] = useState<string | null>(providerCallId || null);
+  const [callDetail, setCallDetail] = useState<CallDetail | null>(null);
   const [events, setEvents] = useState<CallEvent[]>([]);
   const [isLoadingCalls, setIsLoadingCalls] = useState(true);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | null>("transcript");
 
   const handleCopyEvents = async () => {
     const text = formatEventsForAI(events);
@@ -89,9 +95,22 @@ export function AdminLogsPage() {
 
   useEffect(() => {
     if (selectedCall) {
+      loadCallDetail(selectedCall);
       loadEvents(selectedCall);
     }
   }, [selectedCall]);
+
+  const loadCallDetail = async (callId: string) => {
+    setIsLoadingDetail(true);
+    try {
+      const data = await api.adminGetCallDetail(callId);
+      setCallDetail(data);
+    } catch {
+      setCallDetail(null);
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
 
   const loadCalls = async () => {
     setIsLoadingCalls(true);
@@ -125,7 +144,20 @@ export function AdminLogsPage() {
 
   const handleSelectCall = (callId: string) => {
     setSelectedCall(callId);
+    setCallDetail(null);
+    setEvents([]);
     navigate(`/admin/logs/${encodeURIComponent(callId)}`, { replace: true });
+  };
+
+  const formatSpeaker = (speaker: string) => {
+    switch (speaker) {
+      case "agent":
+        return "Karen";
+      case "caller":
+        return "Caller";
+      default:
+        return speaker;
+    }
   };
 
   // Call list component
@@ -184,81 +216,158 @@ export function AdminLogsPage() {
     </Paper>
   );
 
-  // Events panel component
-  const EventsPanel = (
+  // Detail panel component with tabs for Transcript and Events
+  const DetailPanel = (
     <Paper withBorder p="md" style={{ flex: 1, minWidth: 0 }}>
-      <Group justify="space-between" mb="md">
-        <Title order={4}>
-          Events{" "}
-          {selectedCall && (
-            <Text span size="sm" c="dimmed">
-              ({events.length})
-            </Text>
-          )}
-        </Title>
-        {events.length > 0 && (
-          <Button
-            size="xs"
-            variant="light"
-            color={copied ? "green" : "gray"}
-            leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-            onClick={handleCopyEvents}
-          >
-            {copied ? "Copied!" : "Copy for AI"}
-          </Button>
-        )}
-      </Group>
       {!selectedCall ? (
-        <Text c="dimmed">Select a call to view events</Text>
-      ) : isLoadingEvents ? (
-        <Loader />
-      ) : events.length === 0 ? (
-        <Text c="dimmed">No events found for this call</Text>
+        <Text c="dimmed">Select a call to view details</Text>
       ) : (
-        <ScrollArea h={isMobile ? 400 : 600}>
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th style={{ width: 90 }}>Time</Table.Th>
-                <Table.Th style={{ width: 140 }}>Event</Table.Th>
-                <Table.Th>Details</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {events.map((event) => (
-                <Table.Tr key={event.id}>
-                  <Table.Td>
-                    <Text size="xs" ff="monospace">
-                      {formatTime(event.created_at)}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      color={eventTypeColors[event.event_type] || "gray"}
-                      size="sm"
-                    >
-                      {event.event_type}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Code
-                      block
+        <Tabs value={activeTab} onChange={setActiveTab}>
+          <Tabs.List mb="md">
+            <Tabs.Tab value="transcript" leftSection={<IconMessage size={14} />}>
+              Transcript
+              {callDetail?.utterances && (
+                <Text span size="xs" c="dimmed" ml={4}>
+                  ({callDetail.utterances.length})
+                </Text>
+              )}
+            </Tabs.Tab>
+            <Tabs.Tab value="events" leftSection={<IconCode size={14} />}>
+              Events
+              {events.length > 0 && (
+                <Text span size="xs" c="dimmed" ml={4}>
+                  ({events.length})
+                </Text>
+              )}
+            </Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="transcript">
+            {isLoadingDetail ? (
+              <Loader />
+            ) : !callDetail?.utterances?.length ? (
+              <Text c="dimmed">No transcript available for this call</Text>
+            ) : (
+              <ScrollArea h={isMobile ? 400 : 550}>
+                <Stack gap="md">
+                  {callDetail.utterances.map((u) => (
+                    <Box
+                      key={u.sequence}
                       style={{
-                        fontSize: "11px",
-                        maxWidth: "100%",
-                        overflow: "auto",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
+                        display: "flex",
+                        justifyContent: u.speaker === "agent" ? "flex-end" : "flex-start",
                       }}
                     >
-                      {JSON.stringify(event.event_data, null, 2)}
-                    </Code>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
+                      <Paper
+                        p="sm"
+                        radius="md"
+                        style={{
+                          maxWidth: "85%",
+                          backgroundColor:
+                            u.speaker === "agent"
+                              ? "var(--mantine-color-teal-0)"
+                              : "var(--mantine-color-gray-1)",
+                          borderBottomRightRadius: u.speaker === "agent" ? 4 : undefined,
+                          borderBottomLeftRadius: u.speaker === "caller" ? 4 : undefined,
+                        }}
+                      >
+                        <Group gap="xs" mb={4}>
+                          <ThemeIcon
+                            size="xs"
+                            color={u.speaker === "agent" ? "teal" : "gray"}
+                            variant="transparent"
+                          >
+                            {u.speaker === "agent" ? <IconRobot size={12} /> : <IconUser size={12} />}
+                          </ThemeIcon>
+                          <Text size="xs" fw={500} c={u.speaker === "agent" ? "teal.7" : "gray.7"}>
+                            {formatSpeaker(u.speaker)}
+                          </Text>
+                          {u.interrupted && (
+                            <Badge size="xs" variant="light" color="orange">
+                              interrupted
+                            </Badge>
+                          )}
+                        </Group>
+                        <Text size="sm">{u.text}</Text>
+                      </Paper>
+                    </Box>
+                  ))}
+                  {callDetail.ended_by && (
+                    <Text size="sm" c="dimmed" ta="center" fs="italic">
+                      — Ended by {callDetail.ended_by} —
+                    </Text>
+                  )}
+                </Stack>
+              </ScrollArea>
+            )}
+          </Tabs.Panel>
+
+          <Tabs.Panel value="events">
+            <Group justify="flex-end" mb="sm">
+              {events.length > 0 && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  color={copied ? "green" : "gray"}
+                  leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  onClick={handleCopyEvents}
+                >
+                  {copied ? "Copied!" : "Copy for AI"}
+                </Button>
+              )}
+            </Group>
+            {isLoadingEvents ? (
+              <Loader />
+            ) : events.length === 0 ? (
+              <Text c="dimmed">No events found for this call</Text>
+            ) : (
+              <ScrollArea h={isMobile ? 400 : 520}>
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th style={{ width: 90 }}>Time</Table.Th>
+                      <Table.Th style={{ width: 140 }}>Event</Table.Th>
+                      <Table.Th>Details</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {events.map((event) => (
+                      <Table.Tr key={event.id}>
+                        <Table.Td>
+                          <Text size="xs" ff="monospace">
+                            {formatTime(event.created_at)}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            color={eventTypeColors[event.event_type] || "gray"}
+                            size="sm"
+                          >
+                            {event.event_type}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Code
+                            block
+                            style={{
+                              fontSize: "11px",
+                              maxWidth: "100%",
+                              overflow: "auto",
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {JSON.stringify(event.event_data, null, 2)}
+                          </Code>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </Tabs.Panel>
+        </Tabs>
       )}
     </Paper>
   );
@@ -274,7 +383,10 @@ export function AdminLogsPage() {
             variant="light"
             onClick={() => {
               loadCalls();
-              if (selectedCall) loadEvents(selectedCall);
+              if (selectedCall) {
+                loadCallDetail(selectedCall);
+                loadEvents(selectedCall);
+              }
             }}
           >
             Refresh
@@ -291,12 +403,12 @@ export function AdminLogsPage() {
         {isMobile ? (
           <Stack gap="lg">
             {CallList}
-            {selectedCall && EventsPanel}
+            {DetailPanel}
           </Stack>
         ) : (
           <Group align="flex-start" gap="lg" wrap="nowrap">
             {CallList}
-            {EventsPanel}
+            {DetailPanel}
           </Group>
         )}
       </Stack>
