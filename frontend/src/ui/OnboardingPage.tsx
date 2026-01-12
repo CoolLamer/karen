@@ -11,16 +11,16 @@ import {
   TextInput,
   Title,
   ThemeIcon,
-  SegmentedControl,
   CopyButton,
   ActionIcon,
   Tooltip,
   Alert,
-  Anchor,
   Progress,
   TagsInput,
   Radio,
   List,
+  Checkbox,
+  Accordion,
 } from "@mantine/core";
 import {
   IconRobot,
@@ -33,27 +33,16 @@ import {
 } from "@tabler/icons-react";
 import { api, Tenant, TenantPhoneNumber, setAuthToken } from "../api";
 import { useAuth } from "../AuthContext";
+import {
+  REDIRECT_CODES,
+  REDIRECT_ORDER,
+  PHONE_SETTINGS_INSTRUCTIONS,
+  getDialCode as getRedirectDialCode,
+  getDeactivationCode,
+  type RedirectType,
+} from "../constants/redirectCodes";
 
 type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5;
-
-const CARRIER_CODES: Record<string, { noAnswer: string; description: string }> = {
-  o2: {
-    noAnswer: "**61*{number}#",
-    description: "Přesměrování když nezvedneš (po 20s)",
-  },
-  tmobile: {
-    noAnswer: "**61*{number}#",
-    description: "Přesměrování když nezvedneš (po 20s)",
-  },
-  vodafone: {
-    noAnswer: "**61*{number}#",
-    description: "Přesměrování když nezvedneš (po 20s)",
-  },
-  other: {
-    noAnswer: "**61*{number}#",
-    description: "Přesměrování když nezvedneš (standardní kód)",
-  },
-};
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -63,7 +52,7 @@ export function OnboardingPage() {
   const [name, setName] = useState("");
   const [, setTenantState] = useState<Tenant | null>(null);
   const [phoneNumbers, setPhoneNumbers] = useState<TenantPhoneNumber[]>([]);
-  const [selectedCarrier, setSelectedCarrier] = useState("o2");
+  const [selectedRedirects, setSelectedRedirects] = useState<RedirectType[]>(["noAnswer"]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,10 +105,10 @@ export function OnboardingPage() {
     }
   };
 
-  const getDialCode = () => {
-    if (!primaryPhone) return "";
-    const carrier = CARRIER_CODES[selectedCarrier];
-    return carrier.noAnswer.replace("{number}", primaryPhone.replace(/\s/g, ""));
+  const toggleRedirect = (type: RedirectType) => {
+    setSelectedRedirects((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
   };
 
   // Save VIP names and marketing email after configuration steps
@@ -397,76 +386,127 @@ export function OnboardingPage() {
                     </Stack>
                   </Paper>
 
-                  {/* Carrier selection */}
-                  <Stack gap="xs">
+                  {/* Redirect type selection */}
+                  <Stack gap="md">
                     <Text size="sm" fw={500}>
                       Varianta A: Nastav přesměrování
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Vyber svého operátora:
+                      Vyber, které typy přesměrování chceš nastavit. Pro kompletní pokrytí doporučujeme všechny tři.
                     </Text>
-                    <SegmentedControl
-                      fullWidth
-                      value={selectedCarrier}
-                      onChange={setSelectedCarrier}
-                      data={[
-                        { label: "O2", value: "o2" },
-                        { label: "T-Mobile", value: "tmobile" },
-                        { label: "Vodafone", value: "vodafone" },
-                        { label: "Jiný", value: "other" },
-                      ]}
-                    />
+                    <Stack gap="xs">
+                      {REDIRECT_ORDER.map((type) => (
+                        <Checkbox
+                          key={type}
+                          label={REDIRECT_CODES[type].label}
+                          description={REDIRECT_CODES[type].description}
+                          checked={selectedRedirects.includes(type)}
+                          onChange={() => toggleRedirect(type)}
+                        />
+                      ))}
+                    </Stack>
                   </Stack>
 
-                  {/* Forwarding instructions */}
-                  <Paper p="md" radius="md" withBorder>
-                    <Stack gap="md">
-                      <Text size="sm" fw={500}>
-                        {CARRIER_CODES[selectedCarrier].description}
-                      </Text>
-                      <Text size="sm" c="dimmed">
-                        1. Otevři aplikaci Telefon
-                      </Text>
-                      <Group>
-                        <Text size="sm" c="dimmed">
-                          2. Vytoč:
-                        </Text>
-                        <Text size="sm" fw={600} ff="monospace">
-                          {getDialCode()}
-                        </Text>
-                        <CopyButton value={getDialCode()}>
-                          {({ copied, copy }) => (
-                            <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
-                              <ActionIcon
-                                size="sm"
-                                variant="subtle"
-                                onClick={copy}
-                                color={copied ? "green" : "gray"}
-                              >
-                                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                        </CopyButton>
-                      </Group>
-                      <Text size="sm" c="dimmed">
-                        3. Uslyšíš potvrzení „Služba aktivována"
-                      </Text>
-                    </Stack>
-                  </Paper>
+                  {/* Forwarding instructions for selected types */}
+                  {selectedRedirects.length > 0 && (
+                    <Accordion variant="separated" defaultValue={selectedRedirects[0]}>
+                      {selectedRedirects.map((type) => {
+                        const code = REDIRECT_CODES[type];
+                        const dialCode = primaryPhone ? getRedirectDialCode(type, primaryPhone) : "";
+                        const deactivateCode = getDeactivationCode(type);
+                        return (
+                          <Accordion.Item key={type} value={type}>
+                            <Accordion.Control>
+                              <Text size="sm" fw={500}>{code.label}</Text>
+                            </Accordion.Control>
+                            <Accordion.Panel>
+                              <Stack gap="sm">
+                                <Text size="xs" c="dimmed">{code.description}</Text>
 
-                  <Anchor
-                    href={`tel:${getDialCode()}`}
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Button
-                      variant="light"
-                      fullWidth
-                      leftSection={<IconPhone size={18} />}
-                    >
-                      Vytočit automaticky
-                    </Button>
-                  </Anchor>
+                                <Text size="xs" fw={500} c="teal">Aktivovat:</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" ff="monospace">{dialCode}</Text>
+                                  <CopyButton value={dialCode}>
+                                    {({ copied, copy }) => (
+                                      <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
+                                        <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
+                                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                                        </ActionIcon>
+                                      </Tooltip>
+                                    )}
+                                  </CopyButton>
+                                </Group>
+                                <Button
+                                  variant="light"
+                                  size="xs"
+                                  leftSection={<IconPhone size={14} />}
+                                  disabled={!primaryPhone}
+                                  onClick={() => { window.location.href = `tel:${dialCode}`; }}
+                                >
+                                  Vytočit
+                                </Button>
+
+                                <Text size="xs" fw={500} c="red" mt="xs">Deaktivovat:</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" ff="monospace">{deactivateCode}</Text>
+                                  <CopyButton value={deactivateCode}>
+                                    {({ copied, copy }) => (
+                                      <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
+                                        <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? "green" : "gray"}>
+                                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                                        </ActionIcon>
+                                      </Tooltip>
+                                    )}
+                                  </CopyButton>
+                                </Group>
+                                <Button
+                                  variant="subtle"
+                                  size="xs"
+                                  color="red"
+                                  leftSection={<IconPhone size={14} />}
+                                  onClick={() => { window.location.href = `tel:${deactivateCode}`; }}
+                                >
+                                  Vytočit
+                                </Button>
+                              </Stack>
+                            </Accordion.Panel>
+                          </Accordion.Item>
+                        );
+                      })}
+
+                      {/* Phone settings alternative */}
+                      <Accordion.Item value="phone-settings">
+                        <Accordion.Control>
+                          <Text size="sm" fw={500}>Nastavení v telefonu (alternativa)</Text>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                          <Stack gap="md">
+                            <Text size="xs" c="dimmed">
+                              Místo vytáčení kódů můžeš přesměrování nastavit přímo v nastavení telefonu.
+                            </Text>
+
+                            <Box>
+                              <Text size="xs" fw={500}>{PHONE_SETTINGS_INSTRUCTIONS.iphone.title}</Text>
+                              <List size="xs" c="dimmed" mt="xs">
+                                {PHONE_SETTINGS_INSTRUCTIONS.iphone.steps.map((step, i) => (
+                                  <List.Item key={i}>{step}</List.Item>
+                                ))}
+                              </List>
+                            </Box>
+
+                            <Box>
+                              <Text size="xs" fw={500}>{PHONE_SETTINGS_INSTRUCTIONS.android.title}</Text>
+                              <List size="xs" c="dimmed" mt="xs">
+                                {PHONE_SETTINGS_INSTRUCTIONS.android.steps.map((step, i) => (
+                                  <List.Item key={i}>{step}</List.Item>
+                                ))}
+                              </List>
+                            </Box>
+                          </Stack>
+                        </Accordion.Panel>
+                      </Accordion.Item>
+                    </Accordion>
+                  )}
 
                   <Button
                     size="lg"

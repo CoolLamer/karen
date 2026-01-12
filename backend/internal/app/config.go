@@ -75,7 +75,7 @@ func LoadConfigFromEnv() Config {
 		STTUtteranceEndMs: getenvIntClamped("STT_UTTERANCE_END_MS", 1000, 500, 5000),
 
 		// Voice settings (defaults, overridden by tenant config)
-		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady Asistentka Karen. Lukáš nemá čas, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
+		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady asistentka Karen. Majitel telefonu teď nemůže přijmout hovor, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
 		TTSVoiceID:    getenv("TTS_VOICE_ID", ""),        // ElevenLabs voice ID
 		TTSStability:  getenvFloatClamped("TTS_STABILITY", 0.5, 0.0, 1.0),   // Voice stability (0.0-1.0)
 		TTSSimilarity: getenvFloatClamped("TTS_SIMILARITY", 0.75, 0.0, 1.0), // Voice similarity boost (0.0-1.0)
