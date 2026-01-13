@@ -4,6 +4,11 @@ import { useAuth } from "./AuthContext";
 
 // Pages
 import { LandingPage, SegmentLandingPage } from "./ui/landing";
+import {
+  CompanyInfoPage,
+  TermsOfServicePage,
+  PrivacyPolicyPage,
+} from "./ui/landing/legal";
 import { LoginPage } from "./ui/LoginPage";
 import { OnboardingPage } from "./ui/OnboardingPage";
 import { AppShellLayout } from "./ui/AppShellLayout";
@@ -113,6 +118,20 @@ export const router = createBrowserRouter([
   {
     path: "/pro-manazery",
     element: <SegmentLandingPage segmentKey="managers" />,
+  },
+
+  // Legal pages (public)
+  {
+    path: "/obchodni-podminky",
+    element: <TermsOfServicePage />,
+  },
+  {
+    path: "/ochrana-osobnich-udaju",
+    element: <PrivacyPolicyPage />,
+  },
+  {
+    path: "/informace-o-provozovateli",
+    element: <CompanyInfoPage />,
   },
 
   // Login - public only
