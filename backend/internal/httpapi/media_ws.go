@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -564,6 +565,15 @@ func (s *callSession) beginNewResponse() (context.Context, uint64) {
 	s.activeRespID = respID
 	s.respCancel = cancel
 	s.respMu.Unlock()
+
+	// Drain any stale barge-in signals from previous responses.
+	// Without this, a barge-in from a previous turn could immediately
+	// interrupt the new response's TTS.
+	select {
+	case <-s.bargeInCh:
+	default:
+	}
+
 	return ctx, respID
 }
 
@@ -903,12 +913,15 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	llmStartTime := time.Now()
 	responseCh, err := s.llmClient.GenerateResponse(ctx, msgs)
 	if err != nil {
-		s.logger.Printf("media_ws: LLM error: %v", err)
-		sentry.CaptureException(err)
-		s.eventLog.LogAsync(s.callID, eventlog.EventLLMError, map[string]any{
-			"turn_id": turnID,
-			"error":   err.Error(),
-		})
+		// Context canceled is expected during barge-in, not a real error
+		if !errors.Is(err, context.Canceled) {
+			s.logger.Printf("media_ws: LLM error: %v", err)
+			sentry.CaptureException(err)
+			s.eventLog.LogAsync(s.callID, eventlog.EventLLMError, map[string]any{
+				"turn_id": turnID,
+				"error":   err.Error(),
+			})
+		}
 		return
 	}
 
@@ -956,7 +969,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 				"turn_id": turnID,
 				"filler":  filler,
 			})
-			if _, err := s.speakText(ctx, filler); err != nil {
+			if _, err := s.speakText(ctx, filler); err != nil && !errors.Is(err, context.Canceled) {
 				s.logger.Printf("media_ws: filler TTS error: %v", err)
 				sentry.CaptureException(err)
 			}
@@ -997,7 +1010,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 					s.logger.Printf("media_ws: streaming first sentence: %s", ttsText)
 				}
 				markID, err := s.speakText(ctx, ttsText)
-				if err != nil {
+				if err != nil && !errors.Is(err, context.Canceled) {
 					s.logger.Printf("media_ws: TTS error: %v", err)
 					sentry.CaptureException(err)
 				} else if markID != 0 {
@@ -1015,7 +1028,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		ttsText := stripForwardMarker(remaining)
 		if ttsText != "" {
 			markID, err := s.speakText(ctx, ttsText)
-			if err != nil {
+			if err != nil && !errors.Is(err, context.Canceled) {
 				s.logger.Printf("media_ws: TTS error: %v", err)
 				sentry.CaptureException(err)
 			} else if markID != 0 {
@@ -1250,7 +1263,7 @@ func (s *callSession) speakGreeting() {
 		}
 	}
 
-	if _, err := s.speakText(s.ctx, greeting); err != nil {
+	if _, err := s.speakText(s.ctx, greeting); err != nil && !errors.Is(err, context.Canceled) {
 		s.logger.Printf("media_ws: greeting TTS error: %v", err)
 		sentry.CaptureException(err)
 	}
