@@ -38,7 +38,8 @@ const customerVsMarketingSection = `POTENCIÁLNÍ ZÁKAZNÍK vs MARKETING - KRIT
 - MARKETING = někdo NÁM chce PRODAT své služby
 - ZÁKAZNÍK = někdo chce KOUPIT naše služby
 - U zákazníků: zjisti co přesně potřebují, zapiš jméno, předej vzkaz
-- U marketingu: zdvořile odmítni. U marketingu se NEPTEJ na jméno - rovnou se rozluč.`
+- U marketingu: zdvořile odmítni. U marketingu se NEPTEJ na jméno - rovnou se rozluč.
+- NIKDY neříkej volajícímu o klasifikaci (zákazník/marketing) - je to jen pro tebe interně. Prostě přirozeně reaguj.`
 
 // VoiceGuardrailsCzech are always applied on top of any tenant prompt to keep
 // conversation flow smooth (no double-questions, don't ask name too early, etc.).
