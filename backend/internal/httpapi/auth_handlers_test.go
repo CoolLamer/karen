@@ -14,6 +14,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lukasbauer/karen/internal/llm"
 	"github.com/lukasbauer/karen/internal/store"
 )
 
@@ -69,7 +70,7 @@ func TestHashToken(t *testing.T) {
 }
 
 func TestGenerateDefaultSystemPrompt(t *testing.T) {
-	prompt := generateDefaultSystemPrompt("Jan")
+	prompt := llm.GenerateDefaultSystemPrompt("Jan")
 
 	if !strings.Contains(prompt, "Jan") {
 		t.Error("prompt should contain the user's name")
@@ -350,7 +351,7 @@ func getTestRouterWithDB(t *testing.T) (*Router, *pgxpool.Pool, func()) {
 
 func TestGenerateSystemPromptWithVIPs(t *testing.T) {
 	t.Run("basic prompt with name only", func(t *testing.T) {
-		prompt := generateSystemPromptWithVIPs("Jan", nil, nil)
+		prompt := llm.GenerateSystemPromptWithVIPs("Jan", nil, nil)
 
 		if !strings.Contains(prompt, "Jan") {
 			t.Error("prompt should contain the user's name")
@@ -368,7 +369,7 @@ func TestGenerateSystemPromptWithVIPs(t *testing.T) {
 
 	t.Run("prompt with VIP names", func(t *testing.T) {
 		vipNames := []string{"Máma", "Táta", "Honza"}
-		prompt := generateSystemPromptWithVIPs("Petr", vipNames, nil)
+		prompt := llm.GenerateSystemPromptWithVIPs("Petr", vipNames, nil)
 
 		if !strings.Contains(prompt, "Petr") {
 			t.Error("prompt should contain the user's name")
@@ -388,7 +389,7 @@ func TestGenerateSystemPromptWithVIPs(t *testing.T) {
 
 	t.Run("prompt with empty VIP names", func(t *testing.T) {
 		emptyVips := []string{}
-		prompt := generateSystemPromptWithVIPs("Eva", emptyVips, nil)
+		prompt := llm.GenerateSystemPromptWithVIPs("Eva", emptyVips, nil)
 
 		if strings.Contains(prompt, "KRIZOVÉ SITUACE") {
 			t.Error("prompt with empty VIPs should not contain VIP section")
@@ -397,7 +398,7 @@ func TestGenerateSystemPromptWithVIPs(t *testing.T) {
 
 	t.Run("prompt with marketing email", func(t *testing.T) {
 		email := "nabidky@example.com"
-		prompt := generateSystemPromptWithVIPs("Karel", nil, &email)
+		prompt := llm.GenerateSystemPromptWithVIPs("Karel", nil, &email)
 
 		if !strings.Contains(prompt, "Karel") {
 			t.Error("prompt should contain the user's name")
@@ -413,7 +414,7 @@ func TestGenerateSystemPromptWithVIPs(t *testing.T) {
 	t.Run("prompt with both VIPs and marketing email", func(t *testing.T) {
 		vipNames := []string{"Rodina"}
 		email := "info@firma.cz"
-		prompt := generateSystemPromptWithVIPs("Lukáš", vipNames, &email)
+		prompt := llm.GenerateSystemPromptWithVIPs("Lukáš", vipNames, &email)
 
 		if !strings.Contains(prompt, "Lukáš") {
 			t.Error("prompt should contain the user's name")
@@ -430,7 +431,7 @@ func TestGenerateSystemPromptWithVIPs(t *testing.T) {
 	})
 
 	t.Run("prompt with nil marketing email", func(t *testing.T) {
-		prompt := generateSystemPromptWithVIPs("Anna", nil, nil)
+		prompt := llm.GenerateSystemPromptWithVIPs("Anna", nil, nil)
 
 		// When no email is set, marketing section should still exist but without an email address
 		if !strings.Contains(prompt, "MARKETING") {
@@ -447,7 +448,7 @@ func TestGenerateSystemPromptWithVIPs(t *testing.T) {
 
 	t.Run("prompt with empty marketing email", func(t *testing.T) {
 		emptyEmail := ""
-		prompt := generateSystemPromptWithVIPs("Martin", nil, &emptyEmail)
+		prompt := llm.GenerateSystemPromptWithVIPs("Martin", nil, &emptyEmail)
 
 		// When email is empty, marketing section should still exist but without an email address
 		if !strings.Contains(prompt, "MARKETING") {
