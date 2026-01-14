@@ -9,6 +9,7 @@ import {
   Stack,
   Text,
   TextInput,
+  Textarea,
   Title,
   ThemeIcon,
   CopyButton,
@@ -50,6 +51,10 @@ export function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // State for greeting
+  const [greetingText, setGreetingText] = useState("");
+  const [greetingGenerated, setGreetingGenerated] = useState(false);
+
   // New state for VIP contacts and marketing
   const [vipNames, setVipNames] = useState<string[]>([]);
   const [marketingOption, setMarketingOption] = useState<"reject" | "email">("reject");
@@ -58,6 +63,18 @@ export function OnboardingPage() {
 
   const primaryPhone = phoneNumbers.find((p) => p.is_primary)?.twilio_number;
   const hasPhoneNumber = !!primaryPhone;
+
+  // Generate greeting from name (only once)
+  const generateGreeting = (userName: string) =>
+    `Dobrý den, tady asistentka Karen. ${userName} teď nemůže přijmout hovor, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?`;
+
+  // Generate greeting when user finishes entering name (onBlur)
+  const handleNameBlur = () => {
+    if (name.trim() && !greetingGenerated) {
+      setGreetingText(generateGreeting(name.trim()));
+      setGreetingGenerated(true);
+    }
+  };
 
   // Call when component mounts to prevent redirects during onboarding
   useEffect(() => {
@@ -70,11 +87,19 @@ export function OnboardingPage() {
       return;
     }
 
+    // Generate greeting if not yet generated, or use default if user cleared it
+    let finalGreeting = greetingText.trim();
+    if (!finalGreeting) {
+      finalGreeting = generateGreeting(name.trim());
+      setGreetingText(finalGreeting);
+      setGreetingGenerated(true);
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await api.completeOnboarding(name.trim());
+      const response = await api.completeOnboarding(name.trim(), finalGreeting);
       setAuthToken(response.token);
       setTenantState(response.tenant);
       // Don't call setTenant here - it would set needsOnboarding=false and
@@ -208,14 +233,20 @@ export function OnboardingPage() {
                   setName(e.target.value);
                   setError(null);
                 }}
+                onBlur={handleNameBlur}
                 autoFocus
               />
 
-              <Paper p="md" radius="md" bg="gray.0">
-                <Text size="sm" c="dimmed">
-                  Karen bude říkat: „{name || "Lukáš"} teď nemůže přijmout hovor, mohu vám pomoct?"
-                </Text>
-              </Paper>
+              {greetingGenerated && (
+                <Textarea
+                  label="Pozdrav"
+                  description="Text, kterým Karen začíná hovor. Můžeš ho upravit."
+                  value={greetingText}
+                  onChange={(e) => setGreetingText(e.target.value)}
+                  minRows={3}
+                  autosize
+                />
+              )}
 
               <Button
                 size="lg"

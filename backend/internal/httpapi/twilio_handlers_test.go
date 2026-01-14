@@ -242,7 +242,7 @@ func TestTenantRoutingIntegration(t *testing.T) {
 	}
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Routing Test", "Test prompt for routing")
+	tenant, err := s.CreateTenant(ctx, "Routing Test", "Test prompt for routing", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
