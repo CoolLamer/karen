@@ -112,13 +112,14 @@ export function LoginPage() {
 
     try {
       const response = await api.verifyCode(phone, value);
-      login(response.token, response.user);
+      const needsOnboarding = login(response.token, response.user);
 
       // Navigate based on whether user needs onboarding
-      if (response.user.tenant_id) {
-        navigate("/");
-      } else {
+      // Use the returned value from login() to avoid React state race condition
+      if (needsOnboarding) {
         navigate("/onboarding");
+      } else {
+        navigate("/");
       }
     } catch {
       setError("Neplatný kód. Zkus to znovu.");
