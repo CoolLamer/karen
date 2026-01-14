@@ -23,14 +23,14 @@ type Config struct {
 	ElevenLabsAPIKey string
 
 	// STT settings
-	STTEndpointingMs   int // Deepgram endpointing in ms (silence threshold)
-	STTUtteranceEndMs  int // Hard timeout after last speech, regardless of noise
+	STTEndpointingMs  int // Deepgram endpointing in ms (silence threshold)
+	STTUtteranceEndMs int // Hard timeout after last speech, regardless of noise
 
 	// Voice settings (defaults, overridden by tenant config)
-	GreetingText   string
-	TTSVoiceID     string  // ElevenLabs voice ID
-	TTSStability   float64 // ElevenLabs voice stability (0.0-1.0, default 0.5)
-	TTSSimilarity  float64 // ElevenLabs voice similarity boost (0.0-1.0, default 0.75)
+	GreetingText  string
+	TTSVoiceID    string  // ElevenLabs voice ID
+	TTSStability  float64 // ElevenLabs voice stability (0.0-1.0, default 0.5)
+	TTSSimilarity float64 // ElevenLabs voice similarity boost (0.0-1.0, default 0.75)
 
 	// Twilio Verify (SMS OTP)
 	TwilioAccountSID      string
@@ -79,7 +79,7 @@ func LoadConfigFromEnv() Config {
 
 		// Voice settings (defaults, overridden by tenant config)
 		GreetingText:  getenv("GREETING_TEXT", "Dobrý den, tady asistentka Karen. Majitel telefonu teď nemůže přijmout hovor, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"),
-		TTSVoiceID:    getenv("TTS_VOICE_ID", ""),        // ElevenLabs voice ID
+		TTSVoiceID:    getenv("TTS_VOICE_ID", ""),                           // ElevenLabs voice ID
 		TTSStability:  getenvFloatClamped("TTS_STABILITY", 0.5, 0.0, 1.0),   // Voice stability (0.0-1.0)
 		TTSSimilarity: getenvFloatClamped("TTS_SIMILARITY", 0.75, 0.0, 1.0), // Voice similarity boost (0.0-1.0)
 
@@ -152,5 +152,3 @@ func getenvIntClamped(k string, def, min, max int) int {
 	}
 	return def
 }
-
-

@@ -61,8 +61,8 @@ func NewElevenLabsClient(cfg ElevenLabsConfig) *ElevenLabsClient {
 
 // ttsRequest represents an ElevenLabs TTS request.
 type ttsRequest struct {
-	Text          string       `json:"text"`
-	ModelID       string       `json:"model_id"`
+	Text          string        `json:"text"`
+	ModelID       string        `json:"model_id"`
 	VoiceSettings voiceSettings `json:"voice_settings,omitempty"`
 }
 
