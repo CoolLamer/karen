@@ -61,7 +61,7 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 	tenant, err = r.store.GetTenantByTwilioNumber(req.Context(), to)
 	if err != nil && forwardedFrom != "" {
 		// Fallback: try forwarding source lookup
-		tenant, err = r.store.GetTenantByForwardingSource(req.Context(), forwardedFrom)
+		tenant, _ = r.store.GetTenantByForwardingSource(req.Context(), forwardedFrom)
 	}
 
 	// Determine tenant ID for the call record

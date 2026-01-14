@@ -74,5 +74,3 @@ func getEnvironment() string {
 	}
 	return "development"
 }
-
-

@@ -40,11 +40,11 @@ type discordMessage struct {
 }
 
 type discordEmbed struct {
-	Title       string        `json:"title,omitempty"`
-	Description string        `json:"description,omitempty"`
-	Color       int           `json:"color,omitempty"`
-	Fields      []embedField  `json:"fields,omitempty"`
-	Timestamp   string        `json:"timestamp,omitempty"`
+	Title       string       `json:"title,omitempty"`
+	Description string       `json:"description,omitempty"`
+	Color       int          `json:"color,omitempty"`
+	Fields      []embedField `json:"fields,omitempty"`
+	Timestamp   string       `json:"timestamp,omitempty"`
 }
 
 type embedField struct {

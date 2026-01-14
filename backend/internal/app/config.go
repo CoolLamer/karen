@@ -119,15 +119,6 @@ func getenv(k, def string) string {
 	return def
 }
 
-func getenvFloat(k string, def float64) float64 {
-	if v := os.Getenv(k); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
-	}
-	return def
-}
-
 // getenvFloatClamped reads a float env var and clamps it to [min, max] range.
 // Returns def if the env var is not set or cannot be parsed.
 func getenvFloatClamped(k string, def, min, max float64) float64 {

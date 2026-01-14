@@ -827,7 +827,7 @@ func (s *Store) DeleteTenant(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Delete all calls for this tenant first (not cascade-deleted)
 	_, err = tx.Exec(ctx, `DELETE FROM calls WHERE tenant_id = $1`, id)
