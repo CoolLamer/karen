@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { api, User, Tenant, setAuthToken, getAuthToken } from "./api";
 
 type AuthState = {
@@ -81,14 +82,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (token: string, user: User): boolean => {
     setAuthToken(token);
     const needsOnboarding = !user.tenant_id;
-    setState((prev) => ({
-      ...prev,
-      isAuthenticated: true,
-      user,
-      needsOnboarding,
-      isAdmin: false, // Will be set correctly when loadUser completes
-      onboardingInProgress: prev.onboardingInProgress,
-    }));
+    // Use flushSync to ensure state is committed synchronously before navigation.
+    // This prevents route guards from reading stale state during the redirect.
+    flushSync(() => {
+      setState((prev) => ({
+        ...prev,
+        isAuthenticated: true,
+        user,
+        needsOnboarding,
+        isAdmin: false, // Will be set correctly when loadUser completes
+        onboardingInProgress: prev.onboardingInProgress,
+      }));
+    });
     // Load full user data including tenant and admin status
     loadUser();
     // Return needsOnboarding for immediate use in navigation
