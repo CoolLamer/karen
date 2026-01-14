@@ -115,6 +115,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("GET /admin/tenants/{tenantId}/users", r.withAdmin(r.handleAdminGetTenantUsers))
 	r.mux.HandleFunc("GET /admin/tenants/{tenantId}/calls", r.withAdmin(r.handleAdminGetTenantCalls))
 	r.mux.HandleFunc("PATCH /admin/tenants/{tenantId}", r.withAdmin(r.handleAdminUpdateTenant))
+	r.mux.HandleFunc("DELETE /admin/tenants/{tenantId}", r.withAdmin(r.handleAdminDeleteTenant))
 	r.mux.HandleFunc("PATCH /admin/users/{userId}/reset-onboarding", r.withAdmin(r.handleAdminResetUserOnboarding))
 }
 
