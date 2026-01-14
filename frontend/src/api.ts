@@ -310,4 +310,9 @@ export const api = {
       `/admin/users/${encodeURIComponent(userId)}/reset-onboarding`,
       { method: "PATCH" }
     ),
+
+  adminDeleteTenant: (tenantId: string) =>
+    http<{ success: boolean }>(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
+      method: "DELETE",
+    }),
 };

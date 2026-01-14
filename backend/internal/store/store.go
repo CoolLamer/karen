@@ -818,6 +818,35 @@ func (s *Store) DeletePhoneNumber(ctx context.Context, id string) error {
 	return err
 }
 
+// DeleteTenant removes a tenant and all associated data from the system.
+// This deletes the tenant along with all calls, users, phone numbers, and sessions.
+func (s *Store) DeleteTenant(ctx context.Context, id string) error {
+	// Use a transaction to ensure atomicity
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Delete all calls for this tenant first (not cascade-deleted)
+	_, err = tx.Exec(ctx, `DELETE FROM calls WHERE tenant_id = $1`, id)
+	if err != nil {
+		return err
+	}
+
+	// Delete the tenant (cascades to users, phone_numbers, and sessions)
+	result, err := tx.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return tx.Commit(ctx)
+}
+
 // UpdatePhoneNumber updates a phone number's assignment and metadata.
 // Pass nil for tenantID to unassign.
 func (s *Store) UpdatePhoneNumber(ctx context.Context, id string, tenantID *string) error {

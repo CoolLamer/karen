@@ -32,6 +32,7 @@ import {
   IconRobot,
   IconUser,
   IconRefresh,
+  IconTrash,
 } from "@tabler/icons-react";
 import { api, AdminTenantDetail, AdminUser, CallDetail } from "../api";
 
@@ -108,6 +109,11 @@ export function AdminUsersPage() {
   const [resettingUser, setResettingUser] = React.useState<AdminUser | null>(null);
   const [resettingTenantId, setResettingTenantId] = React.useState<string | null>(null);
   const [resetting, setResetting] = React.useState(false);
+
+  // Delete tenant modal
+  const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] = useDisclosure(false);
+  const [deletingTenant, setDeletingTenant] = React.useState<AdminTenantDetail | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   React.useEffect(() => {
     api
@@ -213,6 +219,37 @@ export function AdminUsersPage() {
       setError("Failed to reset onboarding");
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleDeleteTenant = (tenant: AdminTenantDetail) => {
+    setDeletingTenant(tenant);
+    openDeleteModal();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTenant) return;
+    setDeleting(true);
+    try {
+      await api.adminDeleteTenant(deletingTenant.id);
+      // Remove tenant from local state
+      setTenants((prev) => prev?.filter((t) => t.id !== deletingTenant.id) ?? null);
+      // Clean up any loaded data for this tenant
+      setTenantUsers((prev) => {
+        const { [deletingTenant.id]: _, ...rest } = prev;
+        return rest;
+      });
+      setTenantCalls((prev) => {
+        const { [deletingTenant.id]: _, ...rest } = prev;
+        return rest;
+      });
+      setSuccess(`Deleted tenant "${deletingTenant.name}" and all associated data`);
+      closeDeleteModal();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch {
+      setError("Failed to delete tenant");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -537,16 +574,26 @@ export function AdminUsersPage() {
                     ))}
                   </Collapse>
 
-                  {/* Edit button */}
-                  <Button
-                    variant="light"
-                    size="xs"
-                    leftSection={<IconEdit size={14} />}
-                    onClick={() => handleEdit(tenant)}
-                    mt="xs"
-                  >
-                    Edit Plan/Status
-                  </Button>
+                  {/* Action buttons */}
+                  <Group gap="xs" mt="xs">
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<IconEdit size={14} />}
+                      onClick={() => handleEdit(tenant)}
+                    >
+                      Edit Plan/Status
+                    </Button>
+                    <Button
+                      variant="light"
+                      color="red"
+                      size="xs"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={() => handleDeleteTenant(tenant)}
+                    >
+                      Delete
+                    </Button>
+                  </Group>
                 </Stack>
               </Collapse>
             </Paper>
@@ -592,6 +639,18 @@ export function AdminUsersPage() {
                       }}
                     >
                       Edit
+                    </Button>
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="xs"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTenant(tenant);
+                      }}
+                    >
+                      Delete
                     </Button>
                   </Group>
                 </Group>
@@ -863,6 +922,37 @@ export function AdminUsersPage() {
             </Button>
             <Button color="orange" onClick={handleConfirmReset} loading={resetting}>
               Reset Onboarding
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Delete Tenant Modal */}
+      <Modal
+        opened={deleteModalOpened}
+        onClose={closeDeleteModal}
+        title="Delete Tenant"
+        size="sm"
+      >
+        <Stack gap="md">
+          <Alert color="red" variant="light">
+            This will permanently delete <strong>{deletingTenant?.name}</strong>.
+            <Text size="sm" mt="sm">
+              <strong>This action cannot be undone. The following will be deleted:</strong>
+            </Text>
+            <Text size="sm" component="ul" style={{ paddingLeft: 20, marginTop: 4 }}>
+              <li>All users ({deletingTenant?.user_count || 0}) associated with this tenant</li>
+              <li>All calls ({deletingTenant?.call_count || 0}) and transcripts</li>
+              <li>All assigned phone numbers</li>
+              <li>All configuration and settings</li>
+            </Text>
+          </Alert>
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" onClick={closeDeleteModal}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={handleConfirmDelete} loading={deleting}>
+              Delete Tenant
             </Button>
           </Group>
         </Stack>

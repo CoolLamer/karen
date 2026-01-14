@@ -401,3 +401,28 @@ func (r *Router) handleAdminResetUserOnboarding(w http.ResponseWriter, req *http
 		"previous_tenant_id": previousTenantID,
 	})
 }
+
+// handleAdminDeleteTenant deletes a tenant and all associated data.
+// This permanently removes the tenant, all users, phone numbers, calls, and sessions.
+func (r *Router) handleAdminDeleteTenant(w http.ResponseWriter, req *http.Request) {
+	tenantID := req.PathValue("tenantId")
+	if tenantID == "" {
+		http.Error(w, `{"error": "missing tenant ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	err := r.store.DeleteTenant(req.Context(), tenantID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error": "tenant not found"}`, http.StatusNotFound)
+			return
+		}
+		r.logger.Printf("admin: failed to delete tenant %s: %v", tenantID, err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to delete tenant"}`, http.StatusInternalServerError)
+		return
+	}
+
+	r.logger.Printf("admin: deleted tenant %s and all associated data", tenantID)
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
