@@ -12,7 +12,7 @@ type AuthState = {
 };
 
 type AuthContextType = AuthState & {
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User) => boolean;
   logout: () => Promise<void>;
   setTenant: (tenant: Tenant) => void;
   refreshUser: () => Promise<void>;
@@ -78,18 +78,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUser();
   }, []);
 
-  const login = (token: string, user: User) => {
+  const login = (token: string, user: User): boolean => {
     setAuthToken(token);
+    const needsOnboarding = !user.tenant_id;
     setState((prev) => ({
       ...prev,
       isAuthenticated: true,
       user,
-      needsOnboarding: !user.tenant_id,
+      needsOnboarding,
       isAdmin: false, // Will be set correctly when loadUser completes
       onboardingInProgress: prev.onboardingInProgress,
     }));
     // Load full user data including tenant and admin status
     loadUser();
+    // Return needsOnboarding for immediate use in navigation
+    return needsOnboarding;
   };
 
   const logout = async () => {
