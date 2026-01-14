@@ -943,7 +943,7 @@ export function AdminUsersPage() {
             <Text size="sm" component="ul" style={{ paddingLeft: 20, marginTop: 4 }}>
               <li>All users ({deletingTenant?.user_count || 0}) associated with this tenant</li>
               <li>All calls ({deletingTenant?.call_count || 0}) and transcripts</li>
-              <li>All assigned phone numbers</li>
+              <li>Phone numbers will be unassigned (returned to pool)</li>
               <li>All configuration and settings</li>
             </Text>
           </Alert>

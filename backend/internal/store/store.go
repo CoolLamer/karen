@@ -819,7 +819,8 @@ func (s *Store) DeletePhoneNumber(ctx context.Context, id string) error {
 }
 
 // DeleteTenant removes a tenant and all associated data from the system.
-// This deletes the tenant along with all calls, users, phone numbers, and sessions.
+// This deletes the tenant along with all calls, users, and sessions.
+// Phone numbers are unassigned (not deleted) so they return to the available pool.
 func (s *Store) DeleteTenant(ctx context.Context, id string) error {
 	// Use a transaction to ensure atomicity
 	tx, err := s.db.Begin(ctx)
@@ -834,7 +835,14 @@ func (s *Store) DeleteTenant(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Delete the tenant (cascades to users, phone_numbers, and sessions)
+	// Unassign phone numbers (set tenant_id to NULL) so they return to the pool
+	// This must be done before deleting the tenant to avoid ON DELETE CASCADE
+	_, err = tx.Exec(ctx, `UPDATE tenant_phone_numbers SET tenant_id = NULL WHERE tenant_id = $1`, id)
+	if err != nil {
+		return err
+	}
+
+	// Delete the tenant (cascades to users and sessions)
 	result, err := tx.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, id)
 	if err != nil {
 		return err
