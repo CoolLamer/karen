@@ -41,7 +41,7 @@ function ProtectedRoute() {
 
 // Onboarding route - requires auth but not completed onboarding
 function OnboardingRoute() {
-  const { isLoading, isAuthenticated, needsOnboarding } = useAuth();
+  const { isLoading, isAuthenticated, needsOnboarding, onboardingInProgress } = useAuth();
 
   if (isLoading) {
     return null;
@@ -51,7 +51,9 @@ function OnboardingRoute() {
     return <Navigate to="/login" replace />;
   }
 
-  if (!needsOnboarding) {
+  // Stay on onboarding if needsOnboarding is true OR if we're in the middle of onboarding flow
+  // (onboardingInProgress prevents redirect when loadUser() sets needsOnboarding to false)
+  if (!needsOnboarding && !onboardingInProgress) {
     return <Navigate to="/" replace />;
   }
 
