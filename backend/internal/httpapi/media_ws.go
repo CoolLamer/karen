@@ -20,8 +20,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/lukasbauer/karen/internal/eventlog"
 	"github.com/lukasbauer/karen/internal/llm"
-	"github.com/lukasbauer/karen/internal/stt"
 	"github.com/lukasbauer/karen/internal/store"
+	"github.com/lukasbauer/karen/internal/stt"
 	"github.com/lukasbauer/karen/internal/tts"
 )
 
@@ -161,8 +161,8 @@ type TenantConfig struct {
 	GreetingText     *string  `json:"greeting_text,omitempty"`
 	VoiceID          *string  `json:"voice_id,omitempty"`
 	Language         string   `json:"language,omitempty"`
-	Endpointing      *int     `json:"endpointing,omitempty"`        // STT endpointing in ms (default 800)
-	UtteranceEnd     *int     `json:"utterance_end,omitempty"`      // Hard timeout after last speech in ms (default 1500)
+	Endpointing      *int     `json:"endpointing,omitempty"`         // STT endpointing in ms (default 800)
+	UtteranceEnd     *int     `json:"utterance_end,omitempty"`       // Hard timeout after last speech in ms (default 1500)
 	MaxTurnTimeoutMs *int     `json:"max_turn_timeout_ms,omitempty"` // Hard cap on waiting for speech_final in ms (default 4000)
 	VIPNames         []string `json:"vip_names,omitempty"`
 	MarketingEmail   *string  `json:"marketing_email,omitempty"`
@@ -221,8 +221,8 @@ type callSession struct {
 	actionCancel      context.CancelFunc
 
 	// Goodbye handling
-	goodbyeDone    chan struct{} // Signaled when goodbye mark is received
-	agentHungUp    bool          // True if agent initiated the hangup (prevents overwrite by caller)
+	goodbyeDone chan struct{} // Signaled when goodbye mark is received
+	agentHungUp bool          // True if agent initiated the hangup (prevents overwrite by caller)
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -459,12 +459,12 @@ func (s *callSession) handleStart(start *twilioStart) error {
 
 	// Log call started event
 	s.eventLog.LogAsync(s.callID, eventlog.EventCallStarted, map[string]any{
-		"stream_sid":        s.streamSid,
-		"call_sid":          s.callSid,
-		"tenant_id":         s.tenantCfg.TenantID,
-		"endpointing_ms":    endpointing,
-		"utterance_end_ms":  utteranceEnd,
-		"language":          language,
+		"stream_sid":       s.streamSid,
+		"call_sid":         s.callSid,
+		"tenant_id":        s.tenantCfg.TenantID,
+		"endpointing_ms":   endpointing,
+		"utterance_end_ms": utteranceEnd,
+		"language":         language,
 	})
 
 	return nil
@@ -824,7 +824,7 @@ func (s *callSession) processSTTResults() {
 					})
 					if err := s.clearAudio(); err != nil {
 						s.logger.Printf("media_ws: failed to clear audio: %v", err)
-				sentry.CaptureException(err)
+						sentry.CaptureException(err)
 					}
 					s.cancelResponse()
 					s.cancelPendingAction()

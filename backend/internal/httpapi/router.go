@@ -181,5 +181,3 @@ func wsURLFromPublicBase(publicBase string) string {
 	// assume already host[:port]
 	return "wss://" + publicBase
 }
-
-

@@ -27,13 +27,13 @@ func TestIsValidE164(t *testing.T) {
 		{"+1234567890", true},
 		{"+44207123456", true},
 		{"+86123456789012", true},
-		{"420777123456", false},   // Missing +
-		{"+0777123456", false},    // Starts with 0
-		{"+123456", false},        // Too short (only 6 digits after +)
-		{"", false},               // Empty
-		{"+", false},              // Just +
-		{"+1", false},             // Too short
-		{"phone", false},          // Not a number
+		{"420777123456", false},     // Missing +
+		{"+0777123456", false},      // Starts with 0
+		{"+123456", false},          // Too short (only 6 digits after +)
+		{"", false},                 // Empty
+		{"+", false},                // Just +
+		{"+1", false},               // Too short
+		{"phone", false},            // Not a number
 		{"+420 777 123 456", false}, // Spaces
 	}
 

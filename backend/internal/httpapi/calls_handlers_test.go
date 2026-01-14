@@ -119,10 +119,10 @@ func TestCallDeleteDispatch(t *testing.T) {
 
 func TestCallIDExtraction(t *testing.T) {
 	tests := []struct {
-		name     string
-		path     string
-		suffix   string
-		wantID   string
+		name      string
+		path      string
+		suffix    string
+		wantID    string
 		wantEmpty bool
 	}{
 		{
@@ -169,10 +169,10 @@ func TestCallIDExtraction(t *testing.T) {
 
 func TestTenantAccessCheck(t *testing.T) {
 	tests := []struct {
-		name           string
-		userTenantID   *string
-		callTenantID   *string
-		expectAccess   bool
+		name         string
+		userTenantID *string
+		callTenantID *string
+		expectAccess bool
 	}{
 		{
 			name:         "matching tenants",

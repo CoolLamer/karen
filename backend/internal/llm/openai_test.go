@@ -100,9 +100,9 @@ func TestSystemPromptCzech(t *testing.T) {
 	prompt := SystemPromptCzech
 
 	expectedPhrases := []string{
-		"Karen",      // Agent name
-		"TVŮJ ÚKOL",  // Task section
-		"PRAVIDLA",   // Rules section
+		"Karen",     // Agent name
+		"TVŮJ ÚKOL", // Task section
+		"PRAVIDLA",  // Rules section
 	}
 
 	for _, phrase := range expectedPhrases {

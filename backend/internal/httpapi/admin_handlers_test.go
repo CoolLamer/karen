@@ -9,9 +9,9 @@ func TestIsAdminPhone(t *testing.T) {
 	adminPhones := []string{"+420777123456", "+420777654321"}
 
 	tests := []struct {
-		name     string
-		phone    string
-		isAdmin  bool
+		name    string
+		phone   string
+		isAdmin bool
 	}{
 		{"admin phone 1", "+420777123456", true},
 		{"admin phone 2", "+420777654321", true},
