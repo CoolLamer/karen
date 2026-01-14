@@ -34,7 +34,7 @@ import {
   IconCreditCard,
 } from "@tabler/icons-react";
 import { ForwardingSetupModal } from "./ForwardingSetupModal";
-import { api, Tenant, TenantPhoneNumber } from "../api";
+import { api, TenantPhoneNumber } from "../api";
 import { useAuth } from "../AuthContext";
 
 export function SettingsPage() {

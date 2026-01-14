@@ -54,7 +54,7 @@ export function OnboardingPage() {
   const [vipNames, setVipNames] = useState<string[]>([]);
   const [marketingOption, setMarketingOption] = useState<"reject" | "email">("reject");
   const [marketingEmail, setMarketingEmail] = useState("");
-  const [testOption, setTestOption] = useState<"forwarding" | "direct" | null>(null);
+  const [_testOption, _setTestOption] = useState<"forwarding" | "direct" | null>(null);
 
   const primaryPhone = phoneNumbers.find((p) => p.is_primary)?.twilio_number;
   const hasPhoneNumber = !!primaryPhone;
