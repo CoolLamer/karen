@@ -42,7 +42,7 @@ func TestTenantOperations(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a tenant
-	tenant, err := s.CreateTenant(ctx, "Test Tenant", "Test system prompt for {{name}}")
+	tenant, err := s.CreateTenant(ctx, "Test Tenant", "Test system prompt for {{name}}", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestTenantUserAssignment(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Tenant for User", "Prompt")
+	tenant, err := s.CreateTenant(ctx, "Tenant for User", "Prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestClearUserTenant(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Clear Tenant Test", "Test prompt")
+	tenant, err := s.CreateTenant(ctx, "Clear Tenant Test", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestPhoneNumberRouting(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Routing Test Tenant", "Test prompt")
+	tenant, err := s.CreateTenant(ctx, "Routing Test Tenant", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -369,7 +369,7 @@ func TestCallsWithTenant(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Calls Test Tenant", "Test prompt")
+	tenant, err := s.CreateTenant(ctx, "Calls Test Tenant", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -416,7 +416,7 @@ func TestGetCallDetailWithTenantCheck(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Detail Test Tenant", "Test prompt")
+	tenant, err := s.CreateTenant(ctx, "Detail Test Tenant", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -482,7 +482,7 @@ func TestGetTenantOwnerPhone(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Owner Phone Test", "Test prompt")
+	tenant, err := s.CreateTenant(ctx, "Owner Phone Test", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -689,7 +689,7 @@ func TestScreeningResultLeadLabel(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "Lead Label Test Tenant", "Test prompt")
+	tenant, err := s.CreateTenant(ctx, "Lead Label Test Tenant", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
@@ -789,7 +789,7 @@ func TestCallListIncludesEndedBy(t *testing.T) {
 	ctx := context.Background()
 
 	// Create tenant
-	tenant, err := s.CreateTenant(ctx, "EndedBy Test Tenant", "Test prompt")
+	tenant, err := s.CreateTenant(ctx, "EndedBy Test Tenant", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}

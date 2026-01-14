@@ -243,10 +243,10 @@ export const api = {
     }),
 
   // Onboarding
-  completeOnboarding: (name: string) =>
+  completeOnboarding: (name: string, greetingText: string) =>
     http<OnboardingResponse>("/api/onboarding/complete", {
       method: "POST",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, greeting_text: greetingText }),
     }),
 
   // Admin

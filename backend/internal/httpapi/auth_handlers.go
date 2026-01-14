@@ -547,6 +547,7 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 	var body struct {
 		Name         string `json:"name"`          // User's name
 		SystemPrompt string `json:"system_prompt"` // Custom prompt (optional)
+		GreetingText string `json:"greeting_text"` // Custom greeting (optional)
 	}
 
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
@@ -566,7 +567,7 @@ func (r *Router) handleCompleteOnboarding(w http.ResponseWriter, req *http.Reque
 	}
 
 	// Create tenant
-	tenant, err := r.store.CreateTenant(req.Context(), body.Name, systemPrompt)
+	tenant, err := r.store.CreateTenant(req.Context(), body.Name, systemPrompt, body.GreetingText)
 	if err != nil {
 		r.logger.Printf("auth: failed to create tenant: %v", err)
 		sentry.CaptureException(err)

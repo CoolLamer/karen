@@ -376,15 +376,15 @@ func (s *Store) GetTenantByID(ctx context.Context, id string) (*Tenant, error) {
 }
 
 // CreateTenant creates a new tenant and returns it.
-func (s *Store) CreateTenant(ctx context.Context, name, systemPrompt string) (*Tenant, error) {
+func (s *Store) CreateTenant(ctx context.Context, name, systemPrompt, greetingText string) (*Tenant, error) {
 	var t Tenant
 	err := s.db.QueryRow(ctx, `
-		INSERT INTO tenants (name, system_prompt)
-		VALUES ($1, $2)
+		INSERT INTO tenants (name, system_prompt, greeting_text)
+		VALUES ($1, $2, $3)
 		RETURNING id, name, system_prompt, greeting_text, voice_id, language,
 		          vip_names, marketing_email, forward_number, max_turn_timeout_ms,
 		          plan, status, created_at, updated_at
-	`, name, systemPrompt).Scan(
+	`, name, systemPrompt, greetingText).Scan(
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
 		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
 		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,

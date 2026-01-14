@@ -606,7 +606,7 @@ func TestCompleteOnboardingAlreadyOnboarded(t *testing.T) {
 		t.Fatalf("FindOrCreateUser failed: %v", err)
 	}
 
-	tenant, err := r.store.CreateTenant(ctx, "Existing Tenant", "Test prompt")
+	tenant, err := r.store.CreateTenant(ctx, "Existing Tenant", "Test prompt", "")
 	if err != nil {
 		t.Fatalf("CreateTenant failed: %v", err)
 	}
