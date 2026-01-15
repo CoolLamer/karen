@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var showError = false
 
     var body: some View {
         NavigationStack {
@@ -38,7 +39,7 @@ struct LoginView: View {
                 Spacer()
             }
             .padding()
-            .alert("Chyba", isPresented: .constant(authViewModel.error != nil)) {
+            .alert("Chyba", isPresented: $showError) {
                 Button("OK") {
                     authViewModel.error = nil
                 }
@@ -46,6 +47,9 @@ struct LoginView: View {
                 if let error = authViewModel.error {
                     Text(error)
                 }
+            }
+            .onChange(of: authViewModel.error) { _, newValue in
+                showError = newValue != nil
             }
         }
     }

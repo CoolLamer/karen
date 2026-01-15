@@ -129,8 +129,8 @@ actor APIClient {
             // Handle 204 No Content
             if httpResponse.statusCode == 204 || data.isEmpty {
                 // Return empty response for void endpoints
-                if T.self == Empty.self {
-                    return Empty() as! T
+                if T.self == Empty.self, let result = Empty() as? T {
+                    return result
                 }
             }
 

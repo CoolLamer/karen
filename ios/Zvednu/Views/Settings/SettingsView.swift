@@ -114,7 +114,7 @@ struct SettingsView: View {
                 TextField("Email pro marketing", text: $viewModel.marketingEmail)
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
             } header: {
                 Text("Marketing")
             } footer: {

@@ -19,7 +19,7 @@ extension String {
 
     /// Check if string is a valid Czech phone number
     var isValidCzechPhone: Bool {
-        let pattern = #"^\+?420?\s?\d{3}\s?\d{3}\s?\d{3}$"#
+        let pattern = #"^(\+420)?\s?\d{3}\s?\d{3}\s?\d{3}$"#
         return self.range(of: pattern, options: .regularExpression) != nil
     }
 

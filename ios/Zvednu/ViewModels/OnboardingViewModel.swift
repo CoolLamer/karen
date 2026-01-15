@@ -88,13 +88,19 @@ class OnboardingViewModel: ObservableObject {
         isLoading = true
         error = nil
 
+        guard let authViewModel else {
+            self.error = "Interni chyba - restartujte aplikaci"
+            isLoading = false
+            return
+        }
+
         do {
-            let response = try await authViewModel?.completeOnboarding(
+            let response = try await authViewModel.completeOnboarding(
                 name: name.trimmingCharacters(in: .whitespaces),
                 greetingText: finalGreeting
             )
 
-            if let phoneNumber = response?.phoneNumber {
+            if let phoneNumber = response.phoneNumber {
                 phoneNumbers = [phoneNumber]
             } else {
                 // Try to fetch phone numbers
