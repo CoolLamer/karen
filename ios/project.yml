@@ -1,0 +1,67 @@
+name: Zvednu
+options:
+  bundleIdPrefix: cz.zvednu
+  deploymentTarget:
+    iOS: "17.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+
+targets:
+  Zvednu:
+    type: application
+    platform: iOS
+    sources:
+      - path: Zvednu
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        INFOPLIST_FILE: Zvednu/Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: cz.zvednu.app
+        CODE_SIGN_ENTITLEMENTS: Zvednu/Resources/Zvednu.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    entitlements:
+      path: Zvednu/Resources/Zvednu.entitlements
+      properties:
+        aps-environment: development
+
+  ZvednuTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ZvednuTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Zvednu
+    settings:
+      base:
+        INFOPLIST_FILE: ZvednuTests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: cz.zvednu.app.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Zvednu.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Zvednu"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  Zvednu:
+    build:
+      targets:
+        Zvednu: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ZvednuTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
