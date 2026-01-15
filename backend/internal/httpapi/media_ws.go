@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/lukasbauer/karen/internal/eventlog"
 	"github.com/lukasbauer/karen/internal/llm"
+	"github.com/lukasbauer/karen/internal/notifications"
 	"github.com/lukasbauer/karen/internal/store"
 	"github.com/lukasbauer/karen/internal/stt"
 	"github.com/lukasbauer/karen/internal/tts"
@@ -189,6 +190,7 @@ type callSession struct {
 	eventLog   *eventlog.Logger
 	cfg        RouterConfig
 	httpClient *http.Client
+	apns       *notifications.APNsClient
 
 	// Tenant-specific configuration
 	tenantCfg TenantConfig
@@ -253,6 +255,7 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 		eventLog:    r.eventLog,
 		cfg:         r.cfg,
 		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		apns:        r.apns,
 		messages:    []llm.Message{},
 		bargeInCh:   make(chan string, 1), // Buffered channel for barge-in
 		goodbyeDone: make(chan struct{}),
@@ -1494,6 +1497,53 @@ func (s *callSession) analyzeCall() {
 	} else {
 		s.logger.Printf("media_ws: call classified as %s (%.0f%% confidence)",
 			result.LegitimacyLabel, result.LegitimacyConfidence*100)
+
+		// Send push notifications to tenant devices
+		go s.sendPushNotifications(result.LegitimacyLabel, result.IntentText)
+	}
+}
+
+// sendPushNotifications sends push notifications to all devices registered for the tenant
+func (s *callSession) sendPushNotifications(legitimacyLabel, intentText string) {
+	if s.apns == nil || s.tenantCfg.TenantID == "" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Get the call details to get the from_number
+	call, err := s.store.GetCallDetail(ctx, s.callSid)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to get call detail for push: %v", err)
+		return
+	}
+
+	// Get all device tokens for the tenant
+	tokens, err := s.store.GetTenantPushTokens(ctx, s.tenantCfg.TenantID)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to get push tokens: %v", err)
+		return
+	}
+
+	if len(tokens) == 0 {
+		return
+	}
+
+	notif := notifications.CallNotification{
+		CallID:          s.callSid,
+		FromNumber:      call.FromNumber,
+		IntentSummary:   intentText,
+		LegitimacyLabel: legitimacyLabel,
+	}
+
+	// Send to all iOS devices
+	for _, token := range tokens {
+		if token.Platform == "ios" {
+			if err := s.apns.SendCallNotification(token.Token, notif); err != nil {
+				s.logger.Printf("media_ws: failed to send push to %s...: %v", token.Token[:16], err)
+			}
+		}
 	}
 }
 

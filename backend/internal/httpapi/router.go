@@ -45,6 +45,13 @@ type RouterConfig struct {
 
 	// Notifications
 	DiscordWebhookURL string
+
+	// APNs Push Notifications
+	APNsKeyPath    string // Path to .p8 key file
+	APNsKeyID      string // Key ID from Apple Developer Portal
+	APNsTeamID     string // Team ID from Apple Developer Portal
+	APNsBundleID   string // App bundle ID (e.g., cz.zvednu.app)
+	APNsProduction bool   // Use production environment
 }
 
 type Router struct {
@@ -53,16 +60,30 @@ type Router struct {
 	store    *store.Store
 	eventLog *eventlog.Logger
 	discord  *notifications.Discord
+	apns     *notifications.APNsClient
 	mux      *http.ServeMux
 }
 
 func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store, eventLog *eventlog.Logger) http.Handler {
+	// Initialize APNs client (may be nil if not configured)
+	apnsClient, err := notifications.NewAPNsClient(notifications.APNsConfig{
+		KeyPath:    cfg.APNsKeyPath,
+		KeyID:      cfg.APNsKeyID,
+		TeamID:     cfg.APNsTeamID,
+		BundleID:   cfg.APNsBundleID,
+		Production: cfg.APNsProduction,
+	}, logger)
+	if err != nil {
+		logger.Printf("Warning: APNs client initialization failed: %v", err)
+	}
+
 	r := &Router{
 		cfg:      cfg,
 		logger:   logger,
 		store:    s,
 		eventLog: eventLog,
 		discord:  notifications.NewDiscord(cfg.DiscordWebhookURL, logger),
+		apns:     apnsClient,
 		mux:      http.NewServeMux(),
 	}
 
@@ -97,6 +118,10 @@ func (r *Router) routes() {
 
 	// Onboarding (protected)
 	r.mux.HandleFunc("POST /api/onboarding/complete", r.withAuth(r.handleCompleteOnboarding))
+
+	// Push notifications (protected)
+	r.mux.HandleFunc("POST /api/push/register", r.withAuth(r.handlePushRegister))
+	r.mux.HandleFunc("POST /api/push/unregister", r.withAuth(r.handlePushUnregister))
 
 	// Admin endpoints (requires admin phone)
 	r.mux.HandleFunc("GET /admin/phone-numbers", r.withAdmin(r.handleAdminListPhoneNumbers))
