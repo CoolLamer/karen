@@ -7,13 +7,13 @@ struct PhoneSetupStepView: View {
         ScrollView {
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
-                    Text(viewModel.hasPhoneNumber ? "Tvoje Karen cislo" : "Skoro hotovo!")
+                    Text(viewModel.hasPhoneNumber ? "Tvoje Karen číslo" : "Skoro hotovo!")
                         .font(.title2)
                         .fontWeight(.bold)
 
                     Text(viewModel.hasPhoneNumber
-                         ? "Toto je cislo, na ktere presmerujes hovory"
-                         : "Cislo ti pridelime co nejdrive")
+                         ? "Toto je číslo, na které přesměruješ hovory"
+                         : "Číslo ti přidělíme co nejdříve")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -32,7 +32,7 @@ struct PhoneSetupStepView: View {
                     viewModel.goToNext()
                 } label: {
                     HStack {
-                        Text("Pokracovat")
+                        Text("Pokračovat")
                         Image(systemName: "arrow.right")
                     }
                     .frame(maxWidth: .infinity)
@@ -58,7 +58,7 @@ struct PhoneSetupStepView: View {
                 Button {
                     UIPasteboard.general.string = viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "")
                 } label: {
-                    Label("Kopirovat", systemImage: "doc.on.doc")
+                    Label("Kopírovat", systemImage: "doc.on.doc")
                         .font(.caption)
                 }
             }
@@ -71,7 +71,7 @@ struct PhoneSetupStepView: View {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                Text("Karen je pripravena! Muzes ji hned vyzkouset zavolanim na cislo vyse z jineho telefonu.")
+                Text("Karen je připravena! Můžeš ji hned vyzkoušet zavoláním na číslo výše z jiného telefonu.")
                     .font(.subheadline)
             }
             .padding()
@@ -80,15 +80,15 @@ struct PhoneSetupStepView: View {
 
             // Usage explanation
             VStack(alignment: .leading, spacing: 12) {
-                Text("Jak Karen pouzivat dlouhodobe?")
+                Text("Jak Karen používat dlouhodobě?")
                     .font(.headline)
                     .foregroundStyle(.blue)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("**Varianta A:** Nastav presmerovani hovoru (doporuceno) - kdyz nezvednes, hovor se automaticky prepoji na Karen.")
+                    Text("**Varianta A:** Nastav přesměrování hovoru (doporučeno) - když nezvedneš, hovor se automaticky přepojí na Karen.")
                         .font(.subheadline)
 
-                    Text("**Varianta B:** Zavolej primo na Karen cislo - idealni pro rychle vyzkouseni.")
+                    Text("**Varianta B:** Zavolej přímo na Karen číslo - ideální pro rychlé vyzkoušení.")
                         .font(.subheadline)
                 }
                 .foregroundStyle(.secondary)
@@ -104,31 +104,31 @@ struct PhoneSetupStepView: View {
 
     private var forwardingInstructions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Nastaveni presmerovani")
+            Text("Nastavení přesměrování")
                 .font(.headline)
 
-            Text("Presmerovani se nastavuje vytocenim specialniho kodu na telefonu. Otevre tuto stranku na mobilu a klikni na tlacitko.")
+            Text("Přesměrování se nastavuje vytočením speciálního kódu na telefonu. Otevři tuto stránku na mobilu a klikni na tlačítko.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             // Forwarding code examples
             VStack(spacing: 8) {
                 forwardingCodeRow(
-                    title: "Kdyz nezvednes",
+                    title: "Když nezvedneš",
                     code: "**61*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")#",
-                    description: "Aktivuje presmerovani pri neprijeti"
+                    description: "Aktivuje přesměrování při nepřijetí"
                 )
 
                 forwardingCodeRow(
-                    title: "Kdyz mas obsazeno",
+                    title: "Když máš obsazeno",
                     code: "**67*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")#",
-                    description: "Aktivuje presmerovani pri obsazeni"
+                    description: "Aktivuje přesměrování při obsazení"
                 )
 
                 forwardingCodeRow(
-                    title: "Kdyz jsi nedostupny",
+                    title: "Když jsi nedostupný",
                     code: "**62*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")#",
-                    description: "Aktivuje presmerovani pri nedostupnosti"
+                    description: "Aktivuje přesměrování při nedostupnosti"
                 )
             }
         }
@@ -152,7 +152,7 @@ struct PhoneSetupStepView: View {
 
                 if let url = URL(string: "tel:\(code)") {
                     Link(destination: url) {
-                        Text("Vytocit")
+                        Text("Vytočit")
                             .font(.caption)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -178,7 +178,7 @@ struct PhoneSetupStepView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.orange)
 
-            Text("Momentalne nemame volne cislo. Jakmile bude dostupne, pridelime ti ho a oznamime ti to. Presmerovani nastavis v nastaveni.")
+            Text("Momentálně nemáme volné číslo. Jakmile bude dostupné, přidělíme ti ho a oznámíme ti to. Přesměrování nastavíš v nastavení.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

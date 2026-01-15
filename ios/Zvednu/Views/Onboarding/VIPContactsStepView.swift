@@ -8,11 +8,11 @@ struct VIPContactsStepView: View {
         ScrollView {
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
-                    Text("Koho ma Karen vzdy prepojit?")
+                    Text("Koho má Karen vždy přepojit?")
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Nektere hovory jsou dulezite a nechces, aby je Karen vyrizovala.")
+                    Text("Některé hovory jsou důležité a nechceš, aby je Karen vyřizovala.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -21,11 +21,11 @@ struct VIPContactsStepView: View {
 
                 // Explanation
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Kdyz se volajici predstavi jednim z techto jmen, Karen ho okamzite prepoji na tebe.")
+                    Text("Když se volající představí jedním z těchto jmen, Karen ho okamžitě přepojí na tebe.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Text("Napriklad: \"Tady mama\" -> Karen rekne \"Prepojuji\" a zavola ti.")
+                    Text("Například: \"Tady máma\" -> Karen řekne \"Přepojuji\" a zavolá ti.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .italic()
@@ -36,11 +36,11 @@ struct VIPContactsStepView: View {
 
                 // VIP names input
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("VIP jmena")
+                    Text("VIP jména")
                         .font(.headline)
 
                     HStack {
-                        TextField("Mama, Tata, Jana...", text: $newVipName)
+                        TextField("Máma, Táta, Jana...", text: $newVipName)
                             .textFieldStyle(.roundedBorder)
                             .onSubmit {
                                 addVipName()
@@ -88,7 +88,7 @@ struct VIPContactsStepView: View {
                     Button {
                         viewModel.goToNext()
                     } label: {
-                        Text("Nastavim pozdeji")
+                        Text("Nastavím později")
                             .frame(maxWidth: .infinity)
                             .padding()
                             .foregroundStyle(.secondary)
@@ -98,7 +98,7 @@ struct VIPContactsStepView: View {
                         viewModel.goToNext()
                     } label: {
                         HStack {
-                            Text("Pokracovat")
+                            Text("Pokračovat")
                             Image(systemName: "arrow.right")
                         }
                         .frame(maxWidth: .infinity)

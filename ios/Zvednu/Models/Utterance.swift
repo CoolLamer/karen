@@ -28,7 +28,7 @@ struct Utterance: Codable, Identifiable, Equatable, Sendable {
     var speakerDisplayName: String {
         switch speaker {
         case "agent": return "Karen"
-        case "caller": return "Volajici"
+        case "caller": return "Volající"
         default: return speaker
         }
     }

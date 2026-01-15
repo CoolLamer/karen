@@ -8,7 +8,7 @@ struct CallInboxView: View {
     var body: some View {
         Group {
             if viewModel.isLoading && viewModel.calls.isEmpty {
-                LoadingView(message: "Nacitam hovory...")
+                LoadingView(message: "Načítám hovory...")
             } else if viewModel.calls.isEmpty {
                 EmptyInboxView()
             } else {
@@ -19,7 +19,7 @@ struct CallInboxView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.unresolvedCount > 0 {
-                    Text("\(viewModel.unresolvedCount) nevyresenych")
+                    Text("\(viewModel.unresolvedCount) nevyřešených")
                         .font(.caption)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
@@ -63,7 +63,7 @@ struct CallInboxView: View {
                                 await viewModel.markAsResolved(call)
                             }
                         } label: {
-                            Label("Vyreseno", systemImage: "checkmark.circle")
+                            Label("Vyřešeno", systemImage: "checkmark.circle")
                         }
                         .tint(.green)
                     }

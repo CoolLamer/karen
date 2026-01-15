@@ -8,7 +8,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if authViewModel.isLoading {
-                LoadingView(message: "Nacitam...")
+                LoadingView(message: "Načítám...")
             } else if !authViewModel.isAuthenticated {
                 LoginView()
             } else if authViewModel.needsOnboarding {
@@ -43,7 +43,7 @@ struct ContentView: View {
                 SettingsView()
             }
             .tabItem {
-                Label("Nastaveni", systemImage: "gearshape.fill")
+                Label("Nastavení", systemImage: "gearshape.fill")
             }
         }
         .tint(.accentColor)
