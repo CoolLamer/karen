@@ -14,11 +14,6 @@ actor TenantService {
     }
 
     func updateTenant(_ update: TenantUpdateRequest) async throws -> Tenant {
-        struct UpdateResponse: Codable {
-            let tenant: Tenant
-        }
-
-        let response: UpdateResponse = try await apiClient.patch("/api/tenant", body: update)
-        return response.tenant
+        try await apiClient.patch("/api/tenant", body: update)
     }
 }

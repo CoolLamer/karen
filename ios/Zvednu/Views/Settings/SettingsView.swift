@@ -15,6 +15,25 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Nastaveni")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    Task {
+                        await viewModel.saveChanges()
+                    }
+                } label: {
+                    if viewModel.isSaving {
+                        ProgressView()
+                    } else if viewModel.showSavedConfirmation {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Text("Ulozit")
+                    }
+                }
+                .disabled(viewModel.isSaving)
+            }
+        }
         .task {
             viewModel.authViewModel = authViewModel
             await viewModel.loadTenant()
@@ -119,29 +138,6 @@ struct SettingsView: View {
                 Text("Marketing")
             } footer: {
                 Text("Pokud je vyplneno, Karen nabidne tento email marketingovym volajicim.")
-            }
-
-            // Save Button
-            Section {
-                Button {
-                    Task {
-                        await viewModel.saveChanges()
-                    }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if viewModel.isSaving {
-                            ProgressView()
-                        } else if viewModel.showSavedConfirmation {
-                            Label("Ulozeno", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            Text("Ulozit zmeny")
-                        }
-                        Spacer()
-                    }
-                }
-                .disabled(viewModel.isSaving)
             }
 
             // Forwarding Instructions Section

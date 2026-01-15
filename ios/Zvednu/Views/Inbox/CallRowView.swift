@@ -12,46 +12,47 @@ struct CallRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Unread indicator
-            Circle()
-                .fill(call.isViewed ? Color.clear : Color.accentColor)
-                .frame(width: 8, height: 8)
-
-            VStack(alignment: .leading, spacing: 6) {
-                // Phone number and time
-                HStack {
+        VStack(alignment: .leading, spacing: 6) {
+            // Phone number and time
+            HStack {
+                HStack(spacing: 6) {
+                    // Unread indicator
+                    if !call.isViewed {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 8, height: 8)
+                    }
                     Text(call.fromNumber.formattedPhoneNumber())
                         .font(.headline)
                         .fontWeight(call.isViewed ? .regular : .semibold)
+                }
 
-                    Spacer()
+                Spacer()
 
-                    Text(call.startDate?.smartFormat() ?? "")
+                Text(call.startDate?.smartFormat() ?? "")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Intent text or status
+            if let intentText = call.screening?.intentText, !intentText.isEmpty {
+                Text(intentText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            // Badges
+            HStack(spacing: 8) {
+                LegitimacyBadge(label: legitimacyLabel)
+                LeadBadge(label: leadLabel)
+
+                Spacer()
+
+                if call.isResolved {
+                    Image(systemName: "checkmark.circle.fill")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Intent text or status
-                if let intentText = call.screening?.intentText, !intentText.isEmpty {
-                    Text(intentText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                // Badges
-                HStack(spacing: 8) {
-                    LegitimacyBadge(label: legitimacyLabel)
-                    LeadBadge(label: leadLabel)
-
-                    Spacer()
-
-                    if call.isResolved {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    }
+                        .foregroundStyle(.green)
                 }
             }
         }
