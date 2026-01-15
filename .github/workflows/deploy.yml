@@ -11,7 +11,29 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  test:
+  # Detect which files changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            ios:
+              - 'ios/**'
+
+  backend-test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -31,6 +53,14 @@ jobs:
         with:
           working-directory: backend
           version: latest
+
+  frontend-test:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -52,47 +82,21 @@ jobs:
         run: npm run lint
 
   ios-test:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-14
-    # Only run when ios/ files change
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'push' && contains(github.event.head_commit.modified, 'ios/'))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check for iOS changes
-        id: ios-changes
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            # For PRs, check if any ios/ files changed
-            git fetch origin ${{ github.base_ref }} --depth=1
-            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- ios/ | wc -l)
-          else
-            # For push events, check commit
-            CHANGED=$(git diff --name-only HEAD~1 HEAD -- ios/ | wc -l)
-          fi
-          echo "changed=$CHANGED" >> $GITHUB_OUTPUT
-
-      - name: Skip if no iOS changes
-        if: steps.ios-changes.outputs.changed == '0'
-        run: echo "No iOS changes detected, skipping tests"
-
-      - name: Select Xcode
-        if: steps.ios-changes.outputs.changed != '0'
-        run: sudo xcode-select -s /Applications/Xcode_16.0.app
-
       - name: Install XcodeGen
-        if: steps.ios-changes.outputs.changed != '0'
         run: brew install xcodegen
 
       - name: Generate Xcode Project
-        if: steps.ios-changes.outputs.changed != '0'
         working-directory: ios
         run: xcodegen generate
 
       - name: Run iOS Tests
-        if: steps.ios-changes.outputs.changed != '0'
         working-directory: ios
         run: |
           xcodebuild test \
@@ -103,15 +107,21 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
       - name: Upload Test Results
-        if: failure() && steps.ios-changes.outputs.changed != '0'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results
           path: ios/TestResults.xcresult
 
   build-and-push:
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [changes, backend-test, frontend-test]
+    # Run if on main push AND (no changes to test OR tests passed)
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      (needs.backend-test.result == 'success' || needs.backend-test.result == 'skipped') &&
+      (needs.frontend-test.result == 'success' || needs.frontend-test.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
