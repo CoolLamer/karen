@@ -33,10 +33,16 @@ npm run format                # Prettier formatting
 ```bash
 cd ios
 xcodegen generate             # Generate Xcode project from project.yml
+open Zvednu.xcodeproj         # Open in Xcode to run locally
 xcodebuild test -project Zvednu.xcodeproj -scheme Zvednu \
   -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
   CODE_SIGNING_ALLOWED=NO
 ```
+
+To run the iOS app locally:
+1. `cd ios && xcodegen generate` - generates the Xcode project from `project.yml`
+2. `open Zvednu.xcodeproj` - opens in Xcode
+3. Select a simulator and press Run (⌘R)
 
 ### Local Development
 ```bash

@@ -254,13 +254,6 @@
 			path = Onboarding;
 			sourceTree = "<group>";
 		};
-		86F3544228BEBD3E0F200110 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
 		8C717ED830A43A0932D6701C /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -328,7 +321,6 @@
 			children = (
 				F0C0580BDBD934FA5B11E3C8 /* Info.plist */,
 				8C717ED830A43A0932D6701C /* Models */,
-				86F3544228BEBD3E0F200110 /* Services */,
 				5B5FE9B626B2C0FF11A19B3E /* Utilities */,
 				49792530F1B3A2F9590E5D71 /* ViewModels */,
 			);
