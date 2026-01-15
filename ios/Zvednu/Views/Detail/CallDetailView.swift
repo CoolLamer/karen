@@ -12,12 +12,12 @@ struct CallDetailView: View {
 
     var body: some View {
         Group {
-            if viewModel.isLoading && viewModel.call == nil {
-                LoadingView(message: "Nacitam detail hovoru...")
-            } else if let error = viewModel.error {
+            if let error = viewModel.error {
                 errorView(error)
             } else if let call = viewModel.call {
                 callDetailContent(call)
+            } else {
+                LoadingView(message: "Nacitam detail hovoru...")
             }
         }
         .navigationTitle("Detail hovoru")

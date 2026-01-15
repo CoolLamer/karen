@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 class CallDetailViewModel: ObservableObject {
     @Published var call: CallDetail?
-    @Published var isLoading = true
+    @Published var isLoading = false
     @Published var error: String?
     @Published var isResolved = false
     @Published var isTogglingResolved = false
