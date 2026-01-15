@@ -31,3 +31,37 @@ targets:
       path: Zvednu/Resources/Zvednu.entitlements
       properties:
         aps-environment: development
+
+  ZvednuTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ZvednuTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Zvednu
+    settings:
+      base:
+        INFOPLIST_FILE: ZvednuTests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: cz.zvednu.app.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Zvednu.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Zvednu"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  Zvednu:
+    build:
+      targets:
+        Zvednu: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ZvednuTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

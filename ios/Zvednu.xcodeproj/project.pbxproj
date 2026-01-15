@@ -13,6 +13,7 @@
 		0BDDA92F030667752BA277EE /* LegitimacyBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF9EFB83810D1C58B9265F2 /* LegitimacyBadge.swift */; };
 		0D97A81A61DD915A4079811A /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB91D728BF199FAE8FF2100 /* KeychainManager.swift */; };
 		0DCE9B66BEE648CA34A224AD /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B361E314E917645F7EB2E42 /* String+Extensions.swift */; };
+		11052D87AE97ECBD4A200B97 /* OnboardingViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791AFD038C500A71DCDCAE54 /* OnboardingViewModelTests.swift */; };
 		16CD734CDEB1EDF9D5DB8BE4 /* PhoneSetupStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 277371F795DD6EB7156960DF /* PhoneSetupStepView.swift */; };
 		262C0111D3D9731539560F1B /* NameStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C4F5F6944C93A6546F5E99A /* NameStepView.swift */; };
 		290FB5182E8090C2C2F7C35F /* TranscriptBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA157FEAB6258887820759C2 /* TranscriptBubbleView.swift */; };
@@ -25,10 +26,12 @@
 		586F0062A7EDFBBA4CBA8AFB /* CallInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA697B2279911870C4A91FDF /* CallInboxView.swift */; };
 		5E804ACFADBFCAE780E38131 /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C4496CC52C7E6B7F0BBACD4 /* OnboardingViewModel.swift */; };
 		64747DCB9D8B000F7A3D1611 /* CompleteStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4541482E61A6BACFEF3ABC24 /* CompleteStepView.swift */; };
+		64EAD5386BC904ABD6B9D9F0 /* AuthViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC911BDC1BDBFEA6F8EBCA3E /* AuthViewModelTests.swift */; };
 		69EF2EF182626914DE727808 /* LeadBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5528EBE00AE04016953B82 /* LeadBadge.swift */; };
 		760321CBA90EC4698902207C /* EmptyInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DAA5EC8EB84A995E37A1569 /* EmptyInboxView.swift */; };
 		77811A25F5C882824AE513F0 /* ScreeningResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B12F9749654202F7438BE8F3 /* ScreeningResult.swift */; };
 		7F4FF5879AE0F26EAF79AA92 /* Tenant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3DCDA98A272C3BF0B2350D /* Tenant.swift */; };
+		80622A60A5545CB4F8DFB4C8 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3DBFFAFEB700224093A626 /* ModelDecodingTests.swift */; };
 		90E836D0118CB8533BADC575 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A3E95F96DCBCDA66A62AF2 /* User.swift */; };
 		9266A6B73471F90AA555A0EA /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB8FF595DA8D026FC07E8D6 /* AuthService.swift */; };
 		958B8E1DD41F5D05BD427914 /* Utterance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C959DCADF73F86337A63AD /* Utterance.swift */; };
@@ -39,6 +42,7 @@
 		AA4C395662872032AEF24990 /* CallDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AC169F0718A2D7729EF6EC /* CallDetailViewModel.swift */; };
 		B064051C6A929E5C24DC5518 /* CallDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69619F08478FD720B72BC2F5 /* CallDetailView.swift */; };
 		B8ECB4AB50B5556412E8EB38 /* MarketingStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB7445D2783FB999E92C2A5 /* MarketingStepView.swift */; };
+		C34ACCBC69A1A254E5278D6D /* CallInboxViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EBF8AB1A7240AAABCCA239 /* CallInboxViewModelTests.swift */; };
 		D1830C8E2AEAABD8D5C68108 /* CallInboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42ABF9CDCDA1C10741F573C6 /* CallInboxViewModel.swift */; };
 		D99E4E38AAFB5EEA00040B93 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6BCF64C50F43015986929E7 /* ContentView.swift */; };
 		DBC19E5A608A185746640E3C /* CallRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F20167181EE8A7DB8353A04 /* CallRowView.swift */; };
@@ -46,21 +50,36 @@
 		E13F3D7A6DACBCC1E1BACFEE /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8173C4482A4FADFF5F7CD33E /* LoadingView.swift */; };
 		E7447BBDE9722300887E670E /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27888452A9104F44F7E10164 /* SettingsViewModel.swift */; };
 		EAFB0868C9B61C383D53F8CE /* Date+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 680FB0CF44FAB23564BDE7B8 /* Date+Extensions.swift */; };
+		F515ECB678A74C1B09053EC9 /* ExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E8F1CAAD1ADF98962D066C /* ExtensionsTests.swift */; };
 		F5783F7A9771125AD797DF15 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4505199E8D82E9F208F6B789 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		693AE42A4B904EB5BFA15FC1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0C1F1EBE8EA94DA60C7B6DBD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 67E5025304C9CA75EC877E5D;
+			remoteInfo = Zvednu;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		06C959DCADF73F86337A63AD /* Utterance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utterance.swift; sourceTree = "<group>"; };
+		0A3DBFFAFEB700224093A626 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
 		0F2AC6FCF1A1945B30104BBD /* Zvednu.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Zvednu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0FB91D728BF199FAE8FF2100 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
 		15A55E48579FE04A6E4EC524 /* ZvednuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZvednuApp.swift; sourceTree = "<group>"; };
+		16EBF8AB1A7240AAABCCA239 /* CallInboxViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallInboxViewModelTests.swift; sourceTree = "<group>"; };
 		1BD5F764BB14E3D8A7C39663 /* VIPContactsStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VIPContactsStepView.swift; sourceTree = "<group>"; };
 		1F78ABAACF0909EC96ECBDE7 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		277371F795DD6EB7156960DF /* PhoneSetupStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSetupStepView.swift; sourceTree = "<group>"; };
 		27888452A9104F44F7E10164 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		2B361E314E917645F7EB2E42 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
 		32A3E95F96DCBCDA66A62AF2 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		33E8F1CAAD1ADF98962D066C /* ExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsTests.swift; sourceTree = "<group>"; };
 		367F02DFF28358FEF0480513 /* OnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingContainerView.swift; sourceTree = "<group>"; };
+		3C96932AD2D91A9A58DA996A /* ZvednuTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ZvednuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		42ABF9CDCDA1C10741F573C6 /* CallInboxViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallInboxViewModel.swift; sourceTree = "<group>"; };
 		4505199E8D82E9F208F6B789 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		4541482E61A6BACFEF3ABC24 /* CompleteStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompleteStepView.swift; sourceTree = "<group>"; };
@@ -73,6 +92,7 @@
 		63AC169F0718A2D7729EF6EC /* CallDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallDetailViewModel.swift; sourceTree = "<group>"; };
 		680FB0CF44FAB23564BDE7B8 /* Date+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Extensions.swift"; sourceTree = "<group>"; };
 		69619F08478FD720B72BC2F5 /* CallDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallDetailView.swift; sourceTree = "<group>"; };
+		791AFD038C500A71DCDCAE54 /* OnboardingViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModelTests.swift; sourceTree = "<group>"; };
 		7E5528EBE00AE04016953B82 /* LeadBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadBadge.swift; sourceTree = "<group>"; };
 		8173C4482A4FADFF5F7CD33E /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
 		82BE36FE162084AD68EC4BE3 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -81,6 +101,7 @@
 		9685D0F576E765263D2CB5AC /* PushNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationService.swift; sourceTree = "<group>"; };
 		B12F9749654202F7438BE8F3 /* ScreeningResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreeningResult.swift; sourceTree = "<group>"; };
 		BA697B2279911870C4A91FDF /* CallInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallInboxView.swift; sourceTree = "<group>"; };
+		BC911BDC1BDBFEA6F8EBCA3E /* AuthViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModelTests.swift; sourceTree = "<group>"; };
 		BFD1854FC568C939B94BB81A /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		C00A08CFD33B436A4738596E /* CallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallService.swift; sourceTree = "<group>"; };
 		C6BCF64C50F43015986929E7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -92,6 +113,7 @@
 		DEA5E3C04FAD126CC1E07FA7 /* Call.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Call.swift; sourceTree = "<group>"; };
 		DED788D583A78102E8CC11A6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E44969B66744AB2319B5D8D7 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
+		F0C0580BDBD934FA5B11E3C8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FA157FEAB6258887820759C2 /* TranscriptBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptBubbleView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -166,6 +188,7 @@
 			isa = PBXGroup;
 			children = (
 				FB4C816C5ABEF5C4A498E600 /* Zvednu */,
+				CEDAA3498589372461815FC1 /* ZvednuTests */,
 				8E588DD2037456207F78D092 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -180,6 +203,16 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		49792530F1B3A2F9590E5D71 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				BC911BDC1BDBFEA6F8EBCA3E /* AuthViewModelTests.swift */,
+				16EBF8AB1A7240AAABCCA239 /* CallInboxViewModelTests.swift */,
+				791AFD038C500A71DCDCAE54 /* OnboardingViewModelTests.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
 		583544662BE91BF258155E5A /* Inbox */ = {
 			isa = PBXGroup;
 			children = (
@@ -188,6 +221,14 @@
 				8DAA5EC8EB84A995E37A1569 /* EmptyInboxView.swift */,
 			);
 			path = Inbox;
+			sourceTree = "<group>";
+		};
+		5B5FE9B626B2C0FF11A19B3E /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				33E8F1CAAD1ADF98962D066C /* ExtensionsTests.swift */,
+			);
+			path = Utilities;
 			sourceTree = "<group>";
 		};
 		61E1B48C6C407DC54F0276E5 /* Core */ = {
@@ -213,10 +254,26 @@
 			path = Onboarding;
 			sourceTree = "<group>";
 		};
+		86F3544228BEBD3E0F200110 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		8C717ED830A43A0932D6701C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				0A3DBFFAFEB700224093A626 /* ModelDecodingTests.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		8E588DD2037456207F78D092 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				0F2AC6FCF1A1945B30104BBD /* Zvednu.app */,
+				3C96932AD2D91A9A58DA996A /* ZvednuTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -266,6 +323,18 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		CEDAA3498589372461815FC1 /* ZvednuTests */ = {
+			isa = PBXGroup;
+			children = (
+				F0C0580BDBD934FA5B11E3C8 /* Info.plist */,
+				8C717ED830A43A0932D6701C /* Models */,
+				86F3544228BEBD3E0F200110 /* Services */,
+				5B5FE9B626B2C0FF11A19B3E /* Utilities */,
+				49792530F1B3A2F9590E5D71 /* ViewModels */,
+			);
+			path = ZvednuTests;
+			sourceTree = "<group>";
+		};
 		F1C819A80837EA182A97B460 /* Detail */ = {
 			isa = PBXGroup;
 			children = (
@@ -310,6 +379,24 @@
 			productReference = 0F2AC6FCF1A1945B30104BBD /* Zvednu.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A17BD71A7C689B5CEC13835E /* ZvednuTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 71FDBD1856CF0D41BD04363F /* Build configuration list for PBXNativeTarget "ZvednuTests" */;
+			buildPhases = (
+				991DFEFDADEF7AF8774E422C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				82F1DB7EE60EB7E978913292 /* PBXTargetDependency */,
+			);
+			name = ZvednuTests;
+			packageProductDependencies = (
+			);
+			productName = ZvednuTests;
+			productReference = 3C96932AD2D91A9A58DA996A /* ZvednuTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -334,6 +421,7 @@
 			projectRoot = "";
 			targets = (
 				67E5025304C9CA75EC877E5D /* Zvednu */,
+				A17BD71A7C689B5CEC13835E /* ZvednuTests */,
 			);
 		};
 /* End PBXProject section */
@@ -350,6 +438,18 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		991DFEFDADEF7AF8774E422C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				64EAD5386BC904ABD6B9D9F0 /* AuthViewModelTests.swift in Sources */,
+				C34ACCBC69A1A254E5278D6D /* CallInboxViewModelTests.swift in Sources */,
+				F515ECB678A74C1B09053EC9 /* ExtensionsTests.swift in Sources */,
+				80622A60A5545CB4F8DFB4C8 /* ModelDecodingTests.swift in Sources */,
+				11052D87AE97ECBD4A200B97 /* OnboardingViewModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CF9F748C8B0C967394C5723F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -397,6 +497,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		82F1DB7EE60EB7E978913292 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 67E5025304C9CA75EC877E5D /* Zvednu */;
+			targetProxy = 693AE42A4B904EB5BFA15FC1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2727823D37FD5E6B7F7AD87C /* Release */ = {
@@ -457,6 +565,23 @@
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
+		};
+		41E7020CCFF6AE0FCEAAB26C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				INFOPLIST_FILE = ZvednuTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = cz.zvednu.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Zvednu.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Zvednu";
+			};
+			name = Debug;
 		};
 		4EF4D8A2061BE9A1F1BA533C /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -524,6 +649,23 @@
 			};
 			name = Debug;
 		};
+		7F6252B4E55E343CB19C2124 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				INFOPLIST_FILE = ZvednuTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = cz.zvednu.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Zvednu.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Zvednu";
+			};
+			name = Release;
+		};
 		8C5E561F02BE8FEB8C5870EE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -568,6 +710,15 @@
 			buildConfigurations = (
 				8C5E561F02BE8FEB8C5870EE /* Debug */,
 				929FCD2CC4FFCF9F9367AC62 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		71FDBD1856CF0D41BD04363F /* Build configuration list for PBXNativeTarget "ZvednuTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				41E7020CCFF6AE0FCEAAB26C /* Debug */,
+				7F6252B4E55E343CB19C2124 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
