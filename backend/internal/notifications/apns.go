@@ -17,11 +17,11 @@ import (
 
 // APNsConfig holds configuration for Apple Push Notification service
 type APNsConfig struct {
-	KeyPath     string // Path to .p8 key file
-	KeyID       string // Key ID from Apple Developer Portal
-	TeamID      string // Team ID from Apple Developer Portal
-	BundleID    string // App bundle ID (e.g., cz.zvednu.app)
-	Production  bool   // Use production environment
+	KeyPath    string // Path to .p8 key file
+	KeyID      string // Key ID from Apple Developer Portal
+	TeamID     string // Team ID from Apple Developer Portal
+	BundleID   string // App bundle ID (e.g., cz.zvednu.app)
+	Production bool   // Use production environment
 }
 
 // APNsClient sends push notifications via Apple Push Notification service
