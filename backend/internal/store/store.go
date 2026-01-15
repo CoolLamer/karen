@@ -27,20 +27,20 @@ func stringOrDefault(s *string, def string) string {
 
 // Tenant represents a customer/organization
 type Tenant struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	SystemPrompt     string     `json:"system_prompt"`
-	GreetingText     *string    `json:"greeting_text,omitempty"`
-	VoiceID          *string    `json:"voice_id,omitempty"`
-	Language         string     `json:"language"`
-	VIPNames         []string   `json:"vip_names"`
-	MarketingEmail   *string    `json:"marketing_email,omitempty"`
-	ForwardNumber    *string    `json:"forward_number,omitempty"`
-	MaxTurnTimeoutMs *int       `json:"max_turn_timeout_ms,omitempty"` // Hard timeout for speech_final in ms
-	Plan             string     `json:"plan"`
-	Status           string     `json:"status"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	SystemPrompt     string    `json:"system_prompt"`
+	GreetingText     *string   `json:"greeting_text,omitempty"`
+	VoiceID          *string   `json:"voice_id,omitempty"`
+	Language         string    `json:"language"`
+	VIPNames         []string  `json:"vip_names"`
+	MarketingEmail   *string   `json:"marketing_email,omitempty"`
+	ForwardNumber    *string   `json:"forward_number,omitempty"`
+	MaxTurnTimeoutMs *int      `json:"max_turn_timeout_ms,omitempty"` // Hard timeout for speech_final in ms
+	Plan             string    `json:"plan"`
+	Status           string    `json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 // User represents an authenticated user
@@ -827,7 +827,7 @@ func (s *Store) DeleteTenant(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Delete all calls for this tenant first (not cascade-deleted)
 	_, err = tx.Exec(ctx, `DELETE FROM calls WHERE tenant_id = $1`, id)
@@ -874,22 +874,22 @@ type AdminTenant struct {
 
 // AdminTenantDetail is a full tenant view for admin dashboard with counts.
 type AdminTenantDetail struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	SystemPrompt     string     `json:"system_prompt"`
-	GreetingText     *string    `json:"greeting_text,omitempty"`
-	VoiceID          *string    `json:"voice_id,omitempty"`
-	Language         string     `json:"language"`
-	VIPNames         []string   `json:"vip_names"`
-	MarketingEmail   *string    `json:"marketing_email,omitempty"`
-	ForwardNumber    *string    `json:"forward_number,omitempty"`
-	MaxTurnTimeoutMs *int       `json:"max_turn_timeout_ms,omitempty"`
-	Plan             string     `json:"plan"`
-	Status           string     `json:"status"`
-	UserCount        int        `json:"user_count"`
-	CallCount        int        `json:"call_count"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	SystemPrompt     string    `json:"system_prompt"`
+	GreetingText     *string   `json:"greeting_text,omitempty"`
+	VoiceID          *string   `json:"voice_id,omitempty"`
+	Language         string    `json:"language"`
+	VIPNames         []string  `json:"vip_names"`
+	MarketingEmail   *string   `json:"marketing_email,omitempty"`
+	ForwardNumber    *string   `json:"forward_number,omitempty"`
+	MaxTurnTimeoutMs *int      `json:"max_turn_timeout_ms,omitempty"`
+	Plan             string    `json:"plan"`
+	Status           string    `json:"status"`
+	UserCount        int       `json:"user_count"`
+	CallCount        int       `json:"call_count"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 // AdminUser is a user view for admin dashboard.

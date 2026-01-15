@@ -15,13 +15,13 @@ const deepgramWSURL = "wss://api.deepgram.com/v1/listen"
 
 // DeepgramClient implements the Client interface using Deepgram's streaming API.
 type DeepgramClient struct {
-	conn       *websocket.Conn
-	results    chan TranscriptResult
-	errors     chan error
-	done       chan struct{}
-	closeOnce  sync.Once
-	mu         sync.Mutex
-	wg         sync.WaitGroup // Wait for readLoop to finish
+	conn      *websocket.Conn
+	results   chan TranscriptResult
+	errors    chan error
+	done      chan struct{}
+	closeOnce sync.Once
+	mu        sync.Mutex
+	wg        sync.WaitGroup // Wait for readLoop to finish
 }
 
 // DeepgramConfig holds configuration for the Deepgram client.

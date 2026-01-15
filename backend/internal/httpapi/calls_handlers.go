@@ -216,5 +216,3 @@ func (r *Router) handleGetUnresolvedCount(w http.ResponseWriter, req *http.Reque
 
 	writeJSON(w, http.StatusOK, map[string]int{"count": count})
 }
-
-

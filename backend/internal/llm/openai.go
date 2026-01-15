@@ -97,7 +97,7 @@ func (c *OpenAIClient) AnalyzeCall(ctx context.Context, messages []Message) (*Sc
 	}
 
 	for _, m := range messages {
-		chatMsgs = append(chatMsgs, chatMessage{Role: m.Role, Content: m.Content})
+		chatMsgs = append(chatMsgs, chatMessage(m))
 	}
 
 	// Add analysis request
@@ -171,7 +171,7 @@ func (c *OpenAIClient) GenerateResponse(ctx context.Context, messages []Message)
 	}
 
 	for _, m := range messages {
-		chatMsgs = append(chatMsgs, chatMessage{Role: m.Role, Content: m.Content})
+		chatMsgs = append(chatMsgs, chatMessage(m))
 	}
 
 	req := chatRequest{

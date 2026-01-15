@@ -27,8 +27,8 @@ type twimlConnect struct {
 }
 
 type twimlStream struct {
-	URL        string            `xml:"url,attr"`
-	Parameters []twimlParameter  `xml:"Parameter,omitempty"`
+	URL        string           `xml:"url,attr"`
+	Parameters []twimlParameter `xml:"Parameter,omitempty"`
 }
 
 type twimlParameter struct {
@@ -61,7 +61,7 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 	tenant, err = r.store.GetTenantByTwilioNumber(req.Context(), to)
 	if err != nil && forwardedFrom != "" {
 		// Fallback: try forwarding source lookup
-		tenant, err = r.store.GetTenantByForwardingSource(req.Context(), forwardedFrom)
+		tenant, _ = r.store.GetTenantByForwardingSource(req.Context(), forwardedFrom)
 	}
 
 	// Determine tenant ID for the call record
@@ -102,15 +102,15 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 
 		// Pass tenant config as JSON for the call session
 		tenantConfig := map[string]any{
-			"system_prompt":        tenant.SystemPrompt,
-			"greeting_text":        tenant.GreetingText,
-			"voice_id":             tenant.VoiceID,
-			"language":             tenant.Language,
-			"vip_names":            tenant.VIPNames,
-			"marketing_email":      tenant.MarketingEmail,
-			"forward_number":       tenant.ForwardNumber,
-			"max_turn_timeout_ms":  tenant.MaxTurnTimeoutMs,
-			"owner_phone":          ownerPhone, // User's verified phone for forwarding
+			"system_prompt":       tenant.SystemPrompt,
+			"greeting_text":       tenant.GreetingText,
+			"voice_id":            tenant.VoiceID,
+			"language":            tenant.Language,
+			"vip_names":           tenant.VIPNames,
+			"marketing_email":     tenant.MarketingEmail,
+			"forward_number":      tenant.ForwardNumber,
+			"max_turn_timeout_ms": tenant.MaxTurnTimeoutMs,
+			"owner_phone":         ownerPhone, // User's verified phone for forwarding
 		}
 		configJSON, _ := json.Marshal(tenantConfig)
 		params = append(params, twimlParameter{Name: "tenantConfig", Value: string(configJSON)})
@@ -142,5 +142,3 @@ func (r *Router) handleTwilioStatus(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-
