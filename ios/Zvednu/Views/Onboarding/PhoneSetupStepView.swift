@@ -55,11 +55,21 @@ struct PhoneSetupStepView: View {
                     .fontWeight(.bold)
                     .foregroundStyle(Color.accentColor)
 
-                Button {
-                    UIPasteboard.general.string = viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "")
-                } label: {
-                    Label("Kopírovat", systemImage: "doc.on.doc")
-                        .font(.caption)
+                HStack(spacing: 16) {
+                    Button {
+                        UIPasteboard.general.string = viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "")
+                    } label: {
+                        Label("Kopírovat", systemImage: "doc.on.doc")
+                            .font(.caption)
+                    }
+
+                    if let phoneNumber = viewModel.primaryPhoneNumber,
+                       let url = URL(string: "tel:\(phoneNumber.replacingOccurrences(of: " ", with: ""))") {
+                        Link(destination: url) {
+                            Label("Zavolat", systemImage: "phone.fill")
+                                .font(.caption)
+                        }
+                    }
                 }
             }
             .padding()
@@ -71,7 +81,7 @@ struct PhoneSetupStepView: View {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                Text("Karen je připravena! Můžeš ji hned vyzkoušet zavoláním na číslo výše z jiného telefonu.")
+                Text("Karen je připravena! Můžeš ji hned vyzkoušet zavoláním na číslo výše.")
                     .font(.subheadline)
             }
             .padding()

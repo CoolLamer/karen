@@ -34,8 +34,17 @@ struct CompleteStepView: View {
                             Text("**S přesměrováním:** Zavolej na své číslo z jiného telefonu a nech vyzvánět 20 sekund. Karen zvedne.")
                                 .font(.subheadline)
 
-                            Text("**Přímo:** Zavolej na \(viewModel.primaryPhoneNumber ?? "") - Karen zvedne okamžitě.")
-                                .font(.subheadline)
+                            HStack(spacing: 4) {
+                                Text("**Přímo:** Zavolej na")
+                                    .font(.subheadline)
+                                if let phoneNumber = viewModel.primaryPhoneNumber,
+                                   let url = URL(string: "tel:\(phoneNumber.replacingOccurrences(of: " ", with: ""))") {
+                                    Link(phoneNumber, destination: url)
+                                        .font(.subheadline)
+                                }
+                                Text("- Karen zvedne okamžitě.")
+                                    .font(.subheadline)
+                            }
                         }
                         .foregroundStyle(.secondary)
                     }

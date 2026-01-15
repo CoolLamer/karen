@@ -73,6 +73,11 @@ struct SettingsView: View {
                         } label: {
                             Image(systemName: "doc.on.doc")
                         }
+                        if let url = URL(string: "tel:\(phoneNumber.replacingOccurrences(of: " ", with: ""))") {
+                            Link(destination: url) {
+                                Image(systemName: "phone.fill")
+                            }
+                        }
                     }
                 }
             }

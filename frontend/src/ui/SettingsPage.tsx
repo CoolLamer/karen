@@ -248,19 +248,30 @@ export function SettingsPage() {
                     <Text size="lg" fw={600}>
                       {karenNumber}
                     </Text>
-                    <CopyButton value={karenNumber.replace(/\s/g, "")}>
-                      {({ copied, copy }) => (
-                        <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
-                          <ActionIcon
-                            variant="subtle"
-                            onClick={copy}
-                            color={copied ? "green" : "gray"}
-                          >
-                            {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </CopyButton>
+                    <Group gap="xs">
+                      <CopyButton value={karenNumber.replace(/\s/g, "")}>
+                        {({ copied, copy }) => (
+                          <Tooltip label={copied ? "Zkopírováno" : "Kopírovat"}>
+                            <ActionIcon
+                              variant="subtle"
+                              onClick={copy}
+                              color={copied ? "green" : "gray"}
+                            >
+                              {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </CopyButton>
+                      <Tooltip label="Zavolat">
+                        <ActionIcon
+                          variant="subtle"
+                          component="a"
+                          href={`tel:${karenNumber.replace(/\s/g, "")}`}
+                        >
+                          <IconPhone size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
                   </Group>
 
                   <Button variant="light" size="xs" onClick={() => setForwardingModalOpen(true)}>
