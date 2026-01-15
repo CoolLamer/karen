@@ -89,11 +89,11 @@ struct AnyCodable: Codable, Equatable, @unchecked Sendable {
 // MARK: - Legitimacy Label Helpers
 
 enum LegitimacyLabel: String {
-    case legitimate = "legitimni"
+    case legitimate = "legitimní"
     case spam = "spam"
     case marketing = "marketing"
     case scam = "podvod"
-    case unknown = "neznamy"
+    case unknown = "neznámý"
 
     var displayText: String {
         switch self {
