@@ -8,11 +8,11 @@ struct NameStepView: View {
         ScrollView {
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
-                    Text("Jak se jmenujes?")
+                    Text("Jak se jmenuješ?")
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Karen bude oslovovat volajici tvym jmenem")
+                    Text("Karen bude oslovovat volající tvým jménem")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -43,7 +43,7 @@ struct NameStepView: View {
                         Text("Pozdrav")
                             .font(.headline)
 
-                        Text("Text, kterym Karen zacina hovor. Muzes ho upravit.")
+                        Text("Text, kterým Karen začíná hovor. Můžeš ho upravit.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -67,7 +67,7 @@ struct NameStepView: View {
                             ProgressView()
                                 .tint(.white)
                         }
-                        Text("Pokracovat")
+                        Text("Pokračovat")
                         Image(systemName: "arrow.right")
                     }
                     .frame(maxWidth: .infinity)

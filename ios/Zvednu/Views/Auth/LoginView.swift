@@ -19,7 +19,7 @@ struct LoginView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
 
-                    Text("AI telefonni asistentka")
+                    Text("AI telefonní asistentka")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -58,10 +58,10 @@ struct LoginView: View {
 
     private var phoneInputSection: some View {
         VStack(spacing: 16) {
-            Text("Prihlaste se telefonnim cislem")
+            Text("Přihlaste se telefonním číslem")
                 .font(.headline)
 
-            TextField("Telefonni cislo", text: $authViewModel.phoneNumber)
+            TextField("Telefonní číslo", text: $authViewModel.phoneNumber)
                 .keyboardType(.phonePad)
                 .textContentType(.telephoneNumber)
                 .padding()
@@ -78,7 +78,7 @@ struct LoginView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    Text("Odeslat kod")
+                    Text("Odeslat kód")
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -94,14 +94,14 @@ struct LoginView: View {
 
     private var codeInputSection: some View {
         VStack(spacing: 16) {
-            Text("Zadejte overovaci kod")
+            Text("Zadejte ověřovací kód")
                 .font(.headline)
 
-            Text("Kod byl odeslan na \(authViewModel.phoneNumber)")
+            Text("Kód byl odeslán na \(authViewModel.phoneNumber)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            TextField("Overovaci kod", text: $authViewModel.verificationCode)
+            TextField("Ověřovací kód", text: $authViewModel.verificationCode)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
                 .multilineTextAlignment(.center)
@@ -120,7 +120,7 @@ struct LoginView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    Text("Overit")
+                    Text("Ověřit")
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -130,7 +130,7 @@ struct LoginView: View {
             }
             .disabled(authViewModel.verificationCode.isEmpty || authViewModel.isVerifyingCode)
 
-            Button("Zmenit cislo") {
+            Button("Změnit číslo") {
                 authViewModel.resetLoginState()
             }
             .font(.subheadline)

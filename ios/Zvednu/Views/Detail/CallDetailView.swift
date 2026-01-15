@@ -12,12 +12,12 @@ struct CallDetailView: View {
 
     var body: some View {
         Group {
-            if viewModel.isLoading && viewModel.call == nil {
-                LoadingView(message: "Nacitam detail hovoru...")
-            } else if let error = viewModel.error {
+            if let error = viewModel.error {
                 errorView(error)
             } else if let call = viewModel.call {
                 callDetailContent(call)
+            } else {
+                LoadingView(message: "Načítám detail hovoru...")
             }
         }
         .navigationTitle("Detail hovoru")
@@ -47,7 +47,7 @@ struct CallDetailView: View {
                 } else {
                     Image(systemName: viewModel.isResolved ? "checkmark.circle.fill" : "circle")
                 }
-                Text(viewModel.isResolved ? "Vyreseno" : "Oznacit jako vyresene")
+                Text(viewModel.isResolved ? "Vyřešeno" : "Označit jako vyřešené")
                     .font(.subheadline)
             }
             .foregroundStyle(viewModel.isResolved ? .gray : Color.accentColor)
@@ -122,7 +122,7 @@ struct CallDetailView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.caption2)
-                                Text("Vyreseno")
+                                Text("Vyřešeno")
                                     .font(.caption)
                             }
                             .padding(.horizontal, 8)
@@ -159,7 +159,7 @@ struct CallDetailView: View {
             // Intent text
             if let intentText = call.screening?.intentText, !intentText.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Ucel hovoru:")
+                    Text("Účel hovoru:")
                         .font(.caption)
                         .fontWeight(.medium)
 
@@ -183,11 +183,11 @@ struct CallDetailView: View {
 
     private func transcriptCard(_ call: CallDetail) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Prepis hovoru")
+            Text("Přepis hovoru")
                 .font(.headline)
 
             if call.utterances.isEmpty {
-                Text("Prepis zatim neni k dispozici.")
+                Text("Přepis zatím není k dispozici.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)

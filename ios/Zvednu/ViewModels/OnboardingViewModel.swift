@@ -49,7 +49,7 @@ class OnboardingViewModel: ObservableObject {
 
     func generateGreeting() {
         guard !name.isEmpty && !greetingGenerated else { return }
-        greetingText = "Dobry den, tady asistentka Karen. \(name.trimmingCharacters(in: .whitespaces)) ted nemuze prijmout hovor, ale muzu vam pro nej zanechat vzkaz - co od nej potrebujete?"
+        greetingText = "Dobrý den, tady asistentka Karen. \(name.trimmingCharacters(in: .whitespaces)) teď nemůže přijmout hovor, ale můžu vám pro něj zanechat vzkaz - co od něj potřebujete?"
         greetingGenerated = true
     }
 
@@ -69,7 +69,7 @@ class OnboardingViewModel: ObservableObject {
 
     func completeNameStep() async {
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
-            error = "Zadej sve jmeno"
+            error = "Zadej své jméno"
             return
         }
 
@@ -89,7 +89,7 @@ class OnboardingViewModel: ObservableObject {
         error = nil
 
         guard let authViewModel else {
-            self.error = "Interni chyba - restartujte aplikaci"
+            self.error = "Interní chyba - restartujte aplikaci"
             isLoading = false
             return
         }
@@ -114,7 +114,7 @@ class OnboardingViewModel: ObservableObject {
 
             goToNext()
         } catch {
-            self.error = "Nepodarilo se dokoncit registraci. Zkus to znovu."
+            self.error = "Nepodařilo se dokončit registraci. Zkus to znovu."
         }
 
         isLoading = false

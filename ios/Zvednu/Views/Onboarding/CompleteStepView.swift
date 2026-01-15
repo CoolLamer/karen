@@ -13,11 +13,11 @@ struct CompleteStepView: View {
                     .foregroundStyle(.green)
 
                 VStack(spacing: 8) {
-                    Text("Hotovo! Karen je pripravena.")
+                    Text("Hotovo! Karen je připravena.")
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Kdyz nekdo zavola a ty nezvednes, Karen to vyridi za tebe.")
+                    Text("Když někdo zavolá a ty nezvedneš, Karen to vyřídí za tebe.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -31,11 +31,20 @@ struct CompleteStepView: View {
                             .foregroundStyle(Color.accentColor)
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("**S presmerovanim:** Zavolej na sve cislo z jineho telefonu a nech vyzvanet 20 sekund. Karen zvedne.")
+                            Text("**S přesměrováním:** Zavolej na své číslo z jiného telefonu a nech vyzvánět 20 sekund. Karen zvedne.")
                                 .font(.subheadline)
 
-                            Text("**Primo:** Zavolej na \(viewModel.primaryPhoneNumber ?? "") - Karen zvedne okamzite.")
-                                .font(.subheadline)
+                            HStack(spacing: 4) {
+                                Text("**Přímo:** Zavolej na")
+                                    .font(.subheadline)
+                                if let phoneNumber = viewModel.primaryPhoneNumber,
+                                   let url = URL(string: "tel:\(phoneNumber.replacingOccurrences(of: " ", with: ""))") {
+                                    Link(phoneNumber, destination: url)
+                                        .font(.subheadline)
+                                }
+                                Text("- Karen zvedne okamžitě.")
+                                    .font(.subheadline)
+                            }
                         }
                         .foregroundStyle(.secondary)
                     }
@@ -46,15 +55,15 @@ struct CompleteStepView: View {
 
                 // Next steps
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Co dal:")
+                    Text("Co dál:")
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        nextStepRow(icon: "list.bullet", text: "Prehled vsech hovoru najdes v aplikaci")
-                        nextStepRow(icon: "gearshape", text: "Nastaveni muzes kdykoliv zmenit v sekci Nastaveni")
+                        nextStepRow(icon: "list.bullet", text: "Přehled všech hovorů najdeš v aplikaci")
+                        nextStepRow(icon: "gearshape", text: "Nastavení můžeš kdykoliv změnit v sekci Nastavení")
 
                         if viewModel.vipNames.isEmpty {
-                            nextStepRow(icon: "star", text: "Pridej VIP kontakty, ktere ma Karen vzdy prepojit")
+                            nextStepRow(icon: "star", text: "Přidej VIP kontakty, které má Karen vždy přepojit")
                         }
                     }
                 }
@@ -70,7 +79,7 @@ struct CompleteStepView: View {
                     }
                 } label: {
                     HStack {
-                        Text("Jit do prehledu hovoru")
+                        Text("Jít do přehledu hovorů")
                         Image(systemName: "arrow.right")
                     }
                     .frame(maxWidth: .infinity)

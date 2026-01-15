@@ -265,7 +265,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(utterance.sttConfidence, 0.95)
         XCTAssertTrue(utterance.interrupted)
         XCTAssertFalse(utterance.isAgent)
-        XCTAssertEqual(utterance.speakerDisplayName, "Volajici")
+        XCTAssertEqual(utterance.speakerDisplayName, "Volající")
     }
 
     func testUtteranceAgentSpeaker() throws {

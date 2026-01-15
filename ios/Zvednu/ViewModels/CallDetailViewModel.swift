@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 class CallDetailViewModel: ObservableObject {
     @Published var call: CallDetail?
-    @Published var isLoading = true
+    @Published var isLoading = false
     @Published var error: String?
     @Published var isResolved = false
     @Published var isTogglingResolved = false
@@ -78,10 +78,10 @@ class CallDetailViewModel: ObservableObject {
     var formattedStatus: String {
         guard let status = call?.status else { return "" }
         switch status {
-        case "in_progress": return "Probiha"
-        case "completed": return "Dokonceno"
-        case "queued": return "Ceka"
-        case "ringing": return "Vyzvan"
+        case "in_progress": return "Probíhá"
+        case "completed": return "Dokončeno"
+        case "queued": return "Čeká"
+        case "ringing": return "Vyzvání"
         default: return status
         }
     }
@@ -89,8 +89,8 @@ class CallDetailViewModel: ObservableObject {
     var endedByText: String? {
         guard let endedBy = call?.endedBy else { return nil }
         switch endedBy {
-        case "agent": return "Zavesila asistentka"
-        case "caller": return "Zavesil volajici"
+        case "agent": return "Zavěsila asistentka"
+        case "caller": return "Zavěsil volající"
         default: return nil
         }
     }

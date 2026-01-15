@@ -7,11 +7,11 @@ struct MarketingStepView: View {
         ScrollView {
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
-                    Text("Jak nakladat s marketingem?")
+                    Text("Jak nakládat s marketingem?")
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("Karen automaticky rozpozna marketingove a obchodni hovory.")
+                    Text("Karen automaticky rozpozná marketingové a obchodní hovory.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -22,21 +22,21 @@ struct MarketingStepView: View {
                 VStack(spacing: 16) {
                     marketingOption(
                         option: .reject,
-                        title: "Zdvorile odmitne a ukonci hovor",
-                        description: "Standardni nastaveni pro vetsinu uzivatelu"
+                        title: "Zdvořile odmítne a ukončí hovor",
+                        description: "Standardní nastavení pro většinu uživatelů"
                     )
 
                     marketingOption(
                         option: .email,
-                        title: "Odmitne, ale nabidne muj email pro pisemne nabidky",
-                        description: "Uzitecne, pokud obcas chces videt nabidky"
+                        title: "Odmítne, ale nabídne můj email pro písemné nabídky",
+                        description: "Užitečné, pokud občas chceš vidět nabídky"
                     )
                 }
 
                 // Email input (shown when email option selected)
                 if viewModel.marketingOption == .email {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Email pro marketingove nabidky")
+                        Text("Email pro marketingové nabídky")
                             .font(.headline)
 
                         TextField("nabidky@email.cz", text: $viewModel.marketingEmail)
@@ -57,7 +57,7 @@ struct MarketingStepView: View {
                             await viewModel.saveConfiguration()
                         }
                     } label: {
-                        Text("Preskocit")
+                        Text("Přeskočit")
                             .frame(maxWidth: .infinity)
                             .padding()
                             .foregroundStyle(.secondary)
@@ -69,7 +69,7 @@ struct MarketingStepView: View {
                         }
                     } label: {
                         HStack {
-                            Text("Pokracovat")
+                            Text("Pokračovat")
                             Image(systemName: "arrow.right")
                         }
                         .frame(maxWidth: .infinity)
