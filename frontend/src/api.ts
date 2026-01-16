@@ -131,6 +131,33 @@ export type OnboardingResponse = {
   phone_number?: TenantPhoneNumber;
 };
 
+export type CallStatus = {
+  can_receive: boolean;
+  reason: string; // "ok", "trial_expired", "limit_exceeded"
+  calls_used: number;
+  calls_limit: number; // -1 = unlimited
+  trial_days_left?: number;
+  trial_calls_left?: number;
+};
+
+export type CurrentUsage = {
+  calls_count: number;
+  minutes_used: number;
+  time_saved_seconds: number;
+  spam_calls_blocked: number;
+  period_start: string;
+  period_end: string;
+};
+
+export type BillingInfo = {
+  plan: string;
+  status: string;
+  call_status: CallStatus;
+  trial_ends_at?: string;
+  total_time_saved: number; // seconds
+  current_usage?: CurrentUsage;
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
 
 let authToken: string | null = localStorage.getItem("karen_token");
@@ -235,6 +262,20 @@ export const api = {
   getMe: () => http<{ user: User; tenant?: Tenant; is_admin?: boolean }>("/api/me"),
 
   getTenant: () => http<{ tenant: Tenant; phone_numbers: TenantPhoneNumber[] }>("/api/tenant"),
+
+  // Billing
+  getBilling: () => http<BillingInfo>("/api/billing"),
+
+  createCheckout: (plan: "basic" | "pro", interval: "monthly" | "annual") =>
+    http<{ checkout_url: string; session_id: string }>("/api/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ plan, interval }),
+    }),
+
+  createPortal: () =>
+    http<{ portal_url: string }>("/api/billing/portal", {
+      method: "POST",
+    }),
 
   updateTenant: (data: Partial<Tenant>) =>
     http<{ tenant: Tenant }>("/api/tenant", {

@@ -115,6 +115,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("DELETE /api/calls/", r.withAuth(r.handleCallDelete))
 	r.mux.HandleFunc("GET /api/tenant", r.withAuth(r.handleGetTenant))
 	r.mux.HandleFunc("PATCH /api/tenant", r.withAuth(r.handleUpdateTenant))
+	r.mux.HandleFunc("GET /api/billing", r.withAuth(r.handleGetBilling))
 
 	// Onboarding (protected)
 	r.mux.HandleFunc("POST /api/onboarding/complete", r.withAuth(r.handleCompleteOnboarding))
@@ -122,6 +123,13 @@ func (r *Router) routes() {
 	// Push notifications (protected)
 	r.mux.HandleFunc("POST /api/push/register", r.withAuth(r.handlePushRegister))
 	r.mux.HandleFunc("POST /api/push/unregister", r.withAuth(r.handlePushUnregister))
+
+	// Billing endpoints (protected)
+	r.mux.HandleFunc("POST /api/billing/checkout", r.withAuth(r.handleCreateCheckout))
+	r.mux.HandleFunc("POST /api/billing/portal", r.withAuth(r.handleCreatePortal))
+
+	// Stripe webhook (no auth - signature verified)
+	r.mux.HandleFunc("POST /webhooks/stripe", r.handleStripeWebhook)
 
 	// Admin endpoints (requires admin phone)
 	r.mux.HandleFunc("GET /admin/phone-numbers", r.withAdmin(r.handleAdminListPhoneNumbers))

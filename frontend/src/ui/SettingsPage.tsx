@@ -20,6 +20,9 @@ import {
   Alert,
   Modal,
   ThemeIcon,
+  Progress,
+  SimpleGrid,
+  Card,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -32,9 +35,11 @@ import {
   IconUser,
   IconRobot,
   IconCreditCard,
+  IconClock,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { ForwardingSetupModal } from "./ForwardingSetupModal";
-import { api, TenantPhoneNumber } from "../api";
+import { api, TenantPhoneNumber, BillingInfo } from "../api";
 import { useAuth } from "../AuthContext";
 
 export function SettingsPage() {
@@ -42,12 +47,15 @@ export function SettingsPage() {
   const { user, tenant, logout, setTenant, isAdmin } = useAuth();
 
   const [phoneNumbers, setPhoneNumbers] = useState<TenantPhoneNumber[]>([]);
+  const [billing, setBilling] = useState<BillingInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [forwardingModalOpen, setForwardingModalOpen] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [showGreetingWarning, setShowGreetingWarning] = useState(false);
   const [warningOldName, setWarningOldName] = useState("");
 
@@ -64,16 +72,20 @@ export function SettingsPage() {
 
   const loadTenantData = async () => {
     try {
-      const data = await api.getTenant();
-      setPhoneNumbers(data.phone_numbers || []);
+      const [tenantData, billingData] = await Promise.all([
+        api.getTenant(),
+        api.getBilling().catch(() => null),
+      ]);
+      setPhoneNumbers(tenantData.phone_numbers || []);
+      setBilling(billingData);
 
       // Update form state with fresh data
-      if (data.tenant) {
-        setName(data.tenant.name || "");
-        setOriginalName(data.tenant.name || "");
-        setGreetingText(data.tenant.greeting_text || "");
-        setVipNames(data.tenant.vip_names || []);
-        setMarketingEmail(data.tenant.marketing_email || "");
+      if (tenantData.tenant) {
+        setName(tenantData.tenant.name || "");
+        setOriginalName(tenantData.tenant.name || "");
+        setGreetingText(tenantData.tenant.greeting_text || "");
+        setVipNames(tenantData.tenant.vip_names || []);
+        setMarketingEmail(tenantData.tenant.marketing_email || "");
       }
     } catch {
       setError("Nepodařilo se načíst data");
@@ -130,13 +142,52 @@ export function SettingsPage() {
     navigate("/");
   };
 
+  const handleUpgrade = async (plan: "basic" | "pro", interval: "monthly" | "annual") => {
+    setIsUpgrading(true);
+    setError(null);
+    try {
+      const { checkout_url } = await api.createCheckout(plan, interval);
+      window.location.href = checkout_url;
+    } catch {
+      setError("Nepodařilo se vytvořit platební session");
+      setIsUpgrading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setIsUpgrading(true);
+    setError(null);
+    try {
+      const { portal_url } = await api.createPortal();
+      window.location.href = portal_url;
+    } catch {
+      setError("Nepodařilo se otevřít správu předplatného");
+      setIsUpgrading(false);
+    }
+  };
+
   const karenNumber = phoneNumbers.find((p) => p.is_primary)?.twilio_number || "";
 
   const planLabel = {
     trial: "Trial",
-    basic: "Basic",
+    basic: "Zaklad",
     pro: "Pro",
-  }[tenant?.plan || "trial"];
+  }[billing?.plan || tenant?.plan || "trial"];
+
+  const formatTimeSaved = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`;
+    }
+    return `${minutes}min`;
+  };
+
+  const usagePercentage = billing?.call_status
+    ? billing.call_status.calls_limit > 0
+      ? (billing.call_status.calls_used / billing.call_status.calls_limit) * 100
+      : 0
+    : 0;
 
   if (isLoading) {
     return (
@@ -358,15 +409,106 @@ export function SettingsPage() {
                 </Text>
               </Group>
 
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <Text size="sm">Plán:</Text>
-                  <Badge variant="light">{planLabel}</Badge>
-                </Group>
-                <Button variant="light" size="xs">
-                  Upgradovat
-                </Button>
+              {/* Current Plan Info */}
+              <Group justify="space-between" align="flex-start">
+                <Stack gap="xs">
+                  <Group gap="xs">
+                    <Text size="sm">Plán:</Text>
+                    <Badge
+                      variant="light"
+                      color={billing?.plan === "pro" ? "violet" : billing?.plan === "basic" ? "blue" : "gray"}
+                    >
+                      {planLabel}
+                    </Badge>
+                    {billing?.status === "past_due" && (
+                      <Badge color="red" variant="filled" size="xs">
+                        Nezaplaceno
+                      </Badge>
+                    )}
+                  </Group>
+
+                  {/* Trial Info */}
+                  {billing?.plan === "trial" && billing?.call_status && (
+                    <Stack gap={4}>
+                      <Text size="xs" c="dimmed">
+                        {billing.call_status.trial_calls_left !== undefined && (
+                          <>Zbývá {billing.call_status.trial_calls_left} hovorů</>
+                        )}
+                        {billing.call_status.trial_days_left !== undefined && (
+                          <> • {billing.call_status.trial_days_left} dní</>
+                        )}
+                      </Text>
+                      <Progress
+                        value={usagePercentage}
+                        color={usagePercentage >= 100 ? "red" : usagePercentage >= 80 ? "yellow" : "blue"}
+                        size="xs"
+                      />
+                    </Stack>
+                  )}
+                </Stack>
+
+                {billing?.plan === "trial" || billing?.plan === undefined ? (
+                  <Button
+                    variant="light"
+                    size="xs"
+                    onClick={() => setUpgradeModalOpen(true)}
+                    loading={isUpgrading}
+                  >
+                    Upgradovat
+                  </Button>
+                ) : (
+                  <Button
+                    variant="subtle"
+                    size="xs"
+                    rightSection={<IconExternalLink size={14} />}
+                    onClick={handleManageSubscription}
+                    loading={isUpgrading}
+                  >
+                    Spravovat
+                  </Button>
+                )}
               </Group>
+
+              {/* Time Saved */}
+              {billing && billing.total_time_saved > 0 && (
+                <Paper p="sm" bg="teal.0" radius="md">
+                  <Group gap="xs">
+                    <ThemeIcon size="md" variant="light" color="teal">
+                      <IconClock size={16} />
+                    </ThemeIcon>
+                    <div>
+                      <Text size="sm" c="dimmed">
+                        Karen ti ušetřila
+                      </Text>
+                      <Text size="lg" fw={600} c="teal">
+                        {formatTimeSaved(billing.total_time_saved)}
+                      </Text>
+                    </div>
+                  </Group>
+                </Paper>
+              )}
+
+              {/* Trial Expired Warning */}
+              {billing?.call_status && !billing.call_status.can_receive && (
+                <Alert
+                  icon={<IconAlertCircle size={16} />}
+                  color="red"
+                  variant="light"
+                  title="Trial vypršel"
+                >
+                  {billing.call_status.reason === "limit_exceeded"
+                    ? "Dosáhli jste limitu hovorů. Karen nebude přijímat nové hovory."
+                    : "Váš trial skončil. Karen nebude přijímat nové hovory."}
+                  <Button
+                    variant="filled"
+                    size="xs"
+                    mt="xs"
+                    onClick={() => setUpgradeModalOpen(true)}
+                  >
+                    Upgradovat nyní
+                  </Button>
+                </Alert>
+              )}
             </Stack>
           </Paper>
 
@@ -420,6 +562,121 @@ export function SettingsPage() {
               Odhlásit
             </Button>
           </Group>
+        </Stack>
+      </Modal>
+
+      {/* Upgrade modal */}
+      <Modal
+        opened={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title="Vyberte plán"
+        centered
+        size="lg"
+      >
+        <Stack gap="lg">
+          <SimpleGrid cols={2}>
+            {/* Basic Plan */}
+            <Card withBorder padding="lg" radius="md">
+              <Stack gap="md">
+                <div>
+                  <Text size="lg" fw={600}>
+                    Základ
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Pro OSVČ a malé firmy
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xl" fw={700}>
+                    199 Kč
+                    <Text span size="sm" fw={400} c="dimmed">
+                      /měsíc
+                    </Text>
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    nebo 159 Kč/měsíc ročně
+                  </Text>
+                </div>
+                <Stack gap={4}>
+                  <Text size="sm">✓ 50 hovorů měsíčně</Text>
+                  <Text size="sm">✓ Kompletní přepisy</Text>
+                  <Text size="sm">✓ SMS notifikace</Text>
+                </Stack>
+                <Stack gap="xs">
+                  <Button
+                    variant="filled"
+                    onClick={() => handleUpgrade("basic", "monthly")}
+                    loading={isUpgrading}
+                  >
+                    Měsíční platba
+                  </Button>
+                  <Button
+                    variant="light"
+                    onClick={() => handleUpgrade("basic", "annual")}
+                    loading={isUpgrading}
+                  >
+                    Roční platba (ušetři 20%)
+                  </Button>
+                </Stack>
+              </Stack>
+            </Card>
+
+            {/* Pro Plan */}
+            <Card withBorder padding="lg" radius="md" style={{ borderColor: "var(--mantine-color-violet-5)" }}>
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <div>
+                    <Text size="lg" fw={600}>
+                      Pro
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Pro profesionály
+                    </Text>
+                  </div>
+                  <Badge color="violet">Populární</Badge>
+                </Group>
+                <div>
+                  <Text size="xl" fw={700}>
+                    499 Kč
+                    <Text span size="sm" fw={400} c="dimmed">
+                      /měsíc
+                    </Text>
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    nebo 399 Kč/měsíc ročně
+                  </Text>
+                </div>
+                <Stack gap={4}>
+                  <Text size="sm">✓ Neomezené hovory</Text>
+                  <Text size="sm">✓ VIP přepojování</Text>
+                  <Text size="sm">✓ Vlastní hlas</Text>
+                  <Text size="sm">✓ Prioritní podpora</Text>
+                </Stack>
+                <Stack gap="xs">
+                  <Button
+                    variant="filled"
+                    color="violet"
+                    onClick={() => handleUpgrade("pro", "monthly")}
+                    loading={isUpgrading}
+                  >
+                    Měsíční platba
+                  </Button>
+                  <Button
+                    variant="light"
+                    color="violet"
+                    onClick={() => handleUpgrade("pro", "annual")}
+                    loading={isUpgrading}
+                  >
+                    Roční platba (ušetři 20%)
+                  </Button>
+                </Stack>
+              </Stack>
+            </Card>
+          </SimpleGrid>
+
+          <Text size="xs" c="dimmed" ta="center">
+            Platbu zpracovává Stripe. Předplatné můžete kdykoli zrušit.
+          </Text>
         </Stack>
       </Modal>
     </Box>

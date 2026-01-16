@@ -96,13 +96,20 @@ jobs:
         working-directory: ios
         run: xcodegen generate
 
+      - name: Boot iOS Simulator
+        run: |
+          # List available simulators and boot the first iPhone
+          SIMULATOR_ID=$(xcrun simctl list devices available -j | jq -r '.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | contains("iPhone")) | .udid' | head -1)
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
+
       - name: Run iOS Tests
         working-directory: ios
         run: |
           xcodebuild test \
             -project Zvednu.xcodeproj \
             -scheme Zvednu \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination "id=$SIMULATOR_ID" \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO
 

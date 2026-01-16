@@ -15,11 +15,16 @@ type twimlResponse struct {
 	XMLName xml.Name      `xml:"Response"`
 	Say     *twimlSay     `xml:"Say,omitempty"`
 	Connect *twimlConnect `xml:"Connect,omitempty"`
+	Reject  *twimlReject  `xml:"Reject,omitempty"`
 }
 
 type twimlSay struct {
 	Voice string `xml:"voice,attr,omitempty"`
 	Text  string `xml:",chardata"`
+}
+
+type twimlReject struct {
+	Reason string `xml:"reason,attr,omitempty"` // "rejected" or "busy"
 }
 
 type twimlConnect struct {
@@ -71,6 +76,37 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 		r.logger.Printf("inbound: call %s routed to tenant %s (%s)", callSid, tenant.ID, tenant.Name)
 	} else {
 		r.logger.Printf("inbound: call %s has no tenant (to=%s, forwardedFrom=%s)", callSid, to, forwardedFrom)
+	}
+
+	// Check if tenant has exceeded their call limit (trial expired or limit reached)
+	if tenant != nil {
+		callStatus := store.CanTenantReceiveCalls(tenant)
+		if !callStatus.CanReceive {
+			r.logger.Printf("inbound: call %s rejected for tenant %s: %s (calls: %d/%d)",
+				callSid, tenant.ID, callStatus.Reason, callStatus.CallsUsed, callStatus.CallsLimit)
+
+			// Store call record as rejected
+			if err := r.store.UpsertCallWithTenant(req.Context(), store.Call{
+				TenantID:       tenantID,
+				Provider:       "twilio",
+				ProviderCallID: callSid,
+				FromNumber:     from,
+				ToNumber:       to,
+				Status:         "rejected_limit",
+				StartedAt:      nowUTC(),
+			}); err != nil {
+				r.logger.Printf("inbound: failed to save rejected call record for %s: %v", callSid, err)
+			}
+
+			// Return TwiML that simply hangs up (don't answer, let it ring through to voicemail)
+			// We don't play any message to the caller - that would be unprofessional
+			resp := twimlResponse{Reject: &twimlReject{Reason: "busy"}}
+			out, _ := xml.MarshalIndent(resp, "", "  ")
+			w.Header().Set("Content-Type", "text/xml; charset=utf-8")
+			_, _ = w.Write([]byte(xml.Header))
+			_, _ = w.Write(out)
+			return
+		}
 	}
 
 	// Store call record with tenant ID

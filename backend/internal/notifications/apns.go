@@ -164,3 +164,60 @@ func (c *APNsClient) SendTestNotification(deviceToken, message string) error {
 
 	return nil
 }
+
+// UsageWarningType represents the type of usage warning
+type UsageWarningType string
+
+const (
+	UsageWarning80Percent UsageWarningType = "80_percent"
+	UsageWarningExpired   UsageWarningType = "expired"
+)
+
+// SendUsageWarning sends a push notification about usage limits
+func (c *APNsClient) SendUsageWarning(deviceToken string, warningType UsageWarningType, callsUsed, callsLimit int) error {
+	if c == nil || c.client == nil {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var title, body string
+	switch warningType {
+	case UsageWarning80Percent:
+		title = "Blížíš se k limitu"
+		body = fmt.Sprintf("Využili jste %d z %d hovorů. Upgradujte pro více hovorů.", callsUsed, callsLimit)
+	case UsageWarningExpired:
+		title = "Trial vypršel"
+		body = "Karen nebude přijímat hovory. Upgradujte pro pokračování."
+	default:
+		return nil
+	}
+
+	p := payload.NewPayload().
+		AlertTitle(title).
+		AlertBody(body).
+		Sound("default").
+		Custom("warning_type", string(warningType))
+
+	notification := &apns2.Notification{
+		DeviceToken: deviceToken,
+		Topic:       c.bundleID,
+		Payload:     p,
+		Expiration:  time.Now().Add(24 * time.Hour),
+	}
+
+	res, err := c.client.Push(notification)
+	if err != nil {
+		c.logger.Printf("APNs: failed to send usage warning: %v", err)
+		return err
+	}
+
+	if res.StatusCode != 200 {
+		c.logger.Printf("APNs: usage warning rejected (status=%d, reason=%s)", res.StatusCode, res.Reason)
+		return fmt.Errorf("APNs rejected notification: %s", res.Reason)
+	}
+
+	c.logger.Printf("APNs: usage warning sent successfully to %s...", deviceToken[:16])
+	return nil
+}

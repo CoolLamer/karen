@@ -1573,8 +1573,120 @@ func (s *callSession) cleanup() {
 		_ = s.store.UpdateCallStatus(ctx, s.callSid, "completed", time.Now().UTC())
 	}
 
+	// Track usage after call completes
+	s.trackUsage()
+
 	s.logger.Printf("media_ws: session cleaned up for call %s", s.callSid)
 	s.eventLog.LogAsync(s.callID, eventlog.EventCallEnded, map[string]any{
 		"call_sid": s.callSid,
 	})
+}
+
+// trackUsage increments the tenant's usage counters after a call completes
+func (s *callSession) trackUsage() {
+	if s.callID == "" || s.tenantCfg.TenantID == "" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Get call details to calculate duration
+	call, err := s.store.GetCallDetail(ctx, s.callSid)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to get call for usage tracking: %v", err)
+		return
+	}
+
+	// Calculate call duration in seconds
+	var durationSeconds int
+	if call.EndedAt != nil {
+		duration := call.EndedAt.Sub(call.StartedAt)
+		durationSeconds = int(duration.Seconds())
+	}
+
+	// Check if call was spam/marketing (from screening result)
+	isSpam := false
+	if call.Screening != nil {
+		label := strings.ToLower(call.Screening.LegitimacyLabel)
+		isSpam = label == "spam" || label == "marketing" || label == "podvod"
+	}
+
+	// Increment usage
+	if err := s.store.IncrementTenantUsage(ctx, s.tenantCfg.TenantID, durationSeconds, isSpam); err != nil {
+		s.logger.Printf("media_ws: failed to track usage: %v", err)
+		sentry.CaptureException(err)
+	} else {
+		s.logger.Printf("media_ws: tracked usage for tenant %s: %ds (spam=%t)", s.tenantCfg.TenantID, durationSeconds, isSpam)
+	}
+
+	// Check if we need to send usage warnings
+	s.checkUsageWarnings(ctx)
+}
+
+// checkUsageWarnings sends push notifications if the tenant is approaching their limit
+func (s *callSession) checkUsageWarnings(ctx context.Context) {
+	if s.apns == nil {
+		return // No APNs client configured
+	}
+
+	// Get the tenant to check current usage
+	tenant, err := s.store.GetTenantByID(ctx, s.tenantCfg.TenantID)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to get tenant for usage check: %v", err)
+		return
+	}
+
+	// Get the plan limit
+	limit := store.GetPlanCallLimit(tenant.Plan)
+	if limit <= 0 {
+		return // Unlimited plan, no warnings needed
+	}
+
+	callsUsed := tenant.CurrentPeriodCalls
+
+	// Calculate thresholds
+	threshold80 := int(float64(limit) * 0.8)
+
+	// Check if we crossed the 80% threshold or hit the limit
+	// Use >= to handle race conditions where multiple calls complete simultaneously
+	// The notification itself is idempotent (users may receive duplicate warnings, which is acceptable)
+	crossedThreshold80 := callsUsed >= threshold80 && callsUsed < limit
+	hitLimit := callsUsed >= limit
+
+	if !crossedThreshold80 && !hitLimit {
+		return // No warning needed
+	}
+
+	// Get all push tokens for users in this tenant
+	tokens, err := s.store.GetTenantPushTokens(ctx, tenant.ID)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to get push tokens for tenant %s: %v", tenant.ID, err)
+		return
+	}
+
+	if len(tokens) == 0 {
+		return // No push tokens registered
+	}
+
+	// Determine warning type
+	var warningType notifications.UsageWarningType
+	if hitLimit {
+		warningType = notifications.UsageWarningExpired
+	} else {
+		warningType = notifications.UsageWarning80Percent
+	}
+
+	// Send notifications to all registered devices
+	for _, token := range tokens {
+		if token.Platform == "ios" {
+			go func(deviceToken string) {
+				if err := s.apns.SendUsageWarning(deviceToken, warningType, callsUsed, limit); err != nil {
+					s.logger.Printf("media_ws: failed to send usage warning: %v", err)
+				}
+			}(token.Token)
+		}
+	}
+
+	s.logger.Printf("media_ws: sent %s warning to %d devices for tenant %s", warningType, len(tokens), tenant.ID)
 }
