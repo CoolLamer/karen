@@ -37,6 +37,13 @@ export function ForwardingSetupModal({ opened, onClose, karenNumber }: Forwardin
           Pro kompletní pokrytí doporučujeme nastavit všechny tři typy přesměrování.
         </Text>
 
+        <Alert color="yellow" variant="light">
+          <Text size="sm">
+            <Text span fw={500}>Zobrazuje se chyba?</Text> Pokud máš již nastavené přesměrování na jiné číslo,
+            musíš ho nejdřív zrušit. Použij tlačítko „Zrušit přesměrování" u příslušného typu.
+          </Text>
+        </Alert>
+
         <RedirectSetupAccordion karenNumber={karenNumber || ""} defaultValue="noAnswer" />
 
         <Button variant="subtle" onClick={onClose} fullWidth>

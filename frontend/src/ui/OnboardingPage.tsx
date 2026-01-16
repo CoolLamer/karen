@@ -439,6 +439,12 @@ export function OnboardingPage() {
                     <Text size="sm" c="dimmed">
                       Vyber, které typy přesměrování chceš nastavit. Pro kompletní pokrytí doporučujeme všechny tři.
                     </Text>
+                    <Alert color="yellow" variant="light">
+                      <Text size="sm">
+                        <Text span fw={500}>Zobrazuje se chyba?</Text> Pokud máš již nastavené přesměrování na jiné číslo,
+                        musíš ho nejdřív zrušit. Použij tlačítko „Zrušit přesměrování" u příslušného typu níže.
+                      </Text>
+                    </Alert>
                     <Stack gap="xs">
                       {REDIRECT_ORDER.map((type) => (
                         <Checkbox
