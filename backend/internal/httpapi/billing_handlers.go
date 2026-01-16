@@ -19,13 +19,13 @@ import (
 
 // Stripe price IDs (set via environment variables)
 var (
-	stripePriceBasicMonthly  = os.Getenv("STRIPE_PRICE_BASIC_MONTHLY")
-	stripePriceBasicAnnual   = os.Getenv("STRIPE_PRICE_BASIC_ANNUAL")
-	stripePriceProMonthly    = os.Getenv("STRIPE_PRICE_PRO_MONTHLY")
-	stripePriceProAnnual     = os.Getenv("STRIPE_PRICE_PRO_ANNUAL")
-	stripeWebhookSecret      = os.Getenv("STRIPE_WEBHOOK_SECRET")
-	stripeSuccessURL         = os.Getenv("STRIPE_SUCCESS_URL")
-	stripeCancelURL          = os.Getenv("STRIPE_CANCEL_URL")
+	stripePriceBasicMonthly = os.Getenv("STRIPE_PRICE_BASIC_MONTHLY")
+	stripePriceBasicAnnual  = os.Getenv("STRIPE_PRICE_BASIC_ANNUAL")
+	stripePriceProMonthly   = os.Getenv("STRIPE_PRICE_PRO_MONTHLY")
+	stripePriceProAnnual    = os.Getenv("STRIPE_PRICE_PRO_ANNUAL")
+	stripeWebhookSecret     = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	stripeSuccessURL        = os.Getenv("STRIPE_SUCCESS_URL")
+	stripeCancelURL         = os.Getenv("STRIPE_CANCEL_URL")
 )
 
 func init() {

@@ -886,22 +886,22 @@ type AdminTenant struct {
 
 // AdminTenantDetail is a full tenant view for admin dashboard with counts.
 type AdminTenantDetail struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	SystemPrompt     string     `json:"system_prompt"`
-	GreetingText     *string    `json:"greeting_text,omitempty"`
-	VoiceID          *string    `json:"voice_id,omitempty"`
-	Language         string     `json:"language"`
-	VIPNames         []string   `json:"vip_names"`
-	MarketingEmail   *string    `json:"marketing_email,omitempty"`
-	ForwardNumber    *string    `json:"forward_number,omitempty"`
-	MaxTurnTimeoutMs *int       `json:"max_turn_timeout_ms,omitempty"`
-	Plan             string     `json:"plan"`
-	Status           string     `json:"status"`
-	UserCount        int        `json:"user_count"`
-	CallCount        int        `json:"call_count"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	SystemPrompt     string    `json:"system_prompt"`
+	GreetingText     *string   `json:"greeting_text,omitempty"`
+	VoiceID          *string   `json:"voice_id,omitempty"`
+	Language         string    `json:"language"`
+	VIPNames         []string  `json:"vip_names"`
+	MarketingEmail   *string   `json:"marketing_email,omitempty"`
+	ForwardNumber    *string   `json:"forward_number,omitempty"`
+	MaxTurnTimeoutMs *int      `json:"max_turn_timeout_ms,omitempty"`
+	Plan             string    `json:"plan"`
+	Status           string    `json:"status"`
+	UserCount        int       `json:"user_count"`
+	CallCount        int       `json:"call_count"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 	// Billing fields
 	TrialEndsAt        *time.Time `json:"trial_ends_at,omitempty"`
 	CurrentPeriodCalls int        `json:"current_period_calls"`
@@ -1382,9 +1382,9 @@ func GetPlanCallLimit(plan string) int {
 // TenantCallStatus represents the result of checking if a tenant can receive calls.
 type TenantCallStatus struct {
 	CanReceive     bool   `json:"can_receive"`
-	Reason         string `json:"reason,omitempty"`         // "ok", "trial_expired", "limit_exceeded"
-	CallsUsed      int    `json:"calls_used"`               // Current period calls
-	CallsLimit     int    `json:"calls_limit"`              // Plan limit (-1 = unlimited)
+	Reason         string `json:"reason,omitempty"` // "ok", "trial_expired", "limit_exceeded"
+	CallsUsed      int    `json:"calls_used"`       // Current period calls
+	CallsLimit     int    `json:"calls_limit"`      // Plan limit (-1 = unlimited)
 	TrialDaysLeft  int    `json:"trial_days_left,omitempty"`
 	TrialCallsLeft int    `json:"trial_calls_left,omitempty"`
 }
@@ -1499,7 +1499,6 @@ func (s *Store) UpdateTenantBilling(ctx context.Context, tenantID string, update
 	if v, ok := updates["current_period_calls"]; ok {
 		query += fmt.Sprintf(", current_period_calls = $%d", argNum)
 		args = append(args, v)
-		argNum++
 	}
 
 	query += " WHERE id = $1"

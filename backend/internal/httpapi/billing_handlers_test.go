@@ -95,7 +95,7 @@ func TestGetPlanFromPriceID(t *testing.T) {
 		{"pro monthly price", "price_pro_monthly", "pro"},
 		{"pro annual price", "price_pro_annual", "pro"},
 		{"unknown price", "price_unknown", "basic"}, // defaults to basic
-		{"empty price", "", "basic"},                 // defaults to basic
+		{"empty price", "", "basic"},                // defaults to basic
 	}
 
 	for _, tt := range tests {

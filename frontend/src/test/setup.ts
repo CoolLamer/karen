@@ -1,5 +1,20 @@
 import "@testing-library/jest-dom";
 
+// Mock matchMedia for Mantine components
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
+});
+
 // Create a proper localStorage mock that actually stores values
 const createLocalStorageMock = () => {
   let store: Record<string, string> = {};
