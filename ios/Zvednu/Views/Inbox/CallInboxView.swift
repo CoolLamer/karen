@@ -110,14 +110,14 @@ struct BillingStatusView: View {
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Karen ti usetřila")
+                    Text("Karen ti ušetřila")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(billing.formattedTimeSaved)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(.teal)
-                    Text("tento mesic (\(billing.currentUsage?.callsCount ?? 0) hovoru)")
+                    Text("tento měsíc (\(billing.currentUsage?.callsCount ?? 0) hovorů)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -145,9 +145,9 @@ struct BillingStatusView: View {
                             .foregroundStyle(.secondary)
 
                         if billing.callStatus.canReceive {
-                            Text("\(billing.callStatus.trialCallsLeft ?? 0) hovoru zbyva")
+                            Text("\(billing.callStatus.trialCallsLeft ?? 0) hovorů zbývá")
                                 .font(.headline)
-                            Text("\(billing.callStatus.trialDaysLeft ?? 0) dni do konce trialu")
+                            Text("\(billing.callStatus.trialDaysLeft ?? 0) dní do konce trialu")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -155,8 +155,8 @@ struct BillingStatusView: View {
                                 .font(.headline)
                                 .foregroundStyle(.red)
                             Text(billing.callStatus.reason == "limit_exceeded"
-                                 ? "Dosahli jste limitu hovoru"
-                                 : "Trial skoncil")
+                                 ? "Dosáhli jste limitu hovorů"
+                                 : "Trial skončil")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -182,8 +182,8 @@ struct BillingStatusView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
                     Text(billing.callStatus.reason == "trial_expired"
-                         ? "Tvuj trial vypršel. Karen nebude prijimat hovory."
-                         : "Dosahli jste limitu hovoru. Karen nebude prijimat hovory.")
+                         ? "Tvůj trial vypršel. Karen nebude přijímat hovory."
+                         : "Dosáhli jste limitu hovorů. Karen nebude přijímat hovory.")
                         .font(.subheadline)
                     Spacer()
                 }

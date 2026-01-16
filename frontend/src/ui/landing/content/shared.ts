@@ -66,7 +66,7 @@ export const SHARED_CONTENT: SharedContent = {
     {
       question: "Budou mi lidi volat na jiné číslo?",
       answer:
-        "Ne, lidi vám volají stále na vaše původní telefonní číslo. Karen se zapojí pouze když hovor nezvedneš nebo odmítneš – pak se hovor automaticky přesměruje na asistentku. Volající nepozná rozdíl, prostě někdo zvedne telefon.",
+        "Ne, lidé vám volají stále na vaše původní telefonní číslo. Karen se zapojí pouze když hovor nezvednete nebo odmítnete – pak se hovor automaticky přesměruje na asistentku. Volající nepozná rozdíl, prostě někdo zvedne telefon.",
     },
     {
       question: "Jak nastavím přesměrování hovorů?",
@@ -76,7 +76,7 @@ export const SHARED_CONTENT: SharedContent = {
     {
       question: "Můžu si změnit jméno asistentky?",
       answer:
-        'Ano! V nastavení si můžete upravit "Představení" – tam si nastavíte jak se asistentka představí volajícímu. Například: "Dobrý den, tady Alfréd, pan Novák právě nemá čas, můžete říct mě co potřebujete."',
+        'Ano! V nastavení si můžete upravit "Představení" – tam si nastavíte jak se asistentka představí volajícímu. Například: "Dobrý den, tady Alfréd, pan Novák právě nemá čas, můžete mi říct co potřebujete."',
     },
     {
       question: "Funguje to s mým operátorem?",

@@ -170,7 +170,7 @@ export function SettingsPage() {
 
   const planLabel = {
     trial: "Trial",
-    basic: "Zaklad",
+    basic: "Základ",
     pro: "Pro",
   }[billing?.plan || tenant?.plan || "trial"];
 

@@ -7,12 +7,17 @@ export interface RedirectCode {
   description: string;
 }
 
+/** Available timeout options for "no answer" forwarding (in seconds) */
+export const NO_ANSWER_TIME_OPTIONS = [5, 10, 15, 20, 25, 30] as const;
+export type NoAnswerTime = (typeof NO_ANSWER_TIME_OPTIONS)[number];
+export const DEFAULT_NO_ANSWER_TIME: NoAnswerTime = 10;
+
 export const REDIRECT_CODES: Record<RedirectType, RedirectCode> = {
   noAnswer: {
-    code: "**61*{number}#",
+    code: "**61*{number}**{time}#",
     deactivateCode: "##61#",
     label: "Když nezvednu",
-    description: "Když nezvedneš do 5 zazvonění, hovor se přesměruje na Karen",
+    description: "Když nezvedneš do {time} sekund, hovor se přesměruje na Karen",
   },
   busy: {
     code: "**67*{number}#",
@@ -51,8 +56,20 @@ export const PHONE_SETTINGS_INSTRUCTIONS = {
   },
 };
 
-export function getDialCode(type: RedirectType, phoneNumber: string): string {
-  return REDIRECT_CODES[type].code.replace("{number}", phoneNumber.replace(/\s/g, ""));
+export function getDialCode(type: RedirectType, phoneNumber: string, time?: NoAnswerTime): string {
+  let code = REDIRECT_CODES[type].code.replace("{number}", phoneNumber.replace(/\s/g, ""));
+  if (type === "noAnswer") {
+    code = code.replace("{time}", String(time ?? DEFAULT_NO_ANSWER_TIME));
+  }
+  return code;
+}
+
+export function getDescription(type: RedirectType, time?: NoAnswerTime): string {
+  let description = REDIRECT_CODES[type].description;
+  if (type === "noAnswer") {
+    description = description.replace("{time}", String(time ?? DEFAULT_NO_ANSWER_TIME));
+  }
+  return description;
 }
 
 export function getDeactivationCode(type: RedirectType): string {

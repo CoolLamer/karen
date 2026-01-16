@@ -142,9 +142,9 @@ struct SettingsView: View {
                 if contactsManager.isAuthorized && contactsManager.isEnabled {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Kontakty aktivni")
+                            Text("Kontakty aktivní")
                                 .foregroundStyle(.primary)
-                            Text("Jmena volajicich se zobrazuji z vasich kontaktu")
+                            Text("Jména volajících se zobrazují z vašich kontaktů")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -156,15 +156,15 @@ struct SettingsView: View {
                     }
                 } else if contactsManager.authorizationStatus == .denied {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Pristup ke kontaktum byl zamitnut")
+                        Text("Přístup ke kontaktům byl zamítnut")
                             .font(.subheadline)
-                        Text("Pro povoleni prejdete do Nastaveni > Zvednu > Kontakty")
+                        Text("Pro povolení přejděte do Nastavení > Zvednu > Kontakty")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
                         if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
                             Link(destination: settingsURL) {
-                                Text("Otevrit nastaveni")
+                                Text("Otevřít nastavení")
                                     .font(.subheadline)
                             }
                         }
@@ -177,9 +177,9 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Povolit pristup ke kontaktum")
+                                Text("Povolit přístup ke kontaktům")
                                     .foregroundStyle(.primary)
-                                Text("Zobrazovat jmena volajicich")
+                                Text("Zobrazovat jména volajících")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -202,13 +202,13 @@ struct SettingsView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "lock.shield.fill")
                             .font(.caption2)
-                        Text("Soukromi")
+                        Text("Soukromí")
                             .font(.caption)
                             .fontWeight(.medium)
                     }
                     .foregroundStyle(.green)
 
-                    Text("Kontakty zustavaji pouze ve vasem telefonu. Nikdy neopusti toto zarizeni a nejsou odesilany na zadny server.")
+                    Text("Kontakty zůstávají pouze ve vašem telefonu. Nikdy neopustí toto zařízení a nejsou odesílány na žádný server.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -235,8 +235,8 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
 
                         forwardingCodeRow(
-                            title: "Když nezvedneš",
-                            code: "**61*\(phoneNumber.replacingOccurrences(of: " ", with: ""))#"
+                            title: "Když nezvedneš (10s)",
+                            code: "**61*\(phoneNumber.replacingOccurrences(of: " ", with: ""))**10#"
                         )
 
                         forwardingCodeRow(
@@ -253,10 +253,10 @@ struct SettingsView: View {
             }
 
             // Subscription Section
-            Section("Predplatne") {
+            Section("Předplatné") {
                 // Current Plan
                 HStack {
-                    Text("Plan")
+                    Text("Plán")
                     Spacer()
                     Text(planLabel)
                         .foregroundStyle(.secondary)

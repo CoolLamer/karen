@@ -11,17 +11,17 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Neplatna URL"
+            return "Neplatná URL"
         case .invalidResponse:
-            return "Neplatna odpoved serveru"
+            return "Neplatná odpověď serveru"
         case .httpError(let code, let message):
             return "Chyba \(code): \(message)"
         case .decodingError(let error):
-            return "Chyba pri zpracovani dat: \(error.localizedDescription)"
+            return "Chyba při zpracování dat: \(error.localizedDescription)"
         case .networkError(let error):
-            return "Chyba site: \(error.localizedDescription)"
+            return "Chyba sítě: \(error.localizedDescription)"
         case .unauthorized:
-            return "Neplatne prihlaseni"
+            return "Neplatné přihlášení"
         }
     }
 }

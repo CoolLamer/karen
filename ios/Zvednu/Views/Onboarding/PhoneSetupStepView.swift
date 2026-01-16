@@ -121,12 +121,23 @@ struct PhoneSetupStepView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            // Warning about existing forwarding
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("**Zobrazuje se chyba?** Pokud máš již nastavené přesměrování na jiné číslo, musíš ho nejdřív zrušit kódem ##61#, ##67# nebo ##62#.")
+                    .font(.caption)
+            }
+            .padding(10)
+            .background(Color.orange.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
             // Forwarding code examples
             VStack(spacing: 8) {
                 forwardingCodeRow(
-                    title: "Když nezvedneš",
-                    code: "**61*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")#",
-                    description: "Aktivuje přesměrování při nepřijetí"
+                    title: "Když nezvedneš (10s)",
+                    code: "**61*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")**10#",
+                    description: "Aktivuje přesměrování po 10 sekundách vyzvánění"
                 )
 
                 forwardingCodeRow(
