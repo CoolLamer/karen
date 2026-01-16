@@ -12,6 +12,11 @@ class SettingsViewModel: ObservableObject {
     @Published var error: String?
     @Published var showSavedConfirmation = false
     @Published var showUpgradeSheet = false
+    @Published var showVoiceSheet = false
+
+    // Voice selection
+    @Published var voices: [Voice] = []
+    @Published var isLoadingVoices = false
 
     // Editable fields
     @Published var name = ""
@@ -24,6 +29,11 @@ class SettingsViewModel: ObservableObject {
 
     var primaryPhoneNumber: String? {
         phoneNumbers.first(where: { $0.isPrimary })?.twilioNumber
+    }
+
+    var currentVoiceName: String {
+        guard let voiceId = tenant?.voiceId else { return "Výchozí" }
+        return voices.first(where: { $0.id == voiceId })?.name ?? "Výchozí"
     }
 
     // MARK: - Load Data
@@ -187,5 +197,53 @@ class SettingsViewModel: ObservableObject {
         }
 
         isUpgrading = false
+    }
+
+    // MARK: - Voice Selection
+
+    func loadVoices() async {
+        guard !isLoadingVoices else { return }
+
+        isLoadingVoices = true
+        do {
+            voices = try await tenantService.getVoices()
+        } catch {
+            self.error = "Nepodařilo se načíst hlasy"
+        }
+        isLoadingVoices = false
+    }
+
+    func selectVoice(_ voiceId: String) async {
+        isSaving = true
+        error = nil
+
+        var update = TenantUpdateRequest()
+        update.voiceId = voiceId
+
+        do {
+            let updatedTenant = try await tenantService.updateTenant(update)
+            tenant = updatedTenant
+            authViewModel?.updateTenant(updatedTenant)
+            showVoiceSheet = false
+            showSavedConfirmation = true
+
+            Task {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                showSavedConfirmation = false
+            }
+        } catch {
+            self.error = "Nepodařilo se uložit hlas"
+        }
+
+        isSaving = false
+    }
+
+    func previewVoice(_ voiceId: String) async -> Data? {
+        do {
+            return try await tenantService.previewVoice(voiceId: voiceId)
+        } catch {
+            self.error = "Nepodařilo se přehrát ukázku"
+            return nil
+        }
     }
 }

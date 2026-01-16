@@ -61,6 +61,9 @@ struct SettingsView: View {
         .sheet(isPresented: $viewModel.showUpgradeSheet) {
             UpgradeSheetView(viewModel: viewModel)
         }
+        .sheet(isPresented: $viewModel.showVoiceSheet) {
+            VoicePickerView(viewModel: viewModel)
+        }
     }
 
     private var settingsContent: some View {
@@ -224,6 +227,28 @@ struct SettingsView: View {
                 Text("Marketing")
             } footer: {
                 Text("Pokud je vyplněno, Karen nabídne tento email marketingovým volajícím.")
+            }
+
+            // Voice Selection Section
+            Section {
+                Button {
+                    viewModel.showVoiceSheet = true
+                } label: {
+                    HStack {
+                        Text("Hlas")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(viewModel.currentVoiceName)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Hlas asistentky")
+            } footer: {
+                Text("Klepněte pro výběr hlasu, kterým Karen mluví.")
             }
 
             // Forwarding Instructions Section

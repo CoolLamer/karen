@@ -18,6 +18,10 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.error)
         XCTAssertFalse(viewModel.showSavedConfirmation)
         XCTAssertFalse(viewModel.showUpgradeSheet)
+        // Voice-related initial state
+        XCTAssertTrue(viewModel.voices.isEmpty)
+        XCTAssertFalse(viewModel.isLoadingVoices)
+        XCTAssertFalse(viewModel.showVoiceSheet)
     }
 
     // MARK: - Billing Info Helpers Tests
@@ -279,5 +283,102 @@ final class SettingsViewModelTests: XCTestCase {
         ]
 
         XCTAssertEqual(viewModel.primaryPhoneNumber, "+420987654321")
+    }
+
+    // MARK: - Voice Selection Tests
+
+    func testCurrentVoiceNameWithNoTenant() {
+        let viewModel = SettingsViewModel()
+        viewModel.tenant = nil
+
+        XCTAssertEqual(viewModel.currentVoiceName, "Výchozí")
+    }
+
+    func testCurrentVoiceNameWithNoVoiceId() {
+        let viewModel = SettingsViewModel()
+        viewModel.tenant = Tenant(
+            id: "tenant-1",
+            name: "Test",
+            systemPrompt: "Test prompt",
+            greetingText: nil,
+            voiceId: nil,
+            language: "cs",
+            vipNames: nil,
+            marketingEmail: nil,
+            forwardNumber: nil,
+            maxTurnTimeoutMs: nil,
+            plan: "trial",
+            status: "active"
+        )
+
+        XCTAssertEqual(viewModel.currentVoiceName, "Výchozí")
+    }
+
+    func testCurrentVoiceNameWithMatchingVoice() {
+        let viewModel = SettingsViewModel()
+        viewModel.tenant = Tenant(
+            id: "tenant-1",
+            name: "Test",
+            systemPrompt: "Test prompt",
+            greetingText: nil,
+            voiceId: "voice-1",
+            language: "cs",
+            vipNames: nil,
+            marketingEmail: nil,
+            forwardNumber: nil,
+            maxTurnTimeoutMs: nil,
+            plan: "trial",
+            status: "active"
+        )
+        viewModel.voices = [
+            Voice(id: "voice-1", name: "Rachel", description: "Friendly", gender: "female"),
+            Voice(id: "voice-2", name: "Adam", description: "Professional", gender: "male")
+        ]
+
+        XCTAssertEqual(viewModel.currentVoiceName, "Rachel")
+    }
+
+    func testCurrentVoiceNameWithNonMatchingVoice() {
+        let viewModel = SettingsViewModel()
+        viewModel.tenant = Tenant(
+            id: "tenant-1",
+            name: "Test",
+            systemPrompt: "Test prompt",
+            greetingText: nil,
+            voiceId: "non-existent-voice",
+            language: "cs",
+            vipNames: nil,
+            marketingEmail: nil,
+            forwardNumber: nil,
+            maxTurnTimeoutMs: nil,
+            plan: "trial",
+            status: "active"
+        )
+        viewModel.voices = [
+            Voice(id: "voice-1", name: "Rachel", description: "Friendly", gender: "female")
+        ]
+
+        XCTAssertEqual(viewModel.currentVoiceName, "Výchozí")
+    }
+
+    func testCurrentVoiceNameWithEmptyVoicesList() {
+        let viewModel = SettingsViewModel()
+        viewModel.tenant = Tenant(
+            id: "tenant-1",
+            name: "Test",
+            systemPrompt: "Test prompt",
+            greetingText: nil,
+            voiceId: "voice-1",
+            language: "cs",
+            vipNames: nil,
+            marketingEmail: nil,
+            forwardNumber: nil,
+            maxTurnTimeoutMs: nil,
+            plan: "trial",
+            status: "active"
+        )
+        viewModel.voices = []
+
+        XCTAssertEqual(viewModel.currentVoiceName, "Výchozí")
     }
 }
