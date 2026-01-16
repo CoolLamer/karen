@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5"
@@ -281,7 +282,7 @@ func (r *Router) handleAdminGetTenantCalls(w http.ResponseWriter, req *http.Requ
 	writeJSON(w, http.StatusOK, map[string]any{"calls": calls})
 }
 
-// handleAdminUpdateTenant updates a tenant's plan, status, and config settings.
+// handleAdminUpdateTenant updates a tenant's plan, status, config settings, and billing fields.
 func (r *Router) handleAdminUpdateTenant(w http.ResponseWriter, req *http.Request) {
 	tenantID := req.PathValue("tenantId")
 	if tenantID == "" {
@@ -290,9 +291,12 @@ func (r *Router) handleAdminUpdateTenant(w http.ResponseWriter, req *http.Reques
 	}
 
 	var body struct {
-		Plan             string `json:"plan"`
-		Status           string `json:"status"`
-		MaxTurnTimeoutMs *int   `json:"max_turn_timeout_ms,omitempty"`
+		Plan               string     `json:"plan"`
+		Status             string     `json:"status"`
+		MaxTurnTimeoutMs   *int       `json:"max_turn_timeout_ms,omitempty"`
+		TrialEndsAt        *time.Time `json:"trial_ends_at,omitempty"`
+		CurrentPeriodCalls *int       `json:"current_period_calls,omitempty"`
+		AdminNotes         *string    `json:"admin_notes,omitempty"`
 	}
 
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
@@ -322,6 +326,12 @@ func (r *Router) handleAdminUpdateTenant(w http.ResponseWriter, req *http.Reques
 		}
 	}
 
+	// Validate current_period_calls if provided (must be >= 0)
+	if body.CurrentPeriodCalls != nil && *body.CurrentPeriodCalls < 0 {
+		http.Error(w, `{"error": "current_period_calls must be >= 0"}`, http.StatusBadRequest)
+		return
+	}
+
 	rowsAffected, err := r.store.UpdateTenantPlanStatus(req.Context(), tenantID, body.Plan, body.Status)
 	if err != nil {
 		r.logger.Printf("admin: failed to update tenant %s: %v", tenantID, err)
@@ -346,8 +356,32 @@ func (r *Router) handleAdminUpdateTenant(w http.ResponseWriter, req *http.Reques
 		}
 	}
 
-	r.logger.Printf("admin: updated tenant %s plan=%s status=%s max_turn_timeout_ms=%v",
-		tenantID, body.Plan, body.Status, body.MaxTurnTimeoutMs)
+	// Update billing fields if provided
+	billingUpdates := make(map[string]any)
+	if body.TrialEndsAt != nil {
+		billingUpdates["trial_ends_at"] = *body.TrialEndsAt
+	}
+	if body.CurrentPeriodCalls != nil {
+		billingUpdates["current_period_calls"] = *body.CurrentPeriodCalls
+		// Also reset current_period_start to now if resetting calls to 0
+		if *body.CurrentPeriodCalls == 0 {
+			billingUpdates["current_period_start"] = time.Now()
+		}
+	}
+	if body.AdminNotes != nil {
+		billingUpdates["admin_notes"] = *body.AdminNotes
+	}
+
+	if len(billingUpdates) > 0 {
+		err := r.store.AdminUpdateTenantBilling(req.Context(), tenantID, billingUpdates)
+		if err != nil {
+			r.logger.Printf("admin: failed to update tenant billing %s: %v", tenantID, err)
+			http.Error(w, `{"error": "failed to update tenant billing"}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	r.logger.Printf("admin: updated tenant %s plan=%s status=%s", tenantID, body.Plan, body.Status)
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 

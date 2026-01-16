@@ -98,6 +98,16 @@ export type AdminTenantDetail = {
   call_count: number;
   created_at: string;
   updated_at: string;
+  // Billing fields
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
+  trial_ends_at?: string;
+  current_period_start?: string;
+  current_period_calls: number;
+  time_saved_seconds: number;
+  spam_calls_blocked: number;
+  // Admin-only fields
+  admin_notes?: string;
 };
 
 export type AdminUser = {
@@ -339,7 +349,14 @@ export const api = {
 
   adminUpdateTenant: (
     tenantId: string,
-    data: { plan: string; status: string; max_turn_timeout_ms?: number }
+    data: {
+      plan: string;
+      status: string;
+      max_turn_timeout_ms?: number;
+      trial_ends_at?: string;
+      current_period_calls?: number;
+      admin_notes?: string;
+    }
   ) =>
     http<{ success: boolean }>(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
       method: "PATCH",

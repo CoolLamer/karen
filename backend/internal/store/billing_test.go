@@ -500,3 +500,136 @@ func TestGetTenantTotalTimeSaved(t *testing.T) {
 		}
 	})
 }
+
+func TestAdminUpdateTenantBilling(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create test tenant
+	tenant, err := s.CreateTenant(ctx, "Admin Billing Test", "Test prompt", "cs")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Cleanup at the end
+	defer func() {
+		_, _ = db.Exec(ctx, "DELETE FROM tenant_usage WHERE tenant_id = $1", tenant.ID)
+		_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+	}()
+
+	t.Run("update trial_ends_at", func(t *testing.T) {
+		newTrialEnd := time.Now().Add(30 * 24 * time.Hour) // 30 days from now
+		err := s.AdminUpdateTenantBilling(ctx, tenant.ID, map[string]any{
+			"trial_ends_at": newTrialEnd,
+		})
+		if err != nil {
+			t.Fatalf("AdminUpdateTenantBilling failed: %v", err)
+		}
+
+		// Verify
+		var trialEndsAt time.Time
+		err = db.QueryRow(ctx, "SELECT trial_ends_at FROM tenants WHERE id = $1", tenant.ID).Scan(&trialEndsAt)
+		if err != nil {
+			t.Fatalf("failed to query trial_ends_at: %v", err)
+		}
+		if trialEndsAt.Sub(newTrialEnd).Abs() > time.Second {
+			t.Errorf("trial_ends_at = %v, want approximately %v", trialEndsAt, newTrialEnd)
+		}
+	})
+
+	t.Run("update current_period_calls", func(t *testing.T) {
+		// First set some calls
+		_, err := db.Exec(ctx, "UPDATE tenants SET current_period_calls = 50 WHERE id = $1", tenant.ID)
+		if err != nil {
+			t.Fatalf("failed to set initial calls: %v", err)
+		}
+
+		// Reset via admin function
+		err = s.AdminUpdateTenantBilling(ctx, tenant.ID, map[string]any{
+			"current_period_calls": 0,
+		})
+		if err != nil {
+			t.Fatalf("AdminUpdateTenantBilling failed: %v", err)
+		}
+
+		// Verify
+		var calls int
+		err = db.QueryRow(ctx, "SELECT COALESCE(current_period_calls, 0) FROM tenants WHERE id = $1", tenant.ID).Scan(&calls)
+		if err != nil {
+			t.Fatalf("failed to query current_period_calls: %v", err)
+		}
+		if calls != 0 {
+			t.Errorf("current_period_calls = %d, want 0", calls)
+		}
+	})
+
+	t.Run("update admin_notes", func(t *testing.T) {
+		notes := "Customer requested 30 day trial extension - approved by support"
+		err := s.AdminUpdateTenantBilling(ctx, tenant.ID, map[string]any{
+			"admin_notes": notes,
+		})
+		if err != nil {
+			t.Fatalf("AdminUpdateTenantBilling failed: %v", err)
+		}
+
+		// Verify
+		var savedNotes string
+		err = db.QueryRow(ctx, "SELECT COALESCE(admin_notes, '') FROM tenants WHERE id = $1", tenant.ID).Scan(&savedNotes)
+		if err != nil {
+			t.Fatalf("failed to query admin_notes: %v", err)
+		}
+		if savedNotes != notes {
+			t.Errorf("admin_notes = %q, want %q", savedNotes, notes)
+		}
+	})
+
+	t.Run("update multiple fields at once", func(t *testing.T) {
+		newTrialEnd := time.Now().Add(60 * 24 * time.Hour) // 60 days
+		newNotes := "Extended trial again + reset calls"
+		newPeriodStart := time.Now()
+
+		err := s.AdminUpdateTenantBilling(ctx, tenant.ID, map[string]any{
+			"trial_ends_at":        newTrialEnd,
+			"current_period_calls": 5,
+			"current_period_start": newPeriodStart,
+			"admin_notes":          newNotes,
+		})
+		if err != nil {
+			t.Fatalf("AdminUpdateTenantBilling failed: %v", err)
+		}
+
+		// Verify all fields
+		var trialEndsAt, periodStart time.Time
+		var calls int
+		var notes string
+		err = db.QueryRow(ctx, `
+			SELECT trial_ends_at, COALESCE(current_period_calls, 0),
+			       COALESCE(current_period_start, NOW())::timestamp, COALESCE(admin_notes, '')
+			FROM tenants WHERE id = $1
+		`, tenant.ID).Scan(&trialEndsAt, &calls, &periodStart, &notes)
+		if err != nil {
+			t.Fatalf("failed to query fields: %v", err)
+		}
+
+		if trialEndsAt.Sub(newTrialEnd).Abs() > time.Second {
+			t.Errorf("trial_ends_at = %v, want approximately %v", trialEndsAt, newTrialEnd)
+		}
+		if calls != 5 {
+			t.Errorf("current_period_calls = %d, want 5", calls)
+		}
+		if notes != newNotes {
+			t.Errorf("admin_notes = %q, want %q", notes, newNotes)
+		}
+	})
+
+	t.Run("empty updates does nothing", func(t *testing.T) {
+		// This should not error
+		err := s.AdminUpdateTenantBilling(ctx, tenant.ID, map[string]any{})
+		if err != nil {
+			t.Fatalf("AdminUpdateTenantBilling with empty map failed: %v", err)
+		}
+	})
+}

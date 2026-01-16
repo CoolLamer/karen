@@ -6,6 +6,7 @@ import {
   Box,
   Collapse,
   Container,
+  Divider,
   Group,
   Modal,
   NumberInput,
@@ -14,6 +15,8 @@ import {
   Stack,
   Table,
   Text,
+  Textarea,
+  TextInput,
   Title,
   Spoiler,
   ThemeIcon,
@@ -33,6 +36,8 @@ import {
   IconUser,
   IconRefresh,
   IconTrash,
+  IconCreditCard,
+  IconNote,
 } from "@tabler/icons-react";
 import { api, AdminTenantDetail, AdminUser, CallDetail } from "../api";
 
@@ -93,7 +98,7 @@ export function AdminUsersPage() {
 
   // Mobile expanded sections
   const [expandedTenant, setExpandedTenant] = React.useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = React.useState<Record<string, { config?: boolean; users?: boolean; calls?: boolean }>>({});
+  const [expandedSection, setExpandedSection] = React.useState<Record<string, { config?: boolean; billing?: boolean; users?: boolean; calls?: boolean }>>({});
   const [expandedCall, setExpandedCall] = React.useState<string | null>(null);
 
   // Edit modal
@@ -102,6 +107,9 @@ export function AdminUsersPage() {
   const [editPlan, setEditPlan] = React.useState("");
   const [editStatus, setEditStatus] = React.useState("");
   const [editMaxTurnTimeout, setEditMaxTurnTimeout] = React.useState<number | "">("");
+  const [editTrialEndsAt, setEditTrialEndsAt] = React.useState("");
+  const [editCurrentPeriodCalls, setEditCurrentPeriodCalls] = React.useState<number | "">("");
+  const [editAdminNotes, setEditAdminNotes] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
   // Reset onboarding modal
@@ -160,6 +168,10 @@ export function AdminUsersPage() {
     setEditPlan(tenant.plan);
     setEditStatus(tenant.status);
     setEditMaxTurnTimeout(tenant.max_turn_timeout_ms || "");
+    // Initialize billing fields - convert ISO date to date input format (YYYY-MM-DD)
+    setEditTrialEndsAt(tenant.trial_ends_at ? tenant.trial_ends_at.slice(0, 10) : "");
+    setEditCurrentPeriodCalls(tenant.current_period_calls ?? "");
+    setEditAdminNotes(tenant.admin_notes || "");
     openEditModal();
   };
 
@@ -168,15 +180,31 @@ export function AdminUsersPage() {
     setSaving(true);
     try {
       const maxTimeout = editMaxTurnTimeout ? Number(editMaxTurnTimeout) : undefined;
+      // Convert date input (YYYY-MM-DD) to ISO string if provided
+      const trialEndsAt = editTrialEndsAt ? new Date(editTrialEndsAt + "T23:59:59Z").toISOString() : undefined;
+      const currentPeriodCalls = editCurrentPeriodCalls !== "" ? Number(editCurrentPeriodCalls) : undefined;
+      const adminNotes = editAdminNotes || undefined;
+
       await api.adminUpdateTenant(editingTenant.id, {
         plan: editPlan,
         status: editStatus,
         max_turn_timeout_ms: maxTimeout,
+        trial_ends_at: trialEndsAt,
+        current_period_calls: currentPeriodCalls,
+        admin_notes: adminNotes,
       });
       setTenants((prev) =>
         prev?.map((t) =>
           t.id === editingTenant.id
-            ? { ...t, plan: editPlan, status: editStatus, max_turn_timeout_ms: maxTimeout }
+            ? {
+                ...t,
+                plan: editPlan,
+                status: editStatus,
+                max_turn_timeout_ms: maxTimeout,
+                trial_ends_at: trialEndsAt,
+                current_period_calls: currentPeriodCalls ?? t.current_period_calls,
+                admin_notes: adminNotes,
+              }
             : t
         ) ?? null
       );
@@ -253,7 +281,7 @@ export function AdminUsersPage() {
     }
   };
 
-  const toggleMobileSection = (tenantId: string, section: "config" | "users" | "calls") => {
+  const toggleMobileSection = (tenantId: string, section: "config" | "billing" | "users" | "calls") => {
     setExpandedSection((prev) => ({
       ...prev,
       [tenantId]: {
@@ -415,6 +443,83 @@ export function AdminUsersPage() {
                             </Text>
                           </Spoiler>
                         </Box>
+                      </Stack>
+                    </Paper>
+                  </Collapse>
+
+                  {/* Billing section */}
+                  <UnstyledButton
+                    onClick={() => toggleMobileSection(tenant.id, "billing")}
+                    style={{ width: "100%" }}
+                  >
+                    <Group gap="xs">
+                      <IconCreditCard size={16} />
+                      <Text size="sm" fw={500}>
+                        Billing
+                      </Text>
+                      {expandedSection[tenant.id]?.billing ? (
+                        <IconChevronDown size={14} />
+                      ) : (
+                        <IconChevronRight size={14} />
+                      )}
+                    </Group>
+                  </UnstyledButton>
+                  <Collapse in={expandedSection[tenant.id]?.billing || false}>
+                    <Paper p="sm" bg="gray.0" radius="sm">
+                      <Stack gap="xs">
+                        {tenant.stripe_customer_id && (
+                          <Text size="xs">
+                            <Text span fw={500}>Stripe Customer:</Text>{" "}
+                            <Text span ff="monospace">{tenant.stripe_customer_id}</Text>
+                          </Text>
+                        )}
+                        {tenant.stripe_subscription_id && (
+                          <Text size="xs">
+                            <Text span fw={500}>Subscription:</Text>{" "}
+                            <Text span ff="monospace">{tenant.stripe_subscription_id}</Text>
+                          </Text>
+                        )}
+                        {tenant.trial_ends_at && (
+                          <Group gap="xs">
+                            <Text size="xs">
+                              <Text span fw={500}>Trial Ends:</Text>{" "}
+                              {new Date(tenant.trial_ends_at).toLocaleDateString()}
+                            </Text>
+                            {new Date(tenant.trial_ends_at) < new Date() && (
+                              <Badge color="red" size="xs">Expired</Badge>
+                            )}
+                          </Group>
+                        )}
+                        {tenant.current_period_start && (
+                          <Text size="xs">
+                            <Text span fw={500}>Period Start:</Text>{" "}
+                            {new Date(tenant.current_period_start).toLocaleDateString()}
+                          </Text>
+                        )}
+                        <Text size="xs">
+                          <Text span fw={500}>Period Calls:</Text>{" "}
+                          <Badge variant="outline" size="xs">{tenant.current_period_calls}</Badge>
+                        </Text>
+                        <Text size="xs">
+                          <Text span fw={500}>Time Saved:</Text>{" "}
+                          {Math.floor(tenant.time_saved_seconds / 60)} minutes
+                        </Text>
+                        <Text size="xs">
+                          <Text span fw={500}>Spam Blocked:</Text> {tenant.spam_calls_blocked}
+                        </Text>
+                        {tenant.admin_notes && (
+                          <Box>
+                            <Text size="xs" fw={500} mb={2}>
+                              <IconNote size={12} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                              Admin Notes:
+                            </Text>
+                            <Paper p="xs" bg="yellow.0" radius="sm">
+                              <Text size="xs" style={{ whiteSpace: "pre-wrap" }}>
+                                {tenant.admin_notes}
+                              </Text>
+                            </Paper>
+                          </Box>
+                        )}
                       </Stack>
                     </Paper>
                   </Collapse>
@@ -708,6 +813,86 @@ export function AdminUsersPage() {
                     </Table>
                   </Box>
 
+                  {/* Billing */}
+                  <Box>
+                    <Text fw={600} size="sm" mb="xs">
+                      Billing
+                    </Text>
+                    <Table>
+                      <Table.Tbody>
+                        {tenant.stripe_customer_id && (
+                          <Table.Tr>
+                            <Table.Td w={180}>Stripe Customer</Table.Td>
+                            <Table.Td>
+                              <Text size="sm" ff="monospace">{tenant.stripe_customer_id}</Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        )}
+                        {tenant.stripe_subscription_id && (
+                          <Table.Tr>
+                            <Table.Td>Stripe Subscription</Table.Td>
+                            <Table.Td>
+                              <Text size="sm" ff="monospace">{tenant.stripe_subscription_id}</Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        )}
+                        {tenant.trial_ends_at && (
+                          <Table.Tr>
+                            <Table.Td>Trial Ends</Table.Td>
+                            <Table.Td>
+                              <Group gap="xs">
+                                <Text size="sm">
+                                  {new Date(tenant.trial_ends_at).toLocaleDateString()}
+                                </Text>
+                                {new Date(tenant.trial_ends_at) < new Date() && (
+                                  <Badge color="red" size="xs">Expired</Badge>
+                                )}
+                              </Group>
+                            </Table.Td>
+                          </Table.Tr>
+                        )}
+                        {tenant.current_period_start && (
+                          <Table.Tr>
+                            <Table.Td>Period Start</Table.Td>
+                            <Table.Td>
+                              {new Date(tenant.current_period_start).toLocaleDateString()}
+                            </Table.Td>
+                          </Table.Tr>
+                        )}
+                        <Table.Tr>
+                          <Table.Td>Period Calls</Table.Td>
+                          <Table.Td>
+                            <Badge variant="outline">{tenant.current_period_calls}</Badge>
+                          </Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Td>Time Saved</Table.Td>
+                          <Table.Td>
+                            {Math.floor(tenant.time_saved_seconds / 60)} minutes
+                          </Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Td>Spam Blocked</Table.Td>
+                          <Table.Td>{tenant.spam_calls_blocked}</Table.Td>
+                        </Table.Tr>
+                      </Table.Tbody>
+                    </Table>
+                  </Box>
+
+                  {/* Admin Notes */}
+                  {tenant.admin_notes && (
+                    <Box>
+                      <Text fw={600} size="sm" mb="xs">
+                        Admin Notes
+                      </Text>
+                      <Paper p="sm" bg="yellow.0" radius="sm">
+                        <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                          {tenant.admin_notes}
+                        </Text>
+                      </Paper>
+                    </Box>
+                  )}
+
                   {/* Users */}
                   <Box>
                     <Text fw={600} size="sm" mb="xs">
@@ -861,21 +1046,23 @@ export function AdminUsersPage() {
         opened={editModalOpened}
         onClose={closeEditModal}
         title={`Edit: ${editingTenant?.name}`}
-        size="sm"
+        size="md"
       >
         <Stack gap="md">
-          <Select
-            label="Plan"
-            value={editPlan}
-            onChange={(v) => setEditPlan(v || "")}
-            data={PLAN_OPTIONS}
-          />
-          <Select
-            label="Status"
-            value={editStatus}
-            onChange={(v) => setEditStatus(v || "")}
-            data={STATUS_OPTIONS}
-          />
+          <Group grow>
+            <Select
+              label="Plan"
+              value={editPlan}
+              onChange={(v) => setEditPlan(v || "")}
+              data={PLAN_OPTIONS}
+            />
+            <Select
+              label="Status"
+              value={editStatus}
+              onChange={(v) => setEditStatus(v || "")}
+              data={STATUS_OPTIONS}
+            />
+          </Group>
           <NumberInput
             label="Max Turn Timeout (ms)"
             description="Hard timeout for speech_final (default: 4000)"
@@ -886,6 +1073,58 @@ export function AdminUsersPage() {
             value={editMaxTurnTimeout}
             onChange={(val) => setEditMaxTurnTimeout(val === "" ? "" : Number(val))}
           />
+
+          <Divider label="Billing Controls" labelPosition="center" mt="sm" />
+
+          <TextInput
+            label="Trial Ends At"
+            description="Extend or set trial expiration date"
+            type="date"
+            value={editTrialEndsAt}
+            onChange={(e) => setEditTrialEndsAt(e.currentTarget.value)}
+          />
+
+          <NumberInput
+            label="Current Period Calls"
+            description="Set to 0 to reset call counter for this billing period"
+            placeholder="0"
+            min={0}
+            value={editCurrentPeriodCalls}
+            onChange={(val) => setEditCurrentPeriodCalls(val === "" ? "" : Number(val))}
+          />
+
+          <Group gap="xs">
+            <Button
+              variant="light"
+              size="xs"
+              onClick={() => setEditCurrentPeriodCalls(0)}
+            >
+              Reset Calls to 0
+            </Button>
+            <Button
+              variant="light"
+              size="xs"
+              onClick={() => {
+                const newDate = new Date();
+                newDate.setDate(newDate.getDate() + 14);
+                setEditTrialEndsAt(newDate.toISOString().slice(0, 10));
+              }}
+            >
+              +14 Days Trial
+            </Button>
+          </Group>
+
+          <Textarea
+            label="Admin Notes"
+            description="Internal notes (only visible to admins)"
+            placeholder="Add internal notes about this tenant..."
+            minRows={3}
+            maxRows={6}
+            autosize
+            value={editAdminNotes}
+            onChange={(e) => setEditAdminNotes(e.currentTarget.value)}
+          />
+
           <Group justify="flex-end" mt="md">
             <Button variant="subtle" onClick={closeEditModal}>
               Cancel
