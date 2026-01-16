@@ -21,7 +21,8 @@ enum ContactsError: LocalizedError {
 actor ContactsService {
     static let shared = ContactsService()
 
-    private let store = CNContactStore()
+    // CNContactStore is thread-safe but not Sendable, use nonisolated(unsafe)
+    private nonisolated(unsafe) let store = CNContactStore()
     private var phoneToNameCache: [String: String] = [:]
     private var cacheBuilt = false
 
@@ -37,7 +38,7 @@ actor ContactsService {
         let status = authorizationStatus
 
         switch status {
-        case .authorized:
+        case .authorized, .limited:
             return true
         case .notDetermined:
             return try await store.requestAccess(for: .contacts)
