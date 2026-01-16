@@ -39,6 +39,23 @@ export function VoicePickerModal({
   const audioUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const loadVoices = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const { voices } = await api.getVoices();
+        setVoices(voices);
+        // If no current voice, select the first one
+        if (!currentVoiceId && voices.length > 0) {
+          setSelectedVoiceId(voices[0].id);
+        }
+      } catch {
+        setError("Nepodařilo se načíst hlasy");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     if (opened) {
       loadVoices();
       setSelectedVoiceId(currentVoiceId || "");
@@ -47,23 +64,6 @@ export function VoicePickerModal({
       stopAudio();
     };
   }, [opened, currentVoiceId]);
-
-  const loadVoices = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { voices } = await api.getVoices();
-      setVoices(voices);
-      // If no current voice, select the first one
-      if (!currentVoiceId && voices.length > 0) {
-        setSelectedVoiceId(voices[0].id);
-      }
-    } catch {
-      setError("Nepodařilo se načíst hlasy");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const stopAudio = () => {
     if (audioRef.current) {
@@ -132,11 +132,6 @@ export function VoicePickerModal({
   const handleClose = () => {
     stopAudio();
     onClose();
-  };
-
-  const getVoiceName = (voiceId: string): string => {
-    const voice = voices.find((v) => v.id === voiceId);
-    return voice?.name || "Výchozí";
   };
 
   return (
