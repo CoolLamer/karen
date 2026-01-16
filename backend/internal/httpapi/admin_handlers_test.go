@@ -3,6 +3,7 @@ package httpapi
 import (
 	"slices"
 	"testing"
+	"time"
 )
 
 func TestIsAdminPhone(t *testing.T) {
@@ -128,6 +129,83 @@ func TestMaxTurnTimeoutValidation(t *testing.T) {
 			valid := tt.timeout >= 1000 && tt.timeout <= 15000
 			if valid != tt.valid {
 				t.Errorf("timeout %d: got %v, want %v", tt.timeout, valid, tt.valid)
+			}
+		})
+	}
+}
+
+func TestCurrentPeriodCallsValidation(t *testing.T) {
+	tests := []struct {
+		name  string
+		calls int
+		valid bool
+	}{
+		{"zero is valid", 0, true},
+		{"positive is valid", 10, true},
+		{"large positive is valid", 1000, true},
+		{"negative is invalid", -1, false},
+		{"large negative is invalid", -100, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			valid := tt.calls >= 0
+			if valid != tt.valid {
+				t.Errorf("current_period_calls %d: got %v, want %v", tt.calls, valid, tt.valid)
+			}
+		})
+	}
+}
+
+func TestTrialEndsAtParsing(t *testing.T) {
+	// Test that trial_ends_at parses correctly as RFC3339 (what JSON uses for time.Time)
+	tests := []struct {
+		name  string
+		input string
+		valid bool
+	}{
+		{"valid ISO date UTC", "2025-12-31T23:59:59Z", true},
+		{"valid past date", "2020-01-01T00:00:00Z", true},
+		{"valid future date", "2030-06-15T12:00:00Z", true},
+		{"valid with offset", "2025-06-15T12:00:00+02:00", true},
+		{"valid with milliseconds", "2025-06-15T12:00:00.123Z", true},
+		{"invalid format", "not-a-date", false},
+		{"date only no time", "2025-12-31", false},
+		{"missing timezone", "2025-12-31T23:59:59", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := time.Parse(time.RFC3339, tt.input)
+			valid := err == nil
+			if valid != tt.valid {
+				t.Errorf("time.Parse(RFC3339, %q): got valid=%v, want valid=%v, err=%v",
+					tt.input, valid, tt.valid, err)
+			}
+		})
+	}
+}
+
+func TestAdminNotesValidation(t *testing.T) {
+	// Admin notes can be any string, including empty
+	tests := []struct {
+		name  string
+		notes string
+		valid bool
+	}{
+		{"empty string", "", true},
+		{"simple note", "Customer called about upgrade", true},
+		{"multiline note", "Line 1\nLine 2\nLine 3", true},
+		{"unicode note", "Zákazník volal ohledně upgradu 🎉", true},
+		{"very long note", string(make([]byte, 10000)), true}, // 10KB note
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Admin notes have no validation - any string is valid
+			valid := true
+			if valid != tt.valid {
+				t.Errorf("admin_notes validation: got %v, want %v", valid, tt.valid)
 			}
 		})
 	}

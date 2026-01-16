@@ -904,10 +904,15 @@ type AdminTenantDetail struct {
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	// Billing fields
-	TrialEndsAt        *time.Time `json:"trial_ends_at,omitempty"`
-	CurrentPeriodCalls int        `json:"current_period_calls"`
-	TimeSavedSeconds   int        `json:"time_saved_seconds"`
-	SpamCallsBlocked   int        `json:"spam_calls_blocked"`
+	StripeCustomerID     *string    `json:"stripe_customer_id,omitempty"`
+	StripeSubscriptionID *string    `json:"stripe_subscription_id,omitempty"`
+	TrialEndsAt          *time.Time `json:"trial_ends_at,omitempty"`
+	CurrentPeriodStart   *time.Time `json:"current_period_start,omitempty"`
+	CurrentPeriodCalls   int        `json:"current_period_calls"`
+	TimeSavedSeconds     int        `json:"time_saved_seconds"`
+	SpamCallsBlocked     int        `json:"spam_calls_blocked"`
+	// Admin-only fields
+	AdminNotes *string `json:"admin_notes,omitempty"`
 }
 
 // AdminUser is a user view for admin dashboard.
@@ -995,10 +1000,14 @@ func (s *Store) ListAllTenantsWithDetails(ctx context.Context) ([]AdminTenantDet
 			t.plan, t.status, t.created_at, t.updated_at,
 			COALESCE((SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id), 0) as user_count,
 			COALESCE((SELECT COUNT(*) FROM calls c WHERE c.tenant_id = t.id), 0) as call_count,
+			t.stripe_customer_id,
+			t.stripe_subscription_id,
 			t.trial_ends_at,
+			t.current_period_start,
 			COALESCE(t.current_period_calls, 0) as current_period_calls,
 			COALESCE((SELECT SUM(time_saved_seconds) FROM tenant_usage tu WHERE tu.tenant_id = t.id), 0) as time_saved_seconds,
-			COALESCE((SELECT SUM(spam_calls_blocked) FROM tenant_usage tu WHERE tu.tenant_id = t.id), 0) as spam_calls_blocked
+			COALESCE((SELECT SUM(spam_calls_blocked) FROM tenant_usage tu WHERE tu.tenant_id = t.id), 0) as spam_calls_blocked,
+			t.admin_notes
 		FROM tenants t
 		ORDER BY t.created_at DESC
 	`)
@@ -1014,7 +1023,9 @@ func (s *Store) ListAllTenantsWithDetails(ctx context.Context) ([]AdminTenantDet
 			&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
 			&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
 			&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt, &t.UserCount, &t.CallCount,
-			&t.TrialEndsAt, &t.CurrentPeriodCalls, &t.TimeSavedSeconds, &t.SpamCallsBlocked,
+			&t.StripeCustomerID, &t.StripeSubscriptionID,
+			&t.TrialEndsAt, &t.CurrentPeriodStart, &t.CurrentPeriodCalls,
+			&t.TimeSavedSeconds, &t.SpamCallsBlocked, &t.AdminNotes,
 		); err != nil {
 			return nil, err
 		}
@@ -1161,6 +1172,42 @@ func (s *Store) UpdateTenantPlanStatus(ctx context.Context, tenantID, plan, stat
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+// AdminUpdateTenantBilling updates billing-related fields and admin_notes for admin operations.
+// Supports: trial_ends_at, current_period_calls, current_period_start, admin_notes
+func (s *Store) AdminUpdateTenantBilling(ctx context.Context, tenantID string, updates map[string]any) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	query := "UPDATE tenants SET updated_at = NOW()"
+	args := []any{tenantID}
+	argNum := 2
+
+	if v, ok := updates["trial_ends_at"]; ok {
+		query += fmt.Sprintf(", trial_ends_at = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["current_period_calls"]; ok {
+		query += fmt.Sprintf(", current_period_calls = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["current_period_start"]; ok {
+		query += fmt.Sprintf(", current_period_start = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["admin_notes"]; ok {
+		query += fmt.Sprintf(", admin_notes = $%d", argNum)
+		args = append(args, v)
+	}
+
+	query += " WHERE id = $1"
+	_, err := s.db.Exec(ctx, query, args...)
+	return err
 }
 
 // ============================================================================
