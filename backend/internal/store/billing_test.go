@@ -16,7 +16,7 @@ func TestGetPlanCallLimit(t *testing.T) {
 	}{
 		{"trial plan", "trial", 20},
 		{"basic plan", "basic", 50},
-		{"pro plan", "pro", -1},      // unlimited
+		{"pro plan", "pro", -1},        // unlimited
 		{"unknown plan", "unknown", 0}, // defaults to 0
 		{"empty plan", "", 0},
 	}
@@ -37,10 +37,10 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 	pastDate := now.Add(-7 * 24 * time.Hour)
 
 	tests := []struct {
-		name              string
-		tenant            *Tenant
+		name               string
+		tenant             *Tenant
 		expectedCanReceive bool
-		expectedReason    string
+		expectedReason     string
 	}{
 		{
 			name: "trial tenant with calls remaining and time remaining",
@@ -51,7 +51,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				TrialEndsAt:        &futureDate,
 			},
 			expectedCanReceive: true,
-			expectedReason:    "ok",
+			expectedReason:     "ok",
 		},
 		{
 			name: "trial tenant at call limit",
@@ -62,7 +62,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				TrialEndsAt:        &futureDate,
 			},
 			expectedCanReceive: false,
-			expectedReason:    "limit_exceeded",
+			expectedReason:     "limit_exceeded",
 		},
 		{
 			name: "trial tenant with expired trial",
@@ -73,7 +73,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				TrialEndsAt:        &pastDate,
 			},
 			expectedCanReceive: false,
-			expectedReason:    "trial_expired",
+			expectedReason:     "trial_expired",
 		},
 		{
 			name: "basic plan within limit",
@@ -83,7 +83,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				CurrentPeriodCalls: 30,
 			},
 			expectedCanReceive: true,
-			expectedReason:    "ok",
+			expectedReason:     "ok",
 		},
 		{
 			name: "basic plan at limit",
@@ -93,7 +93,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				CurrentPeriodCalls: 50,
 			},
 			expectedCanReceive: false,
-			expectedReason:    "limit_exceeded",
+			expectedReason:     "limit_exceeded",
 		},
 		{
 			name: "pro plan unlimited",
@@ -103,7 +103,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				CurrentPeriodCalls: 1000,
 			},
 			expectedCanReceive: true,
-			expectedReason:    "ok",
+			expectedReason:     "ok",
 		},
 		{
 			name: "cancelled subscription",
@@ -113,7 +113,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				CurrentPeriodCalls: 10,
 			},
 			expectedCanReceive: false,
-			expectedReason:    "subscription_cancelled",
+			expectedReason:     "subscription_cancelled",
 		},
 		{
 			name: "suspended subscription",
@@ -123,7 +123,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 				CurrentPeriodCalls: 10,
 			},
 			expectedCanReceive: false,
-			expectedReason:    "subscription_suspended",
+			expectedReason:     "subscription_suspended",
 		},
 	}
 
@@ -485,9 +485,9 @@ func TestGetTenantTotalTimeSaved(t *testing.T) {
 
 	t.Run("time saved accumulates across calls", func(t *testing.T) {
 		// Add a few calls
-		_ = s.IncrementTenantUsage(ctx, tenant.ID, 60, false)  // 60+120 = 180s
-		_ = s.IncrementTenantUsage(ctx, tenant.ID, 30, true)   // 30+300 = 330s
-		_ = s.IncrementTenantUsage(ctx, tenant.ID, 45, false)  // 45+120 = 165s
+		_ = s.IncrementTenantUsage(ctx, tenant.ID, 60, false) // 60+120 = 180s
+		_ = s.IncrementTenantUsage(ctx, tenant.ID, 30, true)  // 30+300 = 330s
+		_ = s.IncrementTenantUsage(ctx, tenant.ID, 45, false) // 45+120 = 165s
 
 		timeSaved, err := s.GetTenantTotalTimeSaved(ctx, tenant.ID)
 		if err != nil {
