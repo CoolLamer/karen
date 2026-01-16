@@ -20,6 +20,7 @@ type Voice struct {
 }
 
 // Curated list of voices that work well with Czech
+//nolint:misspell // Czech language descriptions
 var curatedVoices = []Voice{
 	{ID: "21m00Tcm4TlvDq8ikWAM", Name: "Rachel", Description: "Přátelský, profesionální", Gender: "female"},
 	{ID: "EXAVITQu4vr4xnSDxMaL", Name: "Sarah", Description: "Měkký, uklidňující", Gender: "female"},
