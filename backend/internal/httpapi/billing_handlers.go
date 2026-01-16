@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lukasbauer/karen/internal/store"
@@ -23,7 +25,7 @@ var (
 	stripePriceBasicAnnual  = os.Getenv("STRIPE_PRICE_BASIC_ANNUAL")
 	stripePriceProMonthly   = os.Getenv("STRIPE_PRICE_PRO_MONTHLY")
 	stripePriceProAnnual    = os.Getenv("STRIPE_PRICE_PRO_ANNUAL")
-	stripeWebhookSecret     = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	stripeWebhookSecret     = strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET"))
 	stripeSuccessURL        = os.Getenv("STRIPE_SUCCESS_URL")
 	stripeCancelURL         = os.Getenv("STRIPE_CANCEL_URL")
 )
@@ -31,6 +33,13 @@ var (
 func init() {
 	// Set Stripe API key from environment
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+
+	// Log webhook secret status at startup for debugging
+	if stripeWebhookSecret == "" {
+		log.Println("WARNING: STRIPE_WEBHOOK_SECRET is not set - webhooks will fail")
+	} else {
+		log.Printf("Stripe webhook secret configured (length: %d)", len(stripeWebhookSecret))
+	}
 }
 
 // handleCreateCheckout creates a Stripe Checkout session for upgrading
@@ -170,9 +179,19 @@ func (r *Router) handleStripeWebhook(w http.ResponseWriter, req *http.Request) {
 
 	// Verify webhook signature
 	sigHeader := req.Header.Get("Stripe-Signature")
+
+	// Check if webhook secret is configured
+	if stripeWebhookSecret == "" {
+		r.logger.Printf("billing webhook: ERROR - webhook secret not configured")
+		http.Error(w, "webhook not configured", http.StatusInternalServerError)
+		return
+	}
+
 	event, err := webhook.ConstructEvent(body, sigHeader, stripeWebhookSecret)
 	if err != nil {
 		r.logger.Printf("billing webhook: signature verification failed: %v", err)
+		r.logger.Printf("billing webhook: secret length=%d, sig header length=%d, body length=%d",
+			len(stripeWebhookSecret), len(sigHeader), len(body))
 		http.Error(w, "signature verification failed", http.StatusBadRequest)
 		return
 	}
