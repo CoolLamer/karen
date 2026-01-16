@@ -3,18 +3,38 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = SettingsViewModel()
+    @ObservedObject private var contactsManager = ContactsManager.shared
     @State private var showLogoutConfirmation = false
     @State private var newVipName = ""
 
     var body: some View {
         Group {
             if viewModel.isLoading && viewModel.tenant == nil {
-                LoadingView(message: "Nacitam nastaveni...")
+                LoadingView(message: "Načítám nastavení...")
             } else {
                 settingsContent
             }
         }
-        .navigationTitle("Nastaveni")
+        .navigationTitle("Nastavení")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    Task {
+                        await viewModel.saveChanges()
+                    }
+                } label: {
+                    if viewModel.isSaving {
+                        ProgressView()
+                    } else if viewModel.showSavedConfirmation {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Text("Uložit")
+                    }
+                }
+                .disabled(viewModel.isSaving)
+            }
+        }
         .task {
             viewModel.authViewModel = authViewModel
             await viewModel.loadTenant()
@@ -28,15 +48,15 @@ struct SettingsView: View {
                 Text(error)
             }
         }
-        .alert("Odhlasit se?", isPresented: $showLogoutConfirmation) {
-            Button("Zrusit", role: .cancel) {}
-            Button("Odhlasit", role: .destructive) {
+        .alert("Odhlásit se?", isPresented: $showLogoutConfirmation) {
+            Button("Zrušit", role: .cancel) {}
+            Button("Odhlásit", role: .destructive) {
                 Task {
                     await authViewModel.logout()
                 }
             }
         } message: {
-            Text("Opravdu se chces odhlasit?")
+            Text("Opravdu se chceš odhlásit?")
         }
         .sheet(isPresented: $viewModel.showUpgradeSheet) {
             UpgradeSheetView(viewModel: viewModel)
@@ -47,7 +67,7 @@ struct SettingsView: View {
         Form {
             // Phone Number Section
             if let phoneNumber = viewModel.primaryPhoneNumber {
-                Section("Karen cislo") {
+                Section("Karen číslo") {
                     HStack {
                         Text(phoneNumber.formattedPhoneNumber())
                             .font(.headline)
@@ -57,13 +77,18 @@ struct SettingsView: View {
                         } label: {
                             Image(systemName: "doc.on.doc")
                         }
+                        if let url = URL(string: "tel:\(phoneNumber.replacingOccurrences(of: " ", with: ""))") {
+                            Link(destination: url) {
+                                Image(systemName: "phone.fill")
+                            }
+                        }
                     }
                 }
             }
 
             // Name Section
-            Section("Jmeno") {
-                TextField("Jmeno", text: $viewModel.name)
+            Section("Jméno") {
+                TextField("Jméno", text: $viewModel.name)
             }
 
             // Greeting Section
@@ -73,7 +98,7 @@ struct SettingsView: View {
             } header: {
                 Text("Pozdrav")
             } footer: {
-                Text("Text, kterym Karen zacina hovor.")
+                Text("Text, kterým Karen začíná hovor.")
             }
 
             // VIP Names Section
@@ -92,7 +117,7 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    TextField("Pridej VIP jmeno", text: $newVipName)
+                    TextField("Přidej VIP jméno", text: $newVipName)
                         .onSubmit {
                             viewModel.addVipName(newVipName)
                             newVipName = ""
@@ -109,7 +134,84 @@ struct SettingsView: View {
             } header: {
                 Text("VIP kontakty")
             } footer: {
-                Text("Kdyz se volajici predstavi jednim z techto jmen, Karen ho okamzite prepoji.")
+                Text("Když se volající představí jedním z těchto jmen, Karen ho okamžitě přepojí.")
+            }
+
+            // Contacts Section
+            Section {
+                if contactsManager.isAuthorized && contactsManager.isEnabled {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Kontakty aktivni")
+                                .foregroundStyle(.primary)
+                            Text("Jmena volajicich se zobrazuji z vasich kontaktu")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Vypnout") {
+                            contactsManager.disableContactsAccess()
+                        }
+                        .foregroundStyle(.red)
+                    }
+                } else if contactsManager.authorizationStatus == .denied {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pristup ke kontaktum byl zamitnut")
+                            .font(.subheadline)
+                        Text("Pro povoleni prejdete do Nastaveni > Zvednu > Kontakty")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            Link(destination: settingsURL) {
+                                Text("Otevrit nastaveni")
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await contactsManager.enableContactsAccess()
+                        }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Povolit pristup ke kontaktum")
+                                    .foregroundStyle(.primary)
+                                Text("Zobrazovat jmena volajicich")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if contactsManager.isLoading {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(contactsManager.isLoading)
+                }
+            } header: {
+                Text("Kontakty")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.caption2)
+                        Text("Soukromi")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(.green)
+
+                    Text("Kontakty zustavaji pouze ve vasem telefonu. Nikdy neopusti toto zarizeni a nejsou odesilany na zadny server.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // Marketing Email Section
@@ -121,52 +223,29 @@ struct SettingsView: View {
             } header: {
                 Text("Marketing")
             } footer: {
-                Text("Pokud je vyplneno, Karen nabidne tento email marketingovym volajicim.")
-            }
-
-            // Save Button
-            Section {
-                Button {
-                    Task {
-                        await viewModel.saveChanges()
-                    }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if viewModel.isSaving {
-                            ProgressView()
-                        } else if viewModel.showSavedConfirmation {
-                            Label("Ulozeno", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            Text("Ulozit zmeny")
-                        }
-                        Spacer()
-                    }
-                }
-                .disabled(viewModel.isSaving)
+                Text("Pokud je vyplněno, Karen nabídne tento email marketingovým volajícím.")
             }
 
             // Forwarding Instructions Section
             if let phoneNumber = viewModel.primaryPhoneNumber {
-                Section("Presmerovani hovoru") {
+                Section("Přesměrování hovoru") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Vytocte tyto kody pro aktivaci presmerovani:")
+                        Text("Vytočte tyto kódy pro aktivaci přesměrování:")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
                         forwardingCodeRow(
-                            title: "Kdyz nezvednes",
+                            title: "Když nezvedneš",
                             code: "**61*\(phoneNumber.replacingOccurrences(of: " ", with: ""))#"
                         )
 
                         forwardingCodeRow(
-                            title: "Kdyz mas obsazeno",
+                            title: "Když máš obsazeno",
                             code: "**67*\(phoneNumber.replacingOccurrences(of: " ", with: ""))#"
                         )
 
                         forwardingCodeRow(
-                            title: "Kdyz jsi nedostupny",
+                            title: "Když jsi nedostupný",
                             code: "**62*\(phoneNumber.replacingOccurrences(of: " ", with: ""))#"
                         )
                     }
@@ -309,11 +388,11 @@ struct SettingsView: View {
                 }
 
                 Link(destination: URL(string: "https://zvednu.cz/ochrana-osobnich-udaju")!) {
-                    Text("Ochrana osobnich udaju")
+                    Text("Ochrana osobních údajů")
                 }
 
                 Link(destination: URL(string: "https://zvednu.cz/obchodni-podminky")!) {
-                    Text("Obchodni podminky")
+                    Text("Obchodní podmínky")
                 }
             }
 
@@ -324,7 +403,7 @@ struct SettingsView: View {
                 } label: {
                     HStack {
                         Spacer()
-                        Text("Odhlasit se")
+                        Text("Odhlásit se")
                         Spacer()
                     }
                 }
@@ -364,7 +443,7 @@ struct SettingsView: View {
 
             if let url = URL(string: "tel:\(code)") {
                 Link(destination: url) {
-                    Text("Vytocit")
+                    Text("Vytočit")
                         .font(.caption2)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)

@@ -27,6 +27,7 @@ import {
   IconCopy,
   IconConfetti,
   IconAlertCircle,
+  IconPhone,
 } from "@tabler/icons-react";
 import { RedirectSetupAccordion } from "./components/RedirectSetupAccordion";
 import { api, Tenant, TenantPhoneNumber, setAuthToken } from "../api";
@@ -378,24 +379,33 @@ export function OnboardingPage() {
                     <Text size="xl" fw={700} c="teal.8">
                       {primaryPhone}
                     </Text>
-                    <CopyButton value={primaryPhone.replace(/\s/g, "")}>
-                      {({ copied, copy }) => (
-                        <Button
-                          variant="subtle"
-                          size="xs"
-                          leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                          onClick={copy}
-                          mt="xs"
-                        >
-                          {copied ? "Zkopírováno" : "Kopírovat"}
-                        </Button>
-                      )}
-                    </CopyButton>
+                    <Group justify="center" gap="xs" mt="xs">
+                      <CopyButton value={primaryPhone.replace(/\s/g, "")}>
+                        {({ copied, copy }) => (
+                          <Button
+                            variant="subtle"
+                            size="xs"
+                            leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                            onClick={copy}
+                          >
+                            {copied ? "Zkopírováno" : "Kopírovat"}
+                          </Button>
+                        )}
+                      </CopyButton>
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        leftSection={<IconPhone size={14} />}
+                        onClick={() => window.location.href = `tel:${primaryPhone.replace(/\s/g, "")}`}
+                      >
+                        Zavolat
+                      </Button>
+                    </Group>
                   </Paper>
 
                   {/* Karen is ready notice */}
                   <Alert icon={<IconCheck size={16} />} color="green" variant="light">
-                    Karen je připravená! Můžeš ji hned vyzkoušet zavoláním na číslo výše z jiného telefonu.
+                    Karen je připravená! Můžeš ji hned vyzkoušet zavoláním na číslo výše.
                   </Alert>
 
                   {/* Two options explanation */}

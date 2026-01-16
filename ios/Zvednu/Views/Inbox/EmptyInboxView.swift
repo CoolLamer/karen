@@ -8,11 +8,11 @@ struct EmptyInboxView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {
-                Text("Zadne hovory")
+                Text("Žádné hovory")
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Kdyz nekdo zavola a Karen zvedne, hovor se objevi zde.")
+                Text("Když někdo zavolá a Karen zvedne, hovor se objeví zde.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

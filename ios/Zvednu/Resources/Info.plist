@@ -27,6 +27,8 @@
         <key>UIApplicationSupportsMultipleScenes</key>
         <false/>
     </dict>
+    <key>NSContactsUsageDescription</key>
+    <string>Zvednu potrebuje pristup ke kontaktum, aby mohl zobrazovat jmena volajicich. Kontakty zustávají pouze ve vašem telefonu a nikdy neopusti toto zarizeni.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>remote-notification</string>

@@ -46,4 +46,21 @@ extension String {
         }
         return String(self.prefix(length)) + "..."
     }
+
+    /// Normalize phone number for contact lookup (removes all non-digits, normalizes Czech format)
+    func normalizedForLookup() -> String {
+        let digits = self.filter { $0.isNumber }
+
+        // If Czech number with country code, return as-is
+        if digits.hasPrefix("420") {
+            return digits
+        }
+
+        // If 9-digit local Czech number, prepend country code
+        if digits.count == 9 {
+            return "420" + digits
+        }
+
+        return digits
+    }
 }

@@ -89,19 +89,19 @@ struct AnyCodable: Codable, Equatable, @unchecked Sendable {
 // MARK: - Legitimacy Label Helpers
 
 enum LegitimacyLabel: String {
-    case legitimate = "legitimni"
+    case legitimate = "legitimní"
     case spam = "spam"
     case marketing = "marketing"
     case scam = "podvod"
-    case unknown = "neznamy"
+    case unknown = "neznámý"
 
     var displayText: String {
         switch self {
-        case .legitimate: return "Legitimni"
+        case .legitimate: return "Legitimní"
         case .spam: return "Spam"
         case .marketing: return "Marketing"
         case .scam: return "Podvod"
-        case .unknown: return "Neznamy"
+        case .unknown: return "Neznámý"
         }
     }
 
@@ -141,11 +141,11 @@ enum LeadLabel: String {
 
     var displayText: String {
         switch self {
-        case .hotLead: return "Horky lead"
-        case .warmLead: return "Teply lead"
-        case .coldLead: return "Studeny lead"
-        case .notALead: return "Neni lead"
-        case .unknown: return "Neznamy"
+        case .hotLead: return "Horký lead"
+        case .warmLead: return "Teplý lead"
+        case .coldLead: return "Studený lead"
+        case .notALead: return "Není lead"
+        case .unknown: return "Neznámý"
         }
     }
 
