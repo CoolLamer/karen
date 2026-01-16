@@ -9,6 +9,11 @@ class CallInboxViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isRefreshing = false
     @Published var error: String?
+    @AppStorage("hideResolvedCalls") var hideResolved = false
+
+    var filteredCalls: [CallListItem] {
+        hideResolved ? calls.filter { !$0.isResolved } : calls
+    }
 
     private let callService = CallService.shared
     private let tenantService = TenantService.shared

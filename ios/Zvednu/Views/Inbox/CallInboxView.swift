@@ -17,12 +17,30 @@ struct CallInboxView: View {
                     }
                     EmptyInboxView()
                 }
+            } else if viewModel.filteredCalls.isEmpty {
+                VStack(spacing: 16) {
+                    if let billing = viewModel.billing {
+                        BillingStatusView(billing: billing)
+                            .padding(.horizontal)
+                    }
+                    AllResolvedView()
+                }
             } else {
                 callsListWithBilling
             }
         }
         .navigationTitle("Hovory")
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    viewModel.hideResolved.toggle()
+                } label: {
+                    Image(systemName: viewModel.hideResolved
+                          ? "line.3.horizontal.decrease.circle.fill"
+                          : "line.3.horizontal.decrease.circle")
+                }
+                .accessibilityLabel(viewModel.hideResolved ? "Zobrazit všechny hovory" : "Skrýt vyřešené hovory")
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.unresolvedCount > 0 {
                     Text("\(viewModel.unresolvedCount) nevyřešených")
@@ -65,7 +83,7 @@ struct CallInboxView: View {
 
             // Calls list
             Section {
-                ForEach(viewModel.calls) { call in
+                ForEach(viewModel.filteredCalls) { call in
                     Button {
                         selectedCallId = call.providerCallId
                         showCallDetail = true
