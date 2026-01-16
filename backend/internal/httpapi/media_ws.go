@@ -945,6 +945,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	var buffer strings.Builder
 	sentenceCount := 0
 	var lastResponseMarkID uint64
+	bufferStartTime := time.Now()
 
 	// If the model is slow to produce any output, speak a short acknowledgement.
 	// This prevents filler when the model is already fast.
@@ -959,8 +960,19 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	case chunk, ok := <-llmBuf:
 		if ok {
 			gotAnyChunk = true
+			s.eventLog.LogAsync(s.callID, eventlog.EventLLMFirstToken, map[string]any{
+				"turn_id":    turnID,
+				"latency_ms": time.Since(llmStartTime).Milliseconds(),
+			})
+			s.eventLog.LogAsync(s.callID, eventlog.EventFillerDecision, map[string]any{
+				"turn_id":  turnID,
+				"decision": "skipped",
+				"reason":   "llm_fast",
+				"delay_ms": time.Since(llmStartTime).Milliseconds(),
+			})
 			fullResponse.WriteString(chunk)
 			buffer.WriteString(chunk)
+			bufferStartTime = time.Now()
 		}
 	case <-timer.C:
 		// No LLM output yet: consider filler (also skip for very short utterances).
@@ -968,6 +980,13 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		if !shortUtterance && shouldSpeakFiller(lastFiller) {
 			filler := getRandomFiller()
 			s.logger.Printf("media_ws: speaking filler: %s", filler)
+			s.eventLog.LogAsync(s.callID, eventlog.EventFillerDecision, map[string]any{
+				"turn_id":  turnID,
+				"decision": "spoken",
+				"reason":   "llm_slow",
+				"delay_ms": fillerDelay.Milliseconds(),
+				"filler":   filler,
+			})
 			s.eventLog.LogAsync(s.callID, eventlog.EventFillerSpoken, map[string]any{
 				"turn_id": turnID,
 				"filler":  filler,
@@ -980,7 +999,17 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 			s.lastFillerTime = time.Now()
 			s.messagesMu.Unlock()
 		} else {
+			reason := "variety_or_cooldown"
+			if shortUtterance {
+				reason = "short_utterance"
+			}
 			s.logger.Printf("media_ws: skipping filler (variety/cooldown/short-utterance)")
+			s.eventLog.LogAsync(s.callID, eventlog.EventFillerDecision, map[string]any{
+				"turn_id":  turnID,
+				"decision": "skipped",
+				"reason":   reason,
+				"delay_ms": fillerDelay.Milliseconds(),
+			})
 			s.eventLog.LogAsync(s.callID, eventlog.EventFillerSkipped, map[string]any{
 				"turn_id": turnID,
 				"reason":  "variety/cooldown/short-utterance",
@@ -1000,6 +1029,13 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 			return
 		}
 
+		// Track first token if it came after filler timer
+		if !gotAnyChunk {
+			s.eventLog.LogAsync(s.callID, eventlog.EventLLMFirstToken, map[string]any{
+				"turn_id":    turnID,
+				"latency_ms": time.Since(llmStartTime).Milliseconds(),
+			})
+		}
 		gotAnyChunk = true
 		fullResponse.WriteString(chunk)
 		buffer.WriteString(chunk)
@@ -1007,6 +1043,13 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		completeSentences, remaining := extractCompleteSentences(buffer.String())
 		if completeSentences != "" {
 			sentenceCount++
+			// Log sentence extraction timing
+			s.eventLog.LogAsync(s.callID, eventlog.EventSentenceExtracted, map[string]any{
+				"turn_id":        turnID,
+				"sentence_num":   sentenceCount,
+				"text_length":    len(completeSentences),
+				"buffer_wait_ms": time.Since(bufferStartTime).Milliseconds(),
+			})
 			ttsText := stripForwardMarker(completeSentences)
 			if ttsText != "" {
 				if sentenceCount == 1 {
@@ -1022,6 +1065,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 			}
 			buffer.Reset()
 			buffer.WriteString(remaining)
+			bufferStartTime = time.Now() // Reset for next sentence
 		}
 	}
 
@@ -1124,7 +1168,16 @@ func (s *callSession) speakText(ctx context.Context, text string) (uint64, error
 	}
 
 	// Send audio chunks to Twilio
+	firstChunkReceived := false
 	for chunk := range audioCh {
+		// Log first chunk latency
+		if !firstChunkReceived {
+			firstChunkReceived = true
+			s.eventLog.LogAsync(s.callID, eventlog.EventTTSFirstChunk, map[string]any{
+				"text_length": len(text),
+				"latency_ms":  time.Since(ttsStartTime).Milliseconds(),
+			})
+		}
 		select {
 		case <-ctx.Done():
 			s.eventLog.LogAsync(s.callID, eventlog.EventTTSCompleted, map[string]any{

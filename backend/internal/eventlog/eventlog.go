@@ -32,6 +32,12 @@ const (
 	EventTTSStarted       EventType = "tts_started"
 	EventTTSCompleted     EventType = "tts_completed"
 	EventTTSError         EventType = "tts_error"
+
+	// Latency debugging events
+	EventLLMFirstToken     EventType = "llm_first_token"
+	EventSentenceExtracted EventType = "sentence_extracted"
+	EventTTSFirstChunk     EventType = "tts_first_chunk"
+	EventFillerDecision    EventType = "filler_decision"
 )
 
 // Logger provides async event logging to the database
