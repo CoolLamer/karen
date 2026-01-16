@@ -187,7 +187,9 @@ func (r *Router) handleStripeWebhook(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	event, err := webhook.ConstructEvent(body, sigHeader, stripeWebhookSecret)
+	event, err := webhook.ConstructEventWithOptions(body, sigHeader, stripeWebhookSecret, webhook.ConstructEventOptions{
+		IgnoreAPIVersionMismatch: true,
+	})
 	if err != nil {
 		r.logger.Printf("billing webhook: signature verification failed: %v", err)
 		r.logger.Printf("billing webhook: secret length=%d, sig header length=%d, body length=%d",
