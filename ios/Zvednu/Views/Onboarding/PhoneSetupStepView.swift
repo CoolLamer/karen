@@ -135,9 +135,9 @@ struct PhoneSetupStepView: View {
             // Forwarding code examples
             VStack(spacing: 8) {
                 forwardingCodeRow(
-                    title: "Když nezvedneš",
-                    code: "**61*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")#",
-                    description: "Aktivuje přesměrování při nepřijetí"
+                    title: "Když nezvedneš (10s)",
+                    code: "**61*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")**10#",
+                    description: "Aktivuje přesměrování po 10 sekundách vyzvánění"
                 )
 
                 forwardingCodeRow(

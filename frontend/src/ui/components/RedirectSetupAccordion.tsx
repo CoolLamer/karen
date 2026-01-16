@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Accordion,
   ActionIcon,
@@ -6,6 +7,7 @@ import {
   CopyButton,
   Group,
   List,
+  SegmentedControl,
   Spoiler,
   Stack,
   Text,
@@ -16,9 +18,13 @@ import {
   REDIRECT_CODES,
   REDIRECT_ORDER,
   PHONE_SETTINGS_INSTRUCTIONS,
+  NO_ANSWER_TIME_OPTIONS,
+  DEFAULT_NO_ANSWER_TIME,
   getDialCode as getRedirectDialCode,
+  getDescription,
   getDeactivationCode,
   type RedirectType,
+  type NoAnswerTime,
 } from "../../constants/redirectCodes";
 
 interface RedirectSetupAccordionProps {
@@ -38,12 +44,15 @@ export function RedirectSetupAccordion({
   showPhoneSettings = true,
 }: RedirectSetupAccordionProps) {
   const typesToShow = redirectTypes || REDIRECT_ORDER;
+  const [noAnswerTime, setNoAnswerTime] = useState<NoAnswerTime>(DEFAULT_NO_ANSWER_TIME);
 
   return (
     <Accordion variant="separated" defaultValue={defaultValue || typesToShow[0]}>
       {typesToShow.map((type) => {
         const code = REDIRECT_CODES[type];
-        const dialCode = karenNumber ? getRedirectDialCode(type, karenNumber) : "";
+        const time = type === "noAnswer" ? noAnswerTime : undefined;
+        const dialCode = karenNumber ? getRedirectDialCode(type, karenNumber, time) : "";
+        const description = getDescription(type, time);
         const deactivateCode = getDeactivationCode(type);
         return (
           <Accordion.Item key={type} value={type}>
@@ -52,7 +61,22 @@ export function RedirectSetupAccordion({
             </Accordion.Control>
             <Accordion.Panel>
               <Stack gap="sm">
-                <Text size="xs" c="dimmed">{code.description}</Text>
+                <Text size="xs" c="dimmed">{description}</Text>
+
+                {type === "noAnswer" && (
+                  <Box>
+                    <Text size="xs" fw={500} mb={4}>Po kolika sekundách přesměrovat?</Text>
+                    <SegmentedControl
+                      size="xs"
+                      value={String(noAnswerTime)}
+                      onChange={(value) => setNoAnswerTime(Number(value) as NoAnswerTime)}
+                      data={NO_ANSWER_TIME_OPTIONS.map((t) => ({
+                        value: String(t),
+                        label: `${t}s`,
+                      }))}
+                    />
+                  </Box>
+                )}
 
                 <Button
                   variant="light"

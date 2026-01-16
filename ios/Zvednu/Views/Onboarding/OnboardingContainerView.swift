@@ -71,11 +71,11 @@ struct WelcomeStepView: View {
                     .foregroundStyle(Color.accentColor)
 
                 VStack(spacing: 8) {
-                    Text("Vitej! Jsem Karen")
+                    Text("Vítej! Jsem Karen")
                         .font(.title)
                         .fontWeight(.bold)
 
-                    Text("Jsem tvoje AI telefonni asistentka. Kdyz nezvednes telefon, prebiram hovory za tebe.")
+                    Text("Jsem tvoje AI telefonní asistentka. Když nezvedneš telefon, přebírám hovory za tebe.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -83,20 +83,20 @@ struct WelcomeStepView: View {
 
                 // Features list
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Co pro tebe udelam:")
+                    Text("Co pro tebe udělám:")
                         .font(.headline)
 
-                    featureRow(icon: "phone.arrow.down.left", text: "Zvednu hovory, kdyz budes zaneprazdneny")
-                    featureRow(icon: "person.crop.circle.badge.questionmark", text: "Zjistim, kdo vola a co potrebuje")
-                    featureRow(icon: "xmark.circle", text: "Odmitnu marketing a spam")
-                    featureRow(icon: "arrow.right.arrow.left", text: "Okamzite prepojim dulezite kontakty")
-                    featureRow(icon: "list.bullet.clipboard", text: "Poslu ti prehled hovoru v aplikaci")
+                    featureRow(icon: "phone.arrow.down.left", text: "Zvednu hovory, když budeš zaneprázdněný")
+                    featureRow(icon: "person.crop.circle.badge.questionmark", text: "Zjistím, kdo volá a co potřebuje")
+                    featureRow(icon: "xmark.circle", text: "Odmítnu marketing a spam")
+                    featureRow(icon: "arrow.right.arrow.left", text: "Okamžitě přepojím důležité kontakty")
+                    featureRow(icon: "list.bullet.clipboard", text: "Pošlu ti přehled hovorů v aplikaci")
                 }
                 .padding()
                 .background(Color(.systemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                Text("Nastaveni zabere asi 3 minuty.")
+                Text("Nastavení zabere asi 3 minuty.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

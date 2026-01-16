@@ -55,7 +55,7 @@ final class AuthViewModelTests: XCTestCase {
 
         await viewModel.sendCode()
 
-        XCTAssertEqual(viewModel.error, "Zadej telefonni cislo")
+        XCTAssertEqual(viewModel.error, "Zadej telefonní číslo")
         XCTAssertFalse(viewModel.isCodeSent)
     }
 
