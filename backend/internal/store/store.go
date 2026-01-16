@@ -1501,7 +1501,7 @@ func (s *Store) UpdateTenantBilling(ctx context.Context, tenantID string, update
 	if v, ok := updates["current_period_calls"]; ok {
 		query += fmt.Sprintf(", current_period_calls = $%d", argNum)
 		args = append(args, v)
-		argNum++
+		// Note: argNum not incremented since this is the last field
 	}
 
 	query += " WHERE id = $1"
