@@ -144,8 +144,8 @@ struct VoiceRowView: View {
                     .foregroundStyle(isSelected ? .teal : .secondary)
                     .font(.title3)
 
-                // Gender icon
-                Image(systemName: voice.gender == "female" ? "person.fill" : "person.fill")
+                // Gender icon (color-coded: pink for female, blue for male)
+                Image(systemName: "person.fill")
                     .foregroundStyle(voice.gender == "female" ? .pink : .blue)
                     .frame(width: 24)
 

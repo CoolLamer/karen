@@ -51,7 +51,13 @@ type cachedAudio struct {
 const (
 	previewCacheDuration = 24 * time.Hour
 	previewText          = "Dobrý den, tady Karen. Jak vám mohu pomoci?"
+	maxPreviewAudioSize  = 10 * 1024 * 1024 // 10MB max for audio response
 )
+
+// HTTP client with timeout for ElevenLabs API calls
+var elevenLabsClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
 
 // handleListVoices returns the curated list of available voices
 func (r *Router) handleListVoices(w http.ResponseWriter, req *http.Request) {
@@ -66,18 +72,18 @@ func (r *Router) handlePreviewVoice(w http.ResponseWriter, req *http.Request) {
 		VoiceID string `json:"voice_id"`
 	}
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-		http.Error(w, `{"error": "invalid request body"}`, http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 
 	if body.VoiceID == "" {
-		http.Error(w, `{"error": "voice_id is required"}`, http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "voice_id is required"})
 		return
 	}
 
 	// Validate voice ID is in our curated list
 	if !voiceIDSet[body.VoiceID] {
-		http.Error(w, `{"error": "invalid voice_id"}`, http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid voice_id"})
 		return
 	}
 
@@ -98,7 +104,7 @@ func (r *Router) handlePreviewVoice(w http.ResponseWriter, req *http.Request) {
 	audio, err := r.generatePreviewAudio(req.Context(), body.VoiceID)
 	if err != nil {
 		r.logger.Printf("voice: failed to generate preview: %v", err)
-		http.Error(w, `{"error": "failed to generate preview"}`, http.StatusInternalServerError)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to generate preview"})
 		return
 	}
 
@@ -142,16 +148,16 @@ func (r *Router) generatePreviewAudio(ctx context.Context, voiceID string) ([]by
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("xi-api-key", r.cfg.ElevenLabsAPIKey)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := elevenLabsClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096)) // Limit error response size
 		return nil, fmt.Errorf("ElevenLabs API error: %s - %s", resp.Status, string(respBody))
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxPreviewAudioSize))
 }
