@@ -13,6 +13,12 @@
 #   DEEPGRAM_API_KEY - Deepgram API key for speech-to-text
 #   OPENAI_API_KEY - OpenAI API key for LLM
 #   ELEVENLABS_API_KEY - ElevenLabs API key for text-to-speech
+#   STRIPE_SECRET_KEY - Stripe secret key for billing
+#   STRIPE_WEBHOOK_SECRET - Stripe webhook signing secret
+#   STRIPE_PRICE_BASIC_MONTHLY - Stripe price ID for Basic plan (monthly)
+#   STRIPE_PRICE_BASIC_ANNUAL - Stripe price ID for Basic plan (annual)
+#   STRIPE_PRICE_PRO_MONTHLY - Stripe price ID for Pro plan (monthly)
+#   STRIPE_PRICE_PRO_ANNUAL - Stripe price ID for Pro plan (annual)
 #
 # Build-time variables (set in GitHub Actions, not here):
 #   VITE_HOTJAR_ID - Hotjar Site ID for analytics (baked into frontend image)
@@ -55,6 +61,13 @@ services:
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      # Stripe Billing
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_BASIC_MONTHLY: ${STRIPE_PRICE_BASIC_MONTHLY:-}
+      STRIPE_PRICE_BASIC_ANNUAL: ${STRIPE_PRICE_BASIC_ANNUAL:-}
+      STRIPE_PRICE_PRO_MONTHLY: ${STRIPE_PRICE_PRO_MONTHLY:-}
+      STRIPE_PRICE_PRO_ANNUAL: ${STRIPE_PRICE_PRO_ANNUAL:-}
     depends_on:
       db:
         condition: service_healthy
