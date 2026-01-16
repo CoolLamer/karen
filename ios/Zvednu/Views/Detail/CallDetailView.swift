@@ -3,6 +3,7 @@ import SwiftUI
 struct CallDetailView: View {
     let providerCallId: String
     @StateObject private var viewModel: CallDetailViewModel
+    @ObservedObject private var contactsManager = ContactsManager.shared
     @Environment(\.dismiss) private var dismiss
 
     init(providerCallId: String) {
@@ -97,9 +98,19 @@ struct CallDetailView: View {
             // Phone numbers and time
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(call.fromNumber.formattedPhoneNumber())
-                        .font(.title2)
-                        .fontWeight(.bold)
+                    if let contactName = contactsManager.contactName(for: call.fromNumber) {
+                        Text(contactName)
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Text(call.fromNumber.formattedPhoneNumber())
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(call.fromNumber.formattedPhoneNumber())
+                            .font(.title2)
+                            .fontWeight(.bold)
+                    }
 
                     Text("na \(call.toNumber.formattedPhoneNumber())")
                         .font(.subheadline)

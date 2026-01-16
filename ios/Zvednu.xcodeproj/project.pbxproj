@@ -23,6 +23,7 @@
 		457DB32ED70DE5B501960479 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82BE36FE162084AD68EC4BE3 /* LoginView.swift */; };
 		51B1DC8B3BF2F6CB5BA9B9BA /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44969B66744AB2319B5D8D7 /* AuthViewModel.swift */; };
 		5310C332DDE1EBD4C1F99B80 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DED788D583A78102E8CC11A6 /* SettingsView.swift */; };
+		53FC74B2F99EFA42A7674985 /* ContactsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E8FEB7AE51AF7A7C6D3F7F /* ContactsManager.swift */; };
 		586F0062A7EDFBBA4CBA8AFB /* CallInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA697B2279911870C4A91FDF /* CallInboxView.swift */; };
 		5E804ACFADBFCAE780E38131 /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C4496CC52C7E6B7F0BBACD4 /* OnboardingViewModel.swift */; };
 		64747DCB9D8B000F7A3D1611 /* CompleteStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4541482E61A6BACFEF3ABC24 /* CompleteStepView.swift */; };
@@ -34,6 +35,7 @@
 		80622A60A5545CB4F8DFB4C8 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3DBFFAFEB700224093A626 /* ModelDecodingTests.swift */; };
 		90E836D0118CB8533BADC575 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A3E95F96DCBCDA66A62AF2 /* User.swift */; };
 		9266A6B73471F90AA555A0EA /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB8FF595DA8D026FC07E8D6 /* AuthService.swift */; };
+		92B3C2AC7DFA04055DA2B56A /* ContactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F257A64A500BCB5A18D1969B /* ContactsService.swift */; };
 		958B8E1DD41F5D05BD427914 /* Utterance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C959DCADF73F86337A63AD /* Utterance.swift */; };
 		99B4B027C794C099942AB24E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F78ABAACF0909EC96ECBDE7 /* APIClient.swift */; };
 		9A95C3B361CE4AB6490872A4 /* Call.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA5E3C04FAD126CC1E07FA7 /* Call.swift */; };
@@ -65,6 +67,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00E8FEB7AE51AF7A7C6D3F7F /* ContactsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsManager.swift; sourceTree = "<group>"; };
 		06C959DCADF73F86337A63AD /* Utterance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utterance.swift; sourceTree = "<group>"; };
 		0A3DBFFAFEB700224093A626 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
 		0F2AC6FCF1A1945B30104BBD /* Zvednu.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Zvednu.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -114,6 +117,7 @@
 		DED788D583A78102E8CC11A6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E44969B66744AB2319B5D8D7 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		F0C0580BDBD934FA5B11E3C8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F257A64A500BCB5A18D1969B /* ContactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsService.swift; sourceTree = "<group>"; };
 		FA157FEAB6258887820759C2 /* TranscriptBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptBubbleView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -274,6 +278,7 @@
 		8F410924409A8612A91D4E1D /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				00E8FEB7AE51AF7A7C6D3F7F /* ContactsManager.swift */,
 				0FB91D728BF199FAE8FF2100 /* KeychainManager.swift */,
 			);
 			path = Utilities;
@@ -297,6 +302,7 @@
 				1F78ABAACF0909EC96ECBDE7 /* APIClient.swift */,
 				DBB8FF595DA8D026FC07E8D6 /* AuthService.swift */,
 				C00A08CFD33B436A4738596E /* CallService.swift */,
+				F257A64A500BCB5A18D1969B /* ContactsService.swift */,
 				9685D0F576E765263D2CB5AC /* PushNotificationService.swift */,
 				C808637CA63E1EC80B4DAD68 /* TenantService.swift */,
 			);
@@ -460,6 +466,8 @@
 				DBC19E5A608A185746640E3C /* CallRowView.swift in Sources */,
 				0B4D0A0892D92C9491AF2DC2 /* CallService.swift in Sources */,
 				64747DCB9D8B000F7A3D1611 /* CompleteStepView.swift in Sources */,
+				53FC74B2F99EFA42A7674985 /* ContactsManager.swift in Sources */,
+				92B3C2AC7DFA04055DA2B56A /* ContactsService.swift in Sources */,
 				D99E4E38AAFB5EEA00040B93 /* ContentView.swift in Sources */,
 				EAFB0868C9B61C383D53F8CE /* Date+Extensions.swift in Sources */,
 				760321CBA90EC4698902207C /* EmptyInboxView.swift in Sources */,
