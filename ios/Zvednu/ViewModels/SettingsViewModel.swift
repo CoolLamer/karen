@@ -5,10 +5,13 @@ import SwiftUI
 class SettingsViewModel: ObservableObject {
     @Published var tenant: Tenant?
     @Published var phoneNumbers: [TenantPhoneNumber] = []
+    @Published var billing: BillingInfo?
     @Published var isLoading = false
     @Published var isSaving = false
+    @Published var isUpgrading = false
     @Published var error: String?
     @Published var showSavedConfirmation = false
+    @Published var showUpgradeSheet = false
 
     // Editable fields
     @Published var name = ""
@@ -32,7 +35,10 @@ class SettingsViewModel: ObservableObject {
         error = nil
 
         do {
-            let response = try await tenantService.getTenant()
+            async let tenantResponse = tenantService.getTenant()
+            async let billingResponse = tenantService.getBilling()
+
+            let response = try await tenantResponse
             tenant = response.tenant
             phoneNumbers = response.phoneNumbers
 
@@ -41,6 +47,9 @@ class SettingsViewModel: ObservableObject {
             greetingText = response.tenant.greetingText ?? ""
             vipNames = response.tenant.vipNames ?? []
             marketingEmail = response.tenant.marketingEmail ?? ""
+
+            // Load billing (non-fatal if fails)
+            billing = try? await billingResponse
         } catch {
             self.error = error.localizedDescription
         }
@@ -113,5 +122,70 @@ class SettingsViewModel: ObservableObject {
     func removeVipName(at index: Int) {
         guard vipNames.indices.contains(index) else { return }
         vipNames.remove(at: index)
+    }
+
+    // MARK: - Billing
+
+    var formattedTimeSaved: String {
+        guard let seconds = billing?.totalTimeSaved, seconds > 0 else {
+            return "0min"
+        }
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)min"
+        }
+        return "\(minutes)min"
+    }
+
+    var usagePercentage: Double {
+        guard let callStatus = billing?.callStatus else { return 0 }
+        guard callStatus.callsLimit > 0 else { return 0 }
+        return Double(callStatus.callsUsed) / Double(callStatus.callsLimit) * 100
+    }
+
+    var isTrial: Bool {
+        billing?.plan == "trial"
+    }
+
+    var isTrialExpired: Bool {
+        guard let callStatus = billing?.callStatus else { return false }
+        return !callStatus.canReceive
+    }
+
+    func openUpgrade(plan: String, interval: String) async {
+        isUpgrading = true
+        error = nil
+
+        do {
+            let response = try await tenantService.createCheckout(plan: plan, interval: interval)
+            if let url = URL(string: response.checkoutUrl) {
+                await MainActor.run {
+                    UIApplication.shared.open(url)
+                }
+            }
+        } catch {
+            self.error = "Nepodařilo se otevřít platební bránu"
+        }
+
+        isUpgrading = false
+    }
+
+    func openManageSubscription() async {
+        isUpgrading = true
+        error = nil
+
+        do {
+            let response = try await tenantService.createPortal()
+            if let url = URL(string: response.portalUrl) {
+                await MainActor.run {
+                    UIApplication.shared.open(url)
+                }
+            }
+        } catch {
+            self.error = "Nepodařilo se otevřít správu předplatného"
+        }
+
+        isUpgrading = false
     }
 }

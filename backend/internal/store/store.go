@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -41,6 +42,9 @@ type Tenant struct {
 	Status           string    `json:"status"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+	// Billing fields
+	TrialEndsAt        *time.Time `json:"trial_ends_at,omitempty"`
+	CurrentPeriodCalls int        `json:"current_period_calls"`
 }
 
 // User represents an authenticated user
@@ -319,7 +323,8 @@ func (s *Store) GetTenantByTwilioNumber(ctx context.Context, twilioNumber string
 	err := s.db.QueryRow(ctx, `
 		SELECT t.id, t.name, t.system_prompt, t.greeting_text, t.voice_id, t.language,
 		       t.vip_names, t.marketing_email, t.forward_number, t.max_turn_timeout_ms,
-		       t.plan, t.status, t.created_at, t.updated_at
+		       t.plan, t.status, t.created_at, t.updated_at,
+		       t.trial_ends_at, COALESCE(t.current_period_calls, 0)
 		FROM tenants t
 		JOIN tenant_phone_numbers pn ON pn.tenant_id = t.id
 		WHERE pn.twilio_number = $1 AND t.status = 'active'
@@ -327,6 +332,7 @@ func (s *Store) GetTenantByTwilioNumber(ctx context.Context, twilioNumber string
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
 		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
 		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
+		&t.TrialEndsAt, &t.CurrentPeriodCalls,
 	)
 	if err != nil {
 		return nil, err
@@ -340,7 +346,8 @@ func (s *Store) GetTenantByForwardingSource(ctx context.Context, forwardingSourc
 	err := s.db.QueryRow(ctx, `
 		SELECT t.id, t.name, t.system_prompt, t.greeting_text, t.voice_id, t.language,
 		       t.vip_names, t.marketing_email, t.forward_number, t.max_turn_timeout_ms,
-		       t.plan, t.status, t.created_at, t.updated_at
+		       t.plan, t.status, t.created_at, t.updated_at,
+		       t.trial_ends_at, COALESCE(t.current_period_calls, 0)
 		FROM tenants t
 		JOIN tenant_phone_numbers pn ON pn.tenant_id = t.id
 		WHERE pn.forwarding_source = $1 AND t.status = 'active'
@@ -348,6 +355,7 @@ func (s *Store) GetTenantByForwardingSource(ctx context.Context, forwardingSourc
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
 		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
 		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
+		&t.TrialEndsAt, &t.CurrentPeriodCalls,
 	)
 	if err != nil {
 		return nil, err
@@ -361,13 +369,15 @@ func (s *Store) GetTenantByID(ctx context.Context, id string) (*Tenant, error) {
 	err := s.db.QueryRow(ctx, `
 		SELECT id, name, system_prompt, greeting_text, voice_id, language,
 		       vip_names, marketing_email, forward_number, max_turn_timeout_ms,
-		       plan, status, created_at, updated_at
+		       plan, status, created_at, updated_at,
+		       trial_ends_at, COALESCE(current_period_calls, 0)
 		FROM tenants
 		WHERE id = $1
 	`, id).Scan(
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
 		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
 		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
+		&t.TrialEndsAt, &t.CurrentPeriodCalls,
 	)
 	if err != nil {
 		return nil, err
@@ -376,18 +386,20 @@ func (s *Store) GetTenantByID(ctx context.Context, id string) (*Tenant, error) {
 }
 
 // CreateTenant creates a new tenant and returns it.
+// New tenants are created on the trial plan with trial_ends_at set to 14 days from now.
 func (s *Store) CreateTenant(ctx context.Context, name, systemPrompt, greetingText string) (*Tenant, error) {
 	var t Tenant
+	trialEndsAt := time.Now().AddDate(0, 0, 14) // 14 day trial
 	err := s.db.QueryRow(ctx, `
-		INSERT INTO tenants (name, system_prompt, greeting_text)
-		VALUES ($1, $2, $3)
+		INSERT INTO tenants (name, system_prompt, greeting_text, trial_ends_at)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, name, system_prompt, greeting_text, voice_id, language,
 		          vip_names, marketing_email, forward_number, max_turn_timeout_ms,
-		          plan, status, created_at, updated_at
-	`, name, systemPrompt, greetingText).Scan(
+		          plan, status, created_at, updated_at, trial_ends_at, COALESCE(current_period_calls, 0)
+	`, name, systemPrompt, greetingText, trialEndsAt).Scan(
 		&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
 		&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
-		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt,
+		&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt, &t.TrialEndsAt, &t.CurrentPeriodCalls,
 	)
 	if err != nil {
 		return nil, err
@@ -874,22 +886,27 @@ type AdminTenant struct {
 
 // AdminTenantDetail is a full tenant view for admin dashboard with counts.
 type AdminTenantDetail struct {
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`
-	SystemPrompt     string    `json:"system_prompt"`
-	GreetingText     *string   `json:"greeting_text,omitempty"`
-	VoiceID          *string   `json:"voice_id,omitempty"`
-	Language         string    `json:"language"`
-	VIPNames         []string  `json:"vip_names"`
-	MarketingEmail   *string   `json:"marketing_email,omitempty"`
-	ForwardNumber    *string   `json:"forward_number,omitempty"`
-	MaxTurnTimeoutMs *int      `json:"max_turn_timeout_ms,omitempty"`
-	Plan             string    `json:"plan"`
-	Status           string    `json:"status"`
-	UserCount        int       `json:"user_count"`
-	CallCount        int       `json:"call_count"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	SystemPrompt     string     `json:"system_prompt"`
+	GreetingText     *string    `json:"greeting_text,omitempty"`
+	VoiceID          *string    `json:"voice_id,omitempty"`
+	Language         string     `json:"language"`
+	VIPNames         []string   `json:"vip_names"`
+	MarketingEmail   *string    `json:"marketing_email,omitempty"`
+	ForwardNumber    *string    `json:"forward_number,omitempty"`
+	MaxTurnTimeoutMs *int       `json:"max_turn_timeout_ms,omitempty"`
+	Plan             string     `json:"plan"`
+	Status           string     `json:"status"`
+	UserCount        int        `json:"user_count"`
+	CallCount        int        `json:"call_count"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	// Billing fields
+	TrialEndsAt        *time.Time `json:"trial_ends_at,omitempty"`
+	CurrentPeriodCalls int        `json:"current_period_calls"`
+	TimeSavedSeconds   int        `json:"time_saved_seconds"`
+	SpamCallsBlocked   int        `json:"spam_calls_blocked"`
 }
 
 // AdminUser is a user view for admin dashboard.
@@ -976,7 +993,11 @@ func (s *Store) ListAllTenantsWithDetails(ctx context.Context) ([]AdminTenantDet
 			t.vip_names, t.marketing_email, t.forward_number, t.max_turn_timeout_ms,
 			t.plan, t.status, t.created_at, t.updated_at,
 			COALESCE((SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id), 0) as user_count,
-			COALESCE((SELECT COUNT(*) FROM calls c WHERE c.tenant_id = t.id), 0) as call_count
+			COALESCE((SELECT COUNT(*) FROM calls c WHERE c.tenant_id = t.id), 0) as call_count,
+			t.trial_ends_at,
+			COALESCE(t.current_period_calls, 0) as current_period_calls,
+			COALESCE((SELECT SUM(time_saved_seconds) FROM tenant_usage tu WHERE tu.tenant_id = t.id), 0) as time_saved_seconds,
+			COALESCE((SELECT SUM(spam_calls_blocked) FROM tenant_usage tu WHERE tu.tenant_id = t.id), 0) as spam_calls_blocked
 		FROM tenants t
 		ORDER BY t.created_at DESC
 	`)
@@ -992,6 +1013,7 @@ func (s *Store) ListAllTenantsWithDetails(ctx context.Context) ([]AdminTenantDet
 			&t.ID, &t.Name, &t.SystemPrompt, &t.GreetingText, &t.VoiceID, &t.Language,
 			&t.VIPNames, &t.MarketingEmail, &t.ForwardNumber, &t.MaxTurnTimeoutMs,
 			&t.Plan, &t.Status, &t.CreatedAt, &t.UpdatedAt, &t.UserCount, &t.CallCount,
+			&t.TrialEndsAt, &t.CurrentPeriodCalls, &t.TimeSavedSeconds, &t.SpamCallsBlocked,
 		); err != nil {
 			return nil, err
 		}
@@ -1197,4 +1219,303 @@ func (s *Store) GetCallTenantID(ctx context.Context, providerCallID string) (*st
 		WHERE provider = 'twilio' AND provider_call_id = $1
 	`, providerCallID).Scan(&tenantID)
 	return tenantID, err
+}
+
+// ============================================================================
+// Usage tracking operations
+// ============================================================================
+
+// TenantUsage represents monthly usage for a tenant
+type TenantUsage struct {
+	ID               string    `json:"id"`
+	TenantID         string    `json:"tenant_id"`
+	PeriodStart      time.Time `json:"period_start"`
+	PeriodEnd        time.Time `json:"period_end"`
+	CallsCount       int       `json:"calls_count"`
+	MinutesUsed      int       `json:"minutes_used"`
+	TimeSavedSeconds int       `json:"time_saved_seconds"`
+	SpamCallsBlocked int       `json:"spam_calls_blocked"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+// TenantBillingInfo contains billing-related fields for a tenant
+type TenantBillingInfo struct {
+	TenantID             string     `json:"tenant_id"`
+	Plan                 string     `json:"plan"`
+	Status               string     `json:"status"`
+	StripeCustomerID     *string    `json:"stripe_customer_id,omitempty"`
+	StripeSubscriptionID *string    `json:"stripe_subscription_id,omitempty"`
+	TrialEndsAt          *time.Time `json:"trial_ends_at,omitempty"`
+	CurrentPeriodStart   *time.Time `json:"current_period_start,omitempty"`
+	CurrentPeriodCalls   int        `json:"current_period_calls"`
+}
+
+// IncrementTenantUsage increments usage counters for the current billing period.
+// Creates a new usage record if one doesn't exist for the current month.
+// isSpam indicates if the call was spam/marketing (for spam_calls_blocked counter).
+// callDurationSeconds is the duration of the call for time_saved calculation.
+func (s *Store) IncrementTenantUsage(ctx context.Context, tenantID string, callDurationSeconds int, isSpam bool) error {
+	// Calculate time saved: call duration + overhead (5 min for spam, 2 min for others)
+	overheadSeconds := 120 // 2 minutes
+	if isSpam {
+		overheadSeconds = 300 // 5 minutes
+	}
+	timeSaved := callDurationSeconds + overheadSeconds
+
+	// Get current month boundaries
+	now := time.Now()
+	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	periodEnd := periodStart.AddDate(0, 1, -1) // Last day of month
+
+	spamIncrement := 0
+	if isSpam {
+		spamIncrement = 1
+	}
+
+	// Upsert the usage record for current month
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO tenant_usage (tenant_id, period_start, period_end, calls_count, minutes_used, time_saved_seconds, spam_calls_blocked)
+		VALUES ($1, $2, $3, 1, $4, $5, $6)
+		ON CONFLICT (tenant_id, period_start) DO UPDATE SET
+			calls_count = tenant_usage.calls_count + 1,
+			minutes_used = tenant_usage.minutes_used + $4,
+			time_saved_seconds = tenant_usage.time_saved_seconds + $5,
+			spam_calls_blocked = tenant_usage.spam_calls_blocked + $6,
+			updated_at = NOW()
+	`, tenantID, periodStart, periodEnd, (callDurationSeconds+59)/60, timeSaved, spamIncrement)
+
+	if err != nil {
+		return err
+	}
+
+	// Also increment current_period_calls on tenant for quick limit checks
+	_, err = s.db.Exec(ctx, `
+		UPDATE tenants
+		SET current_period_calls = current_period_calls + 1,
+		    current_period_start = COALESCE(current_period_start, $2)
+		WHERE id = $1
+	`, tenantID, periodStart)
+
+	return err
+}
+
+// GetTenantUsage retrieves usage for a specific period.
+func (s *Store) GetTenantUsage(ctx context.Context, tenantID string, periodStart time.Time) (*TenantUsage, error) {
+	var u TenantUsage
+	err := s.db.QueryRow(ctx, `
+		SELECT id, tenant_id, period_start, period_end, calls_count, minutes_used,
+		       time_saved_seconds, spam_calls_blocked, created_at, updated_at
+		FROM tenant_usage
+		WHERE tenant_id = $1 AND period_start = $2
+	`, tenantID, periodStart).Scan(
+		&u.ID, &u.TenantID, &u.PeriodStart, &u.PeriodEnd, &u.CallsCount, &u.MinutesUsed,
+		&u.TimeSavedSeconds, &u.SpamCallsBlocked, &u.CreatedAt, &u.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// GetTenantCurrentUsage retrieves usage for the current month.
+func (s *Store) GetTenantCurrentUsage(ctx context.Context, tenantID string) (*TenantUsage, error) {
+	now := time.Now()
+	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	return s.GetTenantUsage(ctx, tenantID, periodStart)
+}
+
+// GetTenantTotalTimeSaved retrieves the total time saved across all periods.
+func (s *Store) GetTenantTotalTimeSaved(ctx context.Context, tenantID string) (int, error) {
+	var total int
+	err := s.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(time_saved_seconds), 0)
+		FROM tenant_usage
+		WHERE tenant_id = $1
+	`, tenantID).Scan(&total)
+	return total, err
+}
+
+// GetTenantBillingInfo retrieves billing-related information for a tenant.
+func (s *Store) GetTenantBillingInfo(ctx context.Context, tenantID string) (*TenantBillingInfo, error) {
+	var b TenantBillingInfo
+	err := s.db.QueryRow(ctx, `
+		SELECT id, plan, status, stripe_customer_id, stripe_subscription_id,
+		       trial_ends_at, current_period_start, COALESCE(current_period_calls, 0)
+		FROM tenants
+		WHERE id = $1
+	`, tenantID).Scan(
+		&b.TenantID, &b.Plan, &b.Status, &b.StripeCustomerID, &b.StripeSubscriptionID,
+		&b.TrialEndsAt, &b.CurrentPeriodStart, &b.CurrentPeriodCalls,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+// ResetTenantPeriodCalls resets the current period calls counter (called at billing cycle).
+func (s *Store) ResetTenantPeriodCalls(ctx context.Context, tenantID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE tenants
+		SET current_period_calls = 0, current_period_start = $2
+		WHERE id = $1
+	`, tenantID, time.Now())
+	return err
+}
+
+// GetPlanCallLimit returns the call limit for a given plan.
+// Returns -1 for unlimited plans.
+func GetPlanCallLimit(plan string) int {
+	switch plan {
+	case "trial":
+		return 20
+	case "basic":
+		return 50
+	case "pro":
+		return -1 // unlimited
+	default:
+		return 0 // unknown plan, no calls allowed
+	}
+}
+
+// TenantCallStatus represents the result of checking if a tenant can receive calls.
+type TenantCallStatus struct {
+	CanReceive     bool   `json:"can_receive"`
+	Reason         string `json:"reason,omitempty"`         // "ok", "trial_expired", "limit_exceeded"
+	CallsUsed      int    `json:"calls_used"`               // Current period calls
+	CallsLimit     int    `json:"calls_limit"`              // Plan limit (-1 = unlimited)
+	TrialDaysLeft  int    `json:"trial_days_left,omitempty"`
+	TrialCallsLeft int    `json:"trial_calls_left,omitempty"`
+}
+
+// CanTenantReceiveCalls checks if a tenant can receive calls based on their plan and usage.
+// Returns detailed status including remaining calls/days for trials.
+func CanTenantReceiveCalls(tenant *Tenant) TenantCallStatus {
+	now := time.Now()
+	limit := GetPlanCallLimit(tenant.Plan)
+
+	status := TenantCallStatus{
+		CallsUsed:  tenant.CurrentPeriodCalls,
+		CallsLimit: limit,
+	}
+
+	// Check for cancelled or suspended status
+	if tenant.Status == "cancelled" {
+		status.CanReceive = false
+		status.Reason = "subscription_cancelled"
+		return status
+	}
+	if tenant.Status == "suspended" {
+		status.CanReceive = false
+		status.Reason = "subscription_suspended"
+		return status
+	}
+
+	// Check for trial plan
+	if tenant.Plan == "trial" {
+		// Check trial expiration by date
+		if tenant.TrialEndsAt != nil && now.After(*tenant.TrialEndsAt) {
+			status.CanReceive = false
+			status.Reason = "trial_expired"
+			status.TrialDaysLeft = 0
+			status.TrialCallsLeft = 0
+			return status
+		}
+
+		// Calculate days left
+		if tenant.TrialEndsAt != nil {
+			daysLeft := int(tenant.TrialEndsAt.Sub(now).Hours() / 24)
+			if daysLeft < 0 {
+				daysLeft = 0
+			}
+			status.TrialDaysLeft = daysLeft
+		}
+
+		// Check trial expiration by call count
+		if tenant.CurrentPeriodCalls >= limit {
+			status.CanReceive = false
+			status.Reason = "limit_exceeded"
+			status.TrialCallsLeft = 0
+			return status
+		}
+
+		status.TrialCallsLeft = limit - tenant.CurrentPeriodCalls
+		status.CanReceive = true
+		status.Reason = "ok"
+		return status
+	}
+
+	// For paid plans with limits (basic)
+	if limit > 0 && tenant.CurrentPeriodCalls >= limit {
+		status.CanReceive = false
+		status.Reason = "limit_exceeded"
+		return status
+	}
+
+	// Unlimited or within limits
+	status.CanReceive = true
+	status.Reason = "ok"
+	return status
+}
+
+// UpdateTenantBilling updates billing-related fields on a tenant.
+func (s *Store) UpdateTenantBilling(ctx context.Context, tenantID string, updates map[string]any) error {
+	// Build dynamic UPDATE query for billing fields
+	query := "UPDATE tenants SET updated_at = NOW()"
+	args := []any{tenantID}
+	argNum := 2
+
+	if v, ok := updates["stripe_customer_id"]; ok {
+		query += fmt.Sprintf(", stripe_customer_id = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["stripe_subscription_id"]; ok {
+		query += fmt.Sprintf(", stripe_subscription_id = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["plan"]; ok {
+		query += fmt.Sprintf(", plan = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["status"]; ok {
+		query += fmt.Sprintf(", status = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["trial_ends_at"]; ok {
+		query += fmt.Sprintf(", trial_ends_at = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["current_period_start"]; ok {
+		query += fmt.Sprintf(", current_period_start = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+	if v, ok := updates["current_period_calls"]; ok {
+		query += fmt.Sprintf(", current_period_calls = $%d", argNum)
+		args = append(args, v)
+		argNum++
+	}
+
+	query += " WHERE id = $1"
+
+	_, err := s.db.Exec(ctx, query, args...)
+	return err
+}
+
+// GetTenantIDByStripeCustomer finds a tenant by their Stripe customer ID.
+func (s *Store) GetTenantIDByStripeCustomer(ctx context.Context, stripeCustomerID string) (string, error) {
+	var tenantID string
+	err := s.db.QueryRow(ctx, `
+		SELECT id FROM tenants WHERE stripe_customer_id = $1
+	`, stripeCustomerID).Scan(&tenantID)
+	if err != nil {
+		return "", err
+	}
+	return tenantID, nil
 }

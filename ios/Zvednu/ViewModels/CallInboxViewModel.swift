@@ -5,11 +5,13 @@ import SwiftUI
 class CallInboxViewModel: ObservableObject {
     @Published var calls: [CallListItem] = []
     @Published var unresolvedCount = 0
+    @Published var billing: BillingInfo?
     @Published var isLoading = false
     @Published var isRefreshing = false
     @Published var error: String?
 
     private let callService = CallService.shared
+    private let tenantService = TenantService.shared
 
     // MARK: - Load Calls
 
@@ -22,11 +24,13 @@ class CallInboxViewModel: ObservableObject {
         do {
             async let callsTask = callService.listCalls()
             async let countTask = callService.getUnresolvedCount()
+            async let billingTask = tenantService.getBilling()
 
-            let (fetchedCalls, count) = try await (callsTask, countTask)
+            let (fetchedCalls, count, billingInfo) = try await (callsTask, countTask, billingTask)
 
             calls = fetchedCalls.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
             unresolvedCount = count
+            billing = billingInfo
         } catch {
             self.error = error.localizedDescription
         }
@@ -42,11 +46,13 @@ class CallInboxViewModel: ObservableObject {
         do {
             async let callsTask = callService.listCalls()
             async let countTask = callService.getUnresolvedCount()
+            async let billingTask = tenantService.getBilling()
 
-            let (fetchedCalls, count) = try await (callsTask, countTask)
+            let (fetchedCalls, count, billingInfo) = try await (callsTask, countTask, billingTask)
 
             calls = fetchedCalls.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
             unresolvedCount = count
+            billing = billingInfo
         } catch {
             print("Refresh error: \(error)")
         }

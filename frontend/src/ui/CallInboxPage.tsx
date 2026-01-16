@@ -14,6 +14,8 @@ import {
   UnstyledButton,
   ActionIcon,
   Tooltip,
+  Progress,
+  SimpleGrid,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
@@ -23,9 +25,22 @@ import {
   IconCircleFilled,
   IconCircleCheck,
   IconCircle,
+  IconClock,
+  IconPhoneOff,
 } from "@tabler/icons-react";
-import { api, CallListItem, TenantPhoneNumber } from "../api";
+import { api, CallListItem, TenantPhoneNumber, BillingInfo } from "../api";
 import { getLegitimacyConfig, getLeadLabelConfig } from "./callLabels";
+
+// Format time saved in a human-readable format (Czech)
+function formatTimeSaved(seconds: number): string {
+  if (seconds < 60) return `${seconds} sekund`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minut`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMins = minutes % 60;
+  if (remainingMins === 0) return `${hours}h`;
+  return `${hours}h ${remainingMins}min`;
+}
 
 function formatStatus(status: string) {
   switch (status) {
@@ -68,6 +83,7 @@ function getResolutionStatus(call: CallListItem): ResolutionStatus {
 export function CallInboxPage() {
   const [calls, setCalls] = React.useState<CallListItem[] | null>(null);
   const [phoneNumbers, setPhoneNumbers] = React.useState<TenantPhoneNumber[]>([]);
+  const [billing, setBilling] = React.useState<BillingInfo | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const navigate = useNavigate();
@@ -130,6 +146,11 @@ export function CallInboxPage() {
       .getTenant()
       .then((data) => setPhoneNumbers(data.phone_numbers || []))
       .catch(() => {});
+
+    api
+      .getBilling()
+      .then(setBilling)
+      .catch(() => {});
   }, []);
 
   const hasPhoneNumber = phoneNumbers.some((p) => p.is_primary);
@@ -148,6 +169,145 @@ export function CallInboxPage() {
           </Text>
         )}
       </Group>
+
+      {/* Time Saved Widget + Trial Status */}
+      {billing && (
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          {/* Time Saved Card */}
+          <Paper p="md" radius="md" withBorder>
+            <Group gap="md" wrap="nowrap">
+              <ThemeIcon size={48} radius="xl" variant="light" color="teal">
+                <IconClock size={24} />
+              </ThemeIcon>
+              <Box>
+                <Text size="sm" c="dimmed">
+                  Karen ti ušetřila
+                </Text>
+                <Text size="xl" fw={700} c="teal">
+                  {formatTimeSaved(billing.current_usage?.time_saved_seconds ?? 0)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  tento měsíc ({billing.current_usage?.calls_count ?? 0} hovorů
+                  {billing.current_usage?.spam_calls_blocked
+                    ? `, ${billing.current_usage.spam_calls_blocked} spam blokováno`
+                    : ""}
+                  )
+                </Text>
+              </Box>
+            </Group>
+            {billing.total_time_saved > 0 && billing.total_time_saved !== billing.current_usage?.time_saved_seconds && (
+              <Text size="xs" c="dimmed" mt="xs" ta="right">
+                Celkem od začátku: {formatTimeSaved(billing.total_time_saved)}
+              </Text>
+            )}
+          </Paper>
+
+          {/* Trial Status Card (only for trial plan) */}
+          {billing.plan === "trial" && (
+            <Paper p="md" radius="md" withBorder>
+              <Group gap="md" wrap="nowrap">
+                <ThemeIcon
+                  size={48}
+                  radius="xl"
+                  variant="light"
+                  color={billing.call_status.can_receive ? "blue" : "red"}
+                >
+                  {billing.call_status.can_receive ? (
+                    <IconPhone size={24} />
+                  ) : (
+                    <IconPhoneOff size={24} />
+                  )}
+                </ThemeIcon>
+                <Box style={{ flex: 1 }}>
+                  <Text size="sm" c="dimmed">
+                    Trial status
+                  </Text>
+                  {billing.call_status.can_receive ? (
+                    <>
+                      <Text size="lg" fw={600}>
+                        {billing.call_status.trial_calls_left} hovorů zbývá
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {billing.call_status.trial_days_left} dní do konce trialu
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text size="lg" fw={600} c="red">
+                        Trial vypršel
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {billing.call_status.reason === "limit_exceeded"
+                          ? "Dosáhli jste limitu hovorů"
+                          : "Trial skončil"}
+                      </Text>
+                    </>
+                  )}
+                  {/* Progress bar showing calls used */}
+                  {billing.call_status.calls_limit > 0 && (
+                    <Progress
+                      value={
+                        (billing.call_status.calls_used / billing.call_status.calls_limit) * 100
+                      }
+                      size="sm"
+                      color={
+                        billing.call_status.calls_used >= billing.call_status.calls_limit
+                          ? "red"
+                          : billing.call_status.calls_used >= billing.call_status.calls_limit * 0.8
+                          ? "yellow"
+                          : "blue"
+                      }
+                      mt="xs"
+                    />
+                  )}
+                </Box>
+              </Group>
+            </Paper>
+          )}
+
+          {/* Basic/Pro plan - just show usage if there's a limit */}
+          {billing.plan === "basic" && (
+            <Paper p="md" radius="md" withBorder>
+              <Group gap="md" wrap="nowrap">
+                <ThemeIcon size={48} radius="xl" variant="light" color="blue">
+                  <IconPhone size={24} />
+                </ThemeIcon>
+                <Box style={{ flex: 1 }}>
+                  <Text size="sm" c="dimmed">
+                    Využití tohoto měsíce
+                  </Text>
+                  <Text size="lg" fw={600}>
+                    {billing.call_status.calls_used} / {billing.call_status.calls_limit} hovorů
+                  </Text>
+                  <Progress
+                    value={
+                      (billing.call_status.calls_used / billing.call_status.calls_limit) * 100
+                    }
+                    size="sm"
+                    color={
+                      billing.call_status.calls_used >= billing.call_status.calls_limit
+                        ? "red"
+                        : billing.call_status.calls_used >= billing.call_status.calls_limit * 0.8
+                        ? "yellow"
+                        : "blue"
+                    }
+                    mt="xs"
+                  />
+                </Box>
+              </Group>
+            </Paper>
+          )}
+        </SimpleGrid>
+      )}
+
+      {/* Trial expired alert */}
+      {billing && !billing.call_status.can_receive && (
+        <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+          {billing.call_status.reason === "trial_expired"
+            ? "Tvůj trial vypršel. Karen nebude přijímat hovory. Upgraduj na zvednu.cz"
+            : "Dosáhli jste limitu hovorů. Karen nebude přijímat další hovory. Upgraduj na zvednu.cz"}
+        </Alert>
+      )}
 
       {!hasPhoneNumber && calls !== null && (
         <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">

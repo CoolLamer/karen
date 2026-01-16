@@ -400,6 +400,60 @@ func (r *Router) handleGetTenant(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// handleGetBilling returns the current user's billing status and usage.
+func (r *Router) handleGetBilling(w http.ResponseWriter, req *http.Request) {
+	authUser := getAuthUser(req.Context())
+	if authUser == nil || authUser.TenantID == nil {
+		http.Error(w, `{"error": "no tenant assigned"}`, http.StatusNotFound)
+		return
+	}
+
+	tenant, err := r.store.GetTenantByID(req.Context(), *authUser.TenantID)
+	if err != nil {
+		http.Error(w, `{"error": "tenant not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Get call status (includes remaining calls/days for trials)
+	callStatus := store.CanTenantReceiveCalls(tenant)
+
+	// Get current month usage
+	currentUsage, _ := r.store.GetTenantCurrentUsage(req.Context(), tenant.ID)
+
+	// Get total time saved (all time)
+	totalTimeSaved, _ := r.store.GetTenantTotalTimeSaved(req.Context(), tenant.ID)
+
+	// Build response
+	response := map[string]any{
+		"plan":   tenant.Plan,
+		"status": tenant.Status,
+		"call_status": map[string]any{
+			"can_receive":      callStatus.CanReceive,
+			"reason":           callStatus.Reason,
+			"calls_used":       callStatus.CallsUsed,
+			"calls_limit":      callStatus.CallsLimit,
+			"trial_days_left":  callStatus.TrialDaysLeft,
+			"trial_calls_left": callStatus.TrialCallsLeft,
+		},
+		"trial_ends_at":    tenant.TrialEndsAt,
+		"total_time_saved": totalTimeSaved, // seconds
+	}
+
+	// Add current usage if available
+	if currentUsage != nil {
+		response["current_usage"] = map[string]any{
+			"calls_count":        currentUsage.CallsCount,
+			"minutes_used":       currentUsage.MinutesUsed,
+			"time_saved_seconds": currentUsage.TimeSavedSeconds,
+			"spam_calls_blocked": currentUsage.SpamCallsBlocked,
+			"period_start":       currentUsage.PeriodStart,
+			"period_end":         currentUsage.PeriodEnd,
+		}
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
 // allowedTenantUpdateFields are the fields users can update on their tenant
 var allowedTenantUpdateFields = map[string]bool{
 	"name":            true,

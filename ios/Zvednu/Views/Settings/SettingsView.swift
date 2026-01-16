@@ -38,6 +38,9 @@ struct SettingsView: View {
         } message: {
             Text("Opravdu se chces odhlasit?")
         }
+        .sheet(isPresented: $viewModel.showUpgradeSheet) {
+            UpgradeSheetView(viewModel: viewModel)
+        }
     }
 
     private var settingsContent: some View {
@@ -170,6 +173,132 @@ struct SettingsView: View {
                 }
             }
 
+            // Subscription Section
+            Section("Predplatne") {
+                // Current Plan
+                HStack {
+                    Text("Plan")
+                    Spacer()
+                    Text(planLabel)
+                        .foregroundStyle(.secondary)
+                    if viewModel.billing?.status == "past_due" {
+                        Text("Nezaplaceno")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.red)
+                            .foregroundStyle(.white)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                // Trial Info
+                if viewModel.isTrial, let callStatus = viewModel.billing?.callStatus {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if let trialCallsLeft = callStatus.trialCallsLeft {
+                                Text("Zbyva \(trialCallsLeft) hovoru")
+                            }
+                            if let trialDaysLeft = callStatus.trialDaysLeft {
+                                Text("• \(trialDaysLeft) dni")
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                        ProgressView(value: min(viewModel.usagePercentage, 100), total: 100)
+                            .tint(progressColor)
+                    }
+                }
+
+                // Time Saved
+                if let billing = viewModel.billing, billing.totalTimeSaved > 0 {
+                    HStack {
+                        Image(systemName: "clock.fill")
+                            .foregroundStyle(.teal)
+                        VStack(alignment: .leading) {
+                            Text("Karen ti usetrila")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(viewModel.formattedTimeSaved)
+                                .font(.headline)
+                                .foregroundStyle(.teal)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                // Upgrade/Manage Button
+                if viewModel.isTrial {
+                    Button {
+                        viewModel.showUpgradeSheet = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if viewModel.isUpgrading {
+                                ProgressView()
+                            } else {
+                                Text("Upgradovat")
+                            }
+                            Spacer()
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await viewModel.openManageSubscription()
+                        }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if viewModel.isUpgrading {
+                                ProgressView()
+                            } else {
+                                HStack {
+                                    Text("Spravovat predplatne")
+                                    Image(systemName: "arrow.up.forward")
+                                        .font(.caption)
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+            }
+
+            // Trial Expired Warning
+            if viewModel.isTrialExpired {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                            Text("Trial vyprsel")
+                                .font(.headline)
+                                .foregroundStyle(.red)
+                        }
+                        Text(viewModel.billing?.callStatus.reason == "limit_exceeded"
+                             ? "Dosahli jste limitu hovoru. Karen nebude prijimat nove hovory."
+                             : "Vas trial skoncil. Karen nebude prijimat nove hovory.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Button {
+                            viewModel.showUpgradeSheet = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Upgradovat nyni")
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             // About Section
             Section("O aplikaci") {
                 HStack {
@@ -203,6 +332,23 @@ struct SettingsView: View {
         }
     }
 
+    private var planLabel: String {
+        switch viewModel.billing?.plan ?? "trial" {
+        case "basic": return "Zaklad"
+        case "pro": return "Pro"
+        default: return "Trial"
+        }
+    }
+
+    private var progressColor: Color {
+        if viewModel.usagePercentage >= 100 {
+            return .red
+        } else if viewModel.usagePercentage >= 80 {
+            return .yellow
+        }
+        return .blue
+    }
+
     private func forwardingCodeRow(title: String, code: String) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
@@ -229,6 +375,205 @@ struct SettingsView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Upgrade Sheet View
+
+struct UpgradeSheetView: View {
+    @ObservedObject var viewModel: SettingsViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Basic Plan Card
+                    PlanCardView(
+                        name: "Zaklad",
+                        description: "Pro OSVC a male firmy",
+                        monthlyPrice: "199 Kc",
+                        yearlyPrice: "159 Kc",
+                        features: [
+                            "50 hovoru mesicne",
+                            "Kompletni prepisy",
+                            "SMS notifikace"
+                        ],
+                        accentColor: .blue,
+                        isPopular: false,
+                        isUpgrading: viewModel.isUpgrading,
+                        onMonthly: {
+                            Task {
+                                await viewModel.openUpgrade(plan: "basic", interval: "monthly")
+                                dismiss()
+                            }
+                        },
+                        onYearly: {
+                            Task {
+                                await viewModel.openUpgrade(plan: "basic", interval: "annual")
+                                dismiss()
+                            }
+                        }
+                    )
+
+                    // Pro Plan Card
+                    PlanCardView(
+                        name: "Pro",
+                        description: "Pro profesionaly",
+                        monthlyPrice: "499 Kc",
+                        yearlyPrice: "399 Kc",
+                        features: [
+                            "Neomezene hovory",
+                            "VIP prepojovani",
+                            "Vlastni hlas",
+                            "Prioritni podpora"
+                        ],
+                        accentColor: .purple,
+                        isPopular: true,
+                        isUpgrading: viewModel.isUpgrading,
+                        onMonthly: {
+                            Task {
+                                await viewModel.openUpgrade(plan: "pro", interval: "monthly")
+                                dismiss()
+                            }
+                        },
+                        onYearly: {
+                            Task {
+                                await viewModel.openUpgrade(plan: "pro", interval: "annual")
+                                dismiss()
+                            }
+                        }
+                    )
+
+                    Text("Platbu zpracovava Stripe. Predplatne muzete kdykoli zrusit.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top)
+                }
+                .padding()
+            }
+            .navigationTitle("Vyberte plan")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Zavrit") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct PlanCardView: View {
+    let name: String
+    let description: String
+    let monthlyPrice: String
+    let yearlyPrice: String
+    let features: [String]
+    let accentColor: Color
+    let isPopular: Bool
+    let isUpgrading: Bool
+    let onMonthly: () -> Void
+    let onYearly: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(name)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isPopular {
+                    Text("Popularni")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(accentColor)
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                }
+            }
+
+            // Pricing
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .lastTextBaseline, spacing: 4) {
+                    Text(monthlyPrice)
+                        .font(.title)
+                        .fontWeight(.bold)
+                    Text("/mesic")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("nebo \(yearlyPrice)/mesic rocne")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Features
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(features, id: \.self) { feature in
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(accentColor)
+                            .font(.caption)
+                        Text(feature)
+                            .font(.subheadline)
+                    }
+                }
+            }
+
+            // Buttons
+            VStack(spacing: 8) {
+                Button {
+                    onMonthly()
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isUpgrading {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("Mesicni platba")
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(accentColor)
+                .disabled(isUpgrading)
+
+                Button {
+                    onYearly()
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text("Rocni platba (usetri 20%)")
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.bordered)
+                .tint(accentColor)
+                .disabled(isUpgrading)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(isPopular ? accentColor : Color(.separator), lineWidth: isPopular ? 2 : 1)
+        )
     }
 }
 
