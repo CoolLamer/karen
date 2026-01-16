@@ -102,7 +102,7 @@ jobs:
           xcodebuild test \
             -project Zvednu.xcodeproj \
             -scheme Zvednu \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO
 
