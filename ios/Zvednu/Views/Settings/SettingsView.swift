@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = SettingsViewModel()
+    @ObservedObject private var contactsManager = ContactsManager.shared
     @State private var showLogoutConfirmation = false
     @State private var newVipName = ""
 
@@ -131,6 +132,83 @@ struct SettingsView: View {
                 Text("VIP kontakty")
             } footer: {
                 Text("Když se volající představí jedním z těchto jmen, Karen ho okamžitě přepojí.")
+            }
+
+            // Contacts Section
+            Section {
+                if contactsManager.isAuthorized && contactsManager.isEnabled {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Kontakty aktivni")
+                                .foregroundStyle(.primary)
+                            Text("Jmena volajicich se zobrazuji z vasich kontaktu")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Vypnout") {
+                            contactsManager.disableContactsAccess()
+                        }
+                        .foregroundStyle(.red)
+                    }
+                } else if contactsManager.authorizationStatus == .denied {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pristup ke kontaktum byl zamitnut")
+                            .font(.subheadline)
+                        Text("Pro povoleni prejdete do Nastaveni > Zvednu > Kontakty")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            Link(destination: settingsURL) {
+                                Text("Otevrit nastaveni")
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await contactsManager.enableContactsAccess()
+                        }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Povolit pristup ke kontaktum")
+                                    .foregroundStyle(.primary)
+                                Text("Zobrazovat jmena volajicich")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if contactsManager.isLoading {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(contactsManager.isLoading)
+                }
+            } header: {
+                Text("Kontakty")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.caption2)
+                        Text("Soukromi")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(.green)
+
+                    Text("Kontakty zustavaji pouze ve vasem telefonu. Nikdy neopusti toto zarizeni a nejsou odesilany na zadny server.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // Marketing Email Section

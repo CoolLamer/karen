@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CallRowView: View {
     let call: CallListItem
+    @ObservedObject private var contactsManager = ContactsManager.shared
 
     private var legitimacyLabel: LegitimacyLabel {
         LegitimacyLabel(from: call.screening?.legitimacyLabel ?? "unknown")
@@ -11,9 +12,20 @@ struct CallRowView: View {
         LeadLabel(from: call.screening?.leadLabel ?? "unknown")
     }
 
+    private var displayName: String {
+        if let contactName = contactsManager.contactName(for: call.fromNumber) {
+            return contactName
+        }
+        return call.fromNumber.formattedPhoneNumber()
+    }
+
+    private var showPhoneSubtitle: Bool {
+        contactsManager.contactName(for: call.fromNumber) != nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Phone number and time
+            // Contact name/phone number and time
             HStack {
                 HStack(spacing: 6) {
                     // Unread indicator
@@ -22,9 +34,17 @@ struct CallRowView: View {
                             .fill(Color.accentColor)
                             .frame(width: 8, height: 8)
                     }
-                    Text(call.fromNumber.formattedPhoneNumber())
-                        .font(.headline)
-                        .fontWeight(call.isViewed ? .regular : .semibold)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(displayName)
+                            .font(.headline)
+                            .fontWeight(call.isViewed ? .regular : .semibold)
+
+                        if showPhoneSubtitle {
+                            Text(call.fromNumber.formattedPhoneNumber())
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 Spacer()
