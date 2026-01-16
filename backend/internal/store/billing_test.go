@@ -142,7 +142,7 @@ func TestCanTenantReceiveCalls(t *testing.T) {
 
 func TestCanTenantReceiveCalls_TrialCalculations(t *testing.T) {
 	now := time.Now()
-	// Use 5 days + 12 hours to ensure we get 5 full days after truncation
+	// Use 5 days + 12 hours; ceiling of 5.5 days = 6 days
 	fiveDaysFromNow := now.Add(5*24*time.Hour + 12*time.Hour)
 
 	tenant := &Tenant{
@@ -154,9 +154,9 @@ func TestCanTenantReceiveCalls_TrialCalculations(t *testing.T) {
 
 	status := CanTenantReceiveCalls(tenant)
 
-	// Allow 4-5 days due to rounding (calculation uses integer division of hours/24)
-	if status.TrialDaysLeft < 4 || status.TrialDaysLeft > 5 {
-		t.Errorf("TrialDaysLeft = %d, want 4-5", status.TrialDaysLeft)
+	// With ceiling, 5.5 days rounds up to 6 days
+	if status.TrialDaysLeft != 6 {
+		t.Errorf("TrialDaysLeft = %d, want 6", status.TrialDaysLeft)
 	}
 	if status.TrialCallsLeft != 5 {
 		t.Errorf("TrialCallsLeft = %d, want 5", status.TrialCallsLeft)

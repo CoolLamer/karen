@@ -398,9 +398,12 @@ func (r *Router) getOrCreateStripeCustomer(ctx context.Context, tenant *store.Te
 	}
 
 	// Save the customer ID to the tenant
-	_ = r.store.UpdateTenantBilling(ctx, tenant.ID, map[string]any{
+	if err := r.store.UpdateTenantBilling(ctx, tenant.ID, map[string]any{
 		"stripe_customer_id": c.ID,
-	})
+	}); err != nil {
+		r.logger.Printf("billing: failed to save Stripe customer ID for tenant %s: %v", tenant.ID, err)
+		// Continue anyway - customer was created successfully in Stripe
+	}
 
 	return c.ID, nil
 }

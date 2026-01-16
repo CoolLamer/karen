@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -1423,9 +1424,10 @@ func CanTenantReceiveCalls(tenant *Tenant) TenantCallStatus {
 			return status
 		}
 
-		// Calculate days left
+		// Calculate days left (use ceiling so partial days count as 1)
 		if tenant.TrialEndsAt != nil {
-			daysLeft := int(tenant.TrialEndsAt.Sub(now).Hours() / 24)
+			hoursLeft := tenant.TrialEndsAt.Sub(now).Hours()
+			daysLeft := int(math.Ceil(hoursLeft / 24))
 			if daysLeft < 0 {
 				daysLeft = 0
 			}
@@ -1499,6 +1501,7 @@ func (s *Store) UpdateTenantBilling(ctx context.Context, tenantID string, update
 	if v, ok := updates["current_period_calls"]; ok {
 		query += fmt.Sprintf(", current_period_calls = $%d", argNum)
 		args = append(args, v)
+		argNum++
 	}
 
 	query += " WHERE id = $1"

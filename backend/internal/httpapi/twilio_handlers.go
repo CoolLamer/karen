@@ -86,7 +86,7 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 				callSid, tenant.ID, callStatus.Reason, callStatus.CallsUsed, callStatus.CallsLimit)
 
 			// Store call record as rejected
-			_ = r.store.UpsertCallWithTenant(req.Context(), store.Call{
+			if err := r.store.UpsertCallWithTenant(req.Context(), store.Call{
 				TenantID:       tenantID,
 				Provider:       "twilio",
 				ProviderCallID: callSid,
@@ -94,7 +94,9 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 				ToNumber:       to,
 				Status:         "rejected_limit",
 				StartedAt:      nowUTC(),
-			})
+			}); err != nil {
+				r.logger.Printf("inbound: failed to save rejected call record for %s: %v", callSid, err)
+			}
 
 			// Return TwiML that simply hangs up (don't answer, let it ring through to voicemail)
 			// We don't play any message to the caller - that would be unprofessional

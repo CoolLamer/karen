@@ -185,11 +185,11 @@ func (c *APNsClient) SendUsageWarning(deviceToken string, warningType UsageWarni
 	var title, body string
 	switch warningType {
 	case UsageWarning80Percent:
-		title = "Blizis se limitu"
-		body = fmt.Sprintf("Vyuzili jste %d z %d hovoru. Upgradujte pro vice hovoru.", callsUsed, callsLimit)
+		title = "Blížíš se k limitu"
+		body = fmt.Sprintf("Využili jste %d z %d hovorů. Upgradujte pro více hovorů.", callsUsed, callsLimit)
 	case UsageWarningExpired:
 		title = "Trial vypršel"
-		body = "Karen nebude prijimat hovory. Upgradujte pro pokracovani."
+		body = "Karen nebude přijímat hovory. Upgradujte pro pokračování."
 	default:
 		return nil
 	}

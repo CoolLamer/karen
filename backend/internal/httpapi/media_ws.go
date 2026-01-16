@@ -1648,12 +1648,13 @@ func (s *callSession) checkUsageWarnings(ctx context.Context) {
 	// Calculate thresholds
 	threshold80 := int(float64(limit) * 0.8)
 
-	// Check if we just crossed the 80% threshold (previous call was below, now at or above)
-	// We check if current is at 80% threshold exactly or if we're at limit
-	shouldWarn80 := callsUsed == threshold80
-	shouldWarnExpired := callsUsed == limit
+	// Check if we crossed the 80% threshold or hit the limit
+	// Use >= to handle race conditions where multiple calls complete simultaneously
+	// The notification itself is idempotent (users may receive duplicate warnings, which is acceptable)
+	crossedThreshold80 := callsUsed >= threshold80 && callsUsed < limit
+	hitLimit := callsUsed >= limit
 
-	if !shouldWarn80 && !shouldWarnExpired {
+	if !crossedThreshold80 && !hitLimit {
 		return // No warning needed
 	}
 
@@ -1670,7 +1671,7 @@ func (s *callSession) checkUsageWarnings(ctx context.Context) {
 
 	// Determine warning type
 	var warningType notifications.UsageWarningType
-	if shouldWarnExpired {
+	if hitLimit {
 		warningType = notifications.UsageWarningExpired
 	} else {
 		warningType = notifications.UsageWarning80Percent
