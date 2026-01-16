@@ -9,13 +9,21 @@ struct CallInboxView: View {
         Group {
             if viewModel.isLoading && viewModel.calls.isEmpty {
                 LoadingView(message: "Načítám hovory...")
-            } else if viewModel.filteredCalls.isEmpty {
+            } else if viewModel.calls.isEmpty {
                 VStack(spacing: 16) {
                     if let billing = viewModel.billing {
                         BillingStatusView(billing: billing)
                             .padding(.horizontal)
                     }
                     EmptyInboxView()
+                }
+            } else if viewModel.filteredCalls.isEmpty {
+                VStack(spacing: 16) {
+                    if let billing = viewModel.billing {
+                        BillingStatusView(billing: billing)
+                            .padding(.horizontal)
+                    }
+                    AllResolvedView()
                 }
             } else {
                 callsListWithBilling
@@ -31,6 +39,7 @@ struct CallInboxView: View {
                           ? "line.3.horizontal.decrease.circle.fill"
                           : "line.3.horizontal.decrease.circle")
                 }
+                .accessibilityLabel(viewModel.hideResolved ? "Zobrazit všechny hovory" : "Skrýt vyřešené hovory")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.unresolvedCount > 0 {

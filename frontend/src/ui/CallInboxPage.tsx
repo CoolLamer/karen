@@ -345,7 +345,7 @@ export function CallInboxPage() {
 
       {!calls && !error && <Text c="dimmed">Načítání…</Text>}
 
-      {filteredCalls && filteredCalls.length === 0 && (
+      {calls && calls.length === 0 && (
         <Paper p="xl" withBorder ta="center" radius="md">
           <ThemeIcon size={60} radius="xl" variant="light" color="gray" mb="md" mx="auto">
             <IconPhone size={30} />
@@ -355,6 +355,20 @@ export function CallInboxPage() {
           </Text>
           <Text c="dimmed" size="sm" mt="xs">
             Jakmile někdo zavolá na tvoje Karen číslo, uvidíš hovor zde.
+          </Text>
+        </Paper>
+      )}
+
+      {filteredCalls && filteredCalls.length === 0 && calls && calls.length > 0 && (
+        <Paper p="xl" withBorder ta="center" radius="md">
+          <ThemeIcon size={60} radius="xl" variant="light" color="teal" mb="md" mx="auto">
+            <IconPhone size={30} />
+          </ThemeIcon>
+          <Text c="dimmed" size="lg">
+            Všechny hovory jsou vyřešené
+          </Text>
+          <Text c="dimmed" size="sm" mt="xs">
+            Vypni filtr „Skrýt vyřešené" pro zobrazení všech hovorů.
           </Text>
         </Paper>
       )}
