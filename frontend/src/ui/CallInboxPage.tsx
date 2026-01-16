@@ -7,6 +7,7 @@ import {
   Group,
   Paper,
   Stack,
+  Switch,
   Table,
   Text,
   Title,
@@ -85,8 +86,21 @@ export function CallInboxPage() {
   const [phoneNumbers, setPhoneNumbers] = React.useState<TenantPhoneNumber[]>([]);
   const [billing, setBilling] = React.useState<BillingInfo | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [hideResolved, setHideResolved] = React.useState(() => {
+    return localStorage.getItem("inbox.hideResolved") === "true";
+  });
   const isMobile = useMediaQuery("(max-width: 768px)");
   const navigate = useNavigate();
+
+  const handleHideResolvedChange = (checked: boolean) => {
+    setHideResolved(checked);
+    localStorage.setItem("inbox.hideResolved", String(checked));
+  };
+
+  const filteredCalls = React.useMemo(() => {
+    if (!calls) return null;
+    return hideResolved ? calls.filter((c) => !c.resolved_at) : calls;
+  }, [calls, hideResolved]);
 
   const handleCallClick = (providerCallId: string) => {
     navigate(`/calls/${encodeURIComponent(providerCallId)}`);
@@ -158,16 +172,24 @@ export function CallInboxPage() {
 
   return (
     <Stack gap="md" py="md">
-      <Group justify="space-between">
+      <Group justify="space-between" wrap="wrap">
         <Title order={2}>Příchozí hovory</Title>
-        {hasPhoneNumber && (
-          <Text size="sm" c="dimmed">
-            Karen číslo:{" "}
-            <Text span fw={600}>
-              {karenNumber}
+        <Group gap="md">
+          <Switch
+            label="Skrýt vyřešené"
+            checked={hideResolved}
+            onChange={(e) => handleHideResolvedChange(e.currentTarget.checked)}
+            size="sm"
+          />
+          {hasPhoneNumber && (
+            <Text size="sm" c="dimmed">
+              Karen číslo:{" "}
+              <Text span fw={600}>
+                {karenNumber}
+              </Text>
             </Text>
-          </Text>
-        )}
+          )}
+        </Group>
       </Group>
 
       {/* Time Saved Widget + Trial Status */}
@@ -323,7 +345,7 @@ export function CallInboxPage() {
 
       {!calls && !error && <Text c="dimmed">Načítání…</Text>}
 
-      {calls && calls.length === 0 && (
+      {filteredCalls && filteredCalls.length === 0 && (
         <Paper p="xl" withBorder ta="center" radius="md">
           <ThemeIcon size={60} radius="xl" variant="light" color="gray" mb="md" mx="auto">
             <IconPhone size={30} />
@@ -338,9 +360,9 @@ export function CallInboxPage() {
       )}
 
       {/* Mobile card layout */}
-      {calls && calls.length > 0 && isMobile && (
+      {filteredCalls && filteredCalls.length > 0 && isMobile && (
         <Stack gap="sm">
-          {calls.map((c) => {
+          {filteredCalls.map((c) => {
             const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label, 12);
             const lead = getLeadLabelConfig(c.screening?.lead_label, 12);
             const intent = c.screening?.intent_text ?? "";
@@ -439,7 +461,7 @@ export function CallInboxPage() {
       )}
 
       {/* Desktop table layout */}
-      {calls && calls.length > 0 && !isMobile && (
+      {filteredCalls && filteredCalls.length > 0 && !isMobile && (
         <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
           <Table striped highlightOnHover>
             <Table.Thead>
@@ -454,7 +476,7 @@ export function CallInboxPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {calls.map((c) => {
+              {filteredCalls.map((c) => {
                 const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
                 const lead = getLeadLabelConfig(c.screening?.lead_label);
                 const intent = c.screening?.intent_text ?? "";

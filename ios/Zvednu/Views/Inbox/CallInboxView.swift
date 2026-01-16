@@ -9,7 +9,7 @@ struct CallInboxView: View {
         Group {
             if viewModel.isLoading && viewModel.calls.isEmpty {
                 LoadingView(message: "Načítám hovory...")
-            } else if viewModel.calls.isEmpty {
+            } else if viewModel.filteredCalls.isEmpty {
                 VStack(spacing: 16) {
                     if let billing = viewModel.billing {
                         BillingStatusView(billing: billing)
@@ -23,6 +23,15 @@ struct CallInboxView: View {
         }
         .navigationTitle("Hovory")
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    viewModel.hideResolved.toggle()
+                } label: {
+                    Image(systemName: viewModel.hideResolved
+                          ? "line.3.horizontal.decrease.circle.fill"
+                          : "line.3.horizontal.decrease.circle")
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.unresolvedCount > 0 {
                     Text("\(viewModel.unresolvedCount) nevyřešených")
@@ -65,7 +74,7 @@ struct CallInboxView: View {
 
             // Calls list
             Section {
-                ForEach(viewModel.calls) { call in
+                ForEach(viewModel.filteredCalls) { call in
                     Button {
                         selectedCallId = call.providerCallId
                         showCallDetail = true
