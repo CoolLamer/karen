@@ -183,7 +183,8 @@ export function AdminUsersPage() {
       // Convert date input (YYYY-MM-DD) to ISO string if provided
       const trialEndsAt = editTrialEndsAt ? new Date(editTrialEndsAt + "T23:59:59Z").toISOString() : undefined;
       const currentPeriodCalls = editCurrentPeriodCalls !== "" ? Number(editCurrentPeriodCalls) : undefined;
-      const adminNotes = editAdminNotes || undefined;
+      // Send empty string to clear notes, undefined to leave unchanged
+      const adminNotes = editAdminNotes;
 
       await api.adminUpdateTenant(editingTenant.id, {
         plan: editPlan,

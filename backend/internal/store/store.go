@@ -1203,6 +1203,7 @@ func (s *Store) AdminUpdateTenantBilling(ctx context.Context, tenantID string, u
 	if v, ok := updates["admin_notes"]; ok {
 		query += fmt.Sprintf(", admin_notes = $%d", argNum)
 		args = append(args, v)
+		argNum++
 	}
 
 	query += " WHERE id = $1"
