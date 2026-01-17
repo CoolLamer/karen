@@ -460,3 +460,35 @@ func (r *Router) handleAdminDeleteTenant(w http.ResponseWriter, req *http.Reques
 	r.logger.Printf("admin: deleted tenant %s and all associated data", tenantID)
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
+
+// handleAdminGetTenantCosts returns cost summary for a tenant for a specific period.
+// Query param: period (YYYY-MM format, defaults to current month)
+func (r *Router) handleAdminGetTenantCosts(w http.ResponseWriter, req *http.Request) {
+	tenantID := req.PathValue("tenantId")
+	if tenantID == "" {
+		http.Error(w, `{"error": "missing tenant ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Default to current month
+	period := req.URL.Query().Get("period")
+	if period == "" {
+		period = time.Now().Format("2006-01")
+	}
+
+	// Validate period format (YYYY-MM)
+	if len(period) != 7 || period[4] != '-' {
+		http.Error(w, `{"error": "invalid period format, use YYYY-MM"}`, http.StatusBadRequest)
+		return
+	}
+
+	summary, err := r.store.GetTenantCostSummary(req.Context(), tenantID, period)
+	if err != nil {
+		r.logger.Printf("admin: failed to get cost summary for tenant %s: %v", tenantID, err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to get cost summary"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, summary)
+}

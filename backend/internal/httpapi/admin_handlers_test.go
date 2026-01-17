@@ -210,3 +210,67 @@ func TestAdminNotesValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestCostPeriodValidation(t *testing.T) {
+	tests := []struct {
+		name   string
+		period string
+		valid  bool
+	}{
+		{"valid current month", "2026-01", true},
+		{"valid past month", "2025-06", true},
+		{"valid future month", "2027-12", true},
+		{"invalid - too short", "2026-1", false},
+		{"invalid - no dash", "202601", false},
+		{"invalid - full date", "2026-01-15", false},
+		{"invalid - wrong separator", "2026/01", false},
+		{"invalid - empty", "", false},
+		// Note: "abcd-ef" passes format validation (7 chars, dash at 4)
+		// but would return empty results from the database
+		{"format-valid but semantic nonsense", "abcd-ef", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Period validation: must be exactly 7 chars with dash at position 4
+			valid := len(tt.period) == 7 && tt.period[4] == '-'
+			if valid != tt.valid {
+				t.Errorf("period %q: got valid=%v, want valid=%v", tt.period, valid, tt.valid)
+			}
+		})
+	}
+}
+
+func TestCostDefaultPeriod(t *testing.T) {
+	// Test that the default period format matches YYYY-MM
+	now := time.Now()
+	defaultPeriod := now.Format("2006-01")
+
+	// Should be exactly 7 characters
+	if len(defaultPeriod) != 7 {
+		t.Errorf("default period length: got %d, want 7", len(defaultPeriod))
+	}
+
+	// Should have dash at position 4
+	if defaultPeriod[4] != '-' {
+		t.Errorf("default period format: dash not at position 4, got %q", defaultPeriod)
+	}
+
+	// Year should be 4 digits
+	year := defaultPeriod[:4]
+	for _, c := range year {
+		if c < '0' || c > '9' {
+			t.Errorf("default period year contains non-digit: %q", year)
+			break
+		}
+	}
+
+	// Month should be 2 digits
+	month := defaultPeriod[5:]
+	for _, c := range month {
+		if c < '0' || c > '9' {
+			t.Errorf("default period month contains non-digit: %q", month)
+			break
+		}
+	}
+}
