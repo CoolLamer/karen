@@ -168,6 +168,26 @@ export type BillingInfo = {
   current_usage?: CurrentUsage;
 };
 
+export type TenantCostSummary = {
+  tenant_id: string;
+  period: string; // YYYY-MM format
+  call_count: number;
+  total_duration_seconds: number;
+  twilio_cost_cents: number;
+  stt_cost_cents: number;
+  llm_cost_cents: number;
+  tts_cost_cents: number;
+  total_api_cost_cents: number;
+  phone_number_count: number;
+  phone_rental_cents: number;
+  total_cost_cents: number;
+  // Raw metrics for debugging
+  total_stt_seconds: number;
+  total_llm_input_tokens: number;
+  total_llm_output_tokens: number;
+  total_tts_characters: number;
+};
+
 export type Voice = {
   id: string;
   name: string;
@@ -401,4 +421,9 @@ export const api = {
     http<{ success: boolean }>(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
       method: "DELETE",
     }),
+
+  adminGetTenantCosts: (tenantId: string, period?: string) =>
+    http<TenantCostSummary>(
+      `/admin/tenants/${encodeURIComponent(tenantId)}/costs${period ? `?period=${period}` : ""}`
+    ),
 };

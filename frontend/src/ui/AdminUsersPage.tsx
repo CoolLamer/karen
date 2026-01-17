@@ -39,7 +39,8 @@ import {
   IconCreditCard,
   IconNote,
 } from "@tabler/icons-react";
-import { api, AdminTenantDetail, AdminUser, CallDetail } from "../api";
+import { api, AdminTenantDetail, AdminUser, CallDetail, TenantCostSummary } from "../api";
+import { IconCoin } from "@tabler/icons-react";
 
 const PLAN_OPTIONS = [
   { value: "trial", label: "Trial" },
@@ -93,8 +94,10 @@ export function AdminUsersPage() {
   // Lazy-loaded data per tenant
   const [tenantUsers, setTenantUsers] = React.useState<Record<string, AdminUser[]>>({});
   const [tenantCalls, setTenantCalls] = React.useState<Record<string, CallDetail[]>>({});
+  const [tenantCosts, setTenantCosts] = React.useState<Record<string, TenantCostSummary>>({});
   const [loadingUsers, setLoadingUsers] = React.useState<Record<string, boolean>>({});
   const [loadingCalls, setLoadingCalls] = React.useState<Record<string, boolean>>({});
+  const [loadingCosts, setLoadingCosts] = React.useState<Record<string, boolean>>({});
 
   // Mobile expanded sections
   const [expandedTenant, setExpandedTenant] = React.useState<string | null>(null);
@@ -160,6 +163,19 @@ export function AdminUsersPage() {
       setError("Failed to load calls");
     } finally {
       setLoadingCalls((prev) => ({ ...prev, [tenantId]: false }));
+    }
+  };
+
+  const loadCosts = async (tenantId: string) => {
+    if (tenantCosts[tenantId] || loadingCosts[tenantId]) return;
+    setLoadingCosts((prev) => ({ ...prev, [tenantId]: true }));
+    try {
+      const data = await api.adminGetTenantCosts(tenantId);
+      setTenantCosts((prev) => ({ ...prev, [tenantId]: data }));
+    } catch {
+      setError("Failed to load costs");
+    } finally {
+      setLoadingCosts((prev) => ({ ...prev, [tenantId]: false }));
     }
   };
 
@@ -721,6 +737,7 @@ export function AdminUsersPage() {
                 onClick={() => {
                   loadUsers(tenant.id);
                   loadCalls(tenant.id);
+                  loadCosts(tenant.id);
                 }}
               >
                 <Group justify="space-between" wrap="nowrap" style={{ flex: 1 }}>
@@ -889,6 +906,52 @@ export function AdminUsersPage() {
                         </Table.Tr>
                       </Table.Tbody>
                     </Table>
+                  </Box>
+
+                  {/* Cost Breakdown */}
+                  <Box>
+                    <Text fw={600} size="sm" mb="xs">
+                      <IconCoin size={14} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                      Cost Breakdown (Current Month)
+                    </Text>
+                    {loadingCosts[tenant.id] && <Text size="sm" c="dimmed">Loading...</Text>}
+                    {tenantCosts[tenant.id] && (
+                      <Table>
+                        <Table.Tbody>
+                          <Table.Tr>
+                            <Table.Td w={180}>Twilio (Voice)</Table.Td>
+                            <Table.Td>${(tenantCosts[tenant.id].twilio_cost_cents / 100).toFixed(2)}</Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td>Deepgram (STT)</Table.Td>
+                            <Table.Td>${(tenantCosts[tenant.id].stt_cost_cents / 100).toFixed(2)}</Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td>OpenAI (LLM)</Table.Td>
+                            <Table.Td>${(tenantCosts[tenant.id].llm_cost_cents / 100).toFixed(2)}</Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td>ElevenLabs (TTS)</Table.Td>
+                            <Table.Td>${(tenantCosts[tenant.id].tts_cost_cents / 100).toFixed(2)}</Table.Td>
+                          </Table.Tr>
+                          <Table.Tr style={{ borderTop: "1px solid var(--mantine-color-gray-3)" }}>
+                            <Table.Td fw={500}>API Subtotal</Table.Td>
+                            <Table.Td fw={500}>${(tenantCosts[tenant.id].total_api_cost_cents / 100).toFixed(2)}</Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td>Phone Rental ({tenantCosts[tenant.id].phone_number_count} numbers)</Table.Td>
+                            <Table.Td>${(tenantCosts[tenant.id].phone_rental_cents / 100).toFixed(2)}</Table.Td>
+                          </Table.Tr>
+                          <Table.Tr style={{ backgroundColor: "var(--mantine-color-gray-0)" }}>
+                            <Table.Td fw={600}>Total Cost</Table.Td>
+                            <Table.Td fw={600}>${(tenantCosts[tenant.id].total_cost_cents / 100).toFixed(2)}</Table.Td>
+                          </Table.Tr>
+                        </Table.Tbody>
+                      </Table>
+                    )}
+                    {!loadingCosts[tenant.id] && !tenantCosts[tenant.id] && (
+                      <Text size="sm" c="dimmed">No cost data available</Text>
+                    )}
                   </Box>
 
                   {/* Admin Notes */}

@@ -633,3 +633,280 @@ func TestAdminUpdateTenantBilling(t *testing.T) {
 		}
 	})
 }
+
+func TestRecordAndGetCallCosts(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create test tenant and call
+	tenant, err := s.CreateTenant(ctx, "Cost Test Tenant", "Test prompt", "cs")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Create a test call
+	callID := "cost-test-call-" + time.Now().Format("20060102150405")
+	_, err = db.Exec(ctx, `
+		INSERT INTO calls (id, provider, provider_call_id, tenant_id, from_number, to_number, status, started_at)
+		VALUES ($1, 'twilio', $2, $3, '+420111222333', '+420444555666', 'completed', NOW())
+	`, callID, "CA_test_"+callID, tenant.ID)
+	if err != nil {
+		t.Fatalf("Failed to create test call: %v", err)
+	}
+
+	// Cleanup at the end
+	defer func() {
+		_, _ = db.Exec(ctx, "DELETE FROM call_costs WHERE call_id = $1", callID)
+		_, _ = db.Exec(ctx, "DELETE FROM calls WHERE id = $1", callID)
+		_, _ = db.Exec(ctx, "DELETE FROM tenant_usage WHERE tenant_id = $1", tenant.ID)
+		_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+	}()
+
+	t.Run("record call costs", func(t *testing.T) {
+		metrics := CallCostMetrics{
+			CallDurationSeconds: 120,
+			STTDurationSeconds:  120,
+			LLMInputTokens:      500,
+			LLMOutputTokens:     200,
+			TTSCharacters:       400,
+		}
+
+		costs := CallCosts{
+			TwilioCostCents: 2,
+			STTCostCents:    2,
+			LLMCostCents:    1,
+			TTSCostCents:    7,
+			TotalCostCents:  12,
+		}
+
+		err := s.RecordCallCosts(ctx, callID, metrics, costs)
+		if err != nil {
+			t.Fatalf("RecordCallCosts failed: %v", err)
+		}
+	})
+
+	t.Run("get call costs", func(t *testing.T) {
+		costs, err := s.GetCallCosts(ctx, callID)
+		if err != nil {
+			t.Fatalf("GetCallCosts failed: %v", err)
+		}
+
+		if costs.CallID != callID {
+			t.Errorf("CallID = %q, want %q", costs.CallID, callID)
+		}
+		if costs.TwilioCostCents != 2 {
+			t.Errorf("TwilioCostCents = %d, want 2", costs.TwilioCostCents)
+		}
+		if costs.STTCostCents != 2 {
+			t.Errorf("STTCostCents = %d, want 2", costs.STTCostCents)
+		}
+		if costs.LLMCostCents != 1 {
+			t.Errorf("LLMCostCents = %d, want 1", costs.LLMCostCents)
+		}
+		if costs.TTSCostCents != 7 {
+			t.Errorf("TTSCostCents = %d, want 7", costs.TTSCostCents)
+		}
+		if costs.TotalCostCents != 12 {
+			t.Errorf("TotalCostCents = %d, want 12", costs.TotalCostCents)
+		}
+		if costs.CallDurationSeconds != 120 {
+			t.Errorf("CallDurationSeconds = %d, want 120", costs.CallDurationSeconds)
+		}
+		if costs.TTSCharacters != 400 {
+			t.Errorf("TTSCharacters = %d, want 400", costs.TTSCharacters)
+		}
+	})
+
+	t.Run("update existing call costs (upsert)", func(t *testing.T) {
+		metrics := CallCostMetrics{
+			CallDurationSeconds: 180,
+			STTDurationSeconds:  180,
+			LLMInputTokens:      600,
+			LLMOutputTokens:     250,
+			TTSCharacters:       500,
+		}
+
+		costs := CallCosts{
+			TwilioCostCents: 3,
+			STTCostCents:    3,
+			LLMCostCents:    2,
+			TTSCostCents:    9,
+			TotalCostCents:  17,
+		}
+
+		err := s.RecordCallCosts(ctx, callID, metrics, costs)
+		if err != nil {
+			t.Fatalf("RecordCallCosts (update) failed: %v", err)
+		}
+
+		// Verify updated values
+		updated, err := s.GetCallCosts(ctx, callID)
+		if err != nil {
+			t.Fatalf("GetCallCosts failed: %v", err)
+		}
+
+		if updated.TotalCostCents != 17 {
+			t.Errorf("TotalCostCents after update = %d, want 17", updated.TotalCostCents)
+		}
+		if updated.CallDurationSeconds != 180 {
+			t.Errorf("CallDurationSeconds after update = %d, want 180", updated.CallDurationSeconds)
+		}
+	})
+}
+
+func TestGetTenantCostSummary(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create test tenant
+	tenant, err := s.CreateTenant(ctx, "Cost Summary Test", "Test prompt", "cs")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	currentPeriod := time.Now().Format("2006-01")
+
+	// Create test calls with costs
+	callIDs := []string{}
+	for i := 0; i < 3; i++ {
+		callID := "summary-test-call-" + time.Now().Format("20060102150405") + "-" + string(rune('a'+i))
+		callIDs = append(callIDs, callID)
+
+		_, err = db.Exec(ctx, `
+			INSERT INTO calls (id, provider, provider_call_id, tenant_id, from_number, to_number, status, started_at)
+			VALUES ($1, 'twilio', $2, $3, '+420111222333', '+420444555666', 'completed', NOW())
+		`, callID, "CA_summary_"+callID, tenant.ID)
+		if err != nil {
+			t.Fatalf("Failed to create test call %d: %v", i, err)
+		}
+
+		metrics := CallCostMetrics{
+			CallDurationSeconds: 60 * (i + 1),
+			STTDurationSeconds:  60 * (i + 1),
+			LLMInputTokens:      100 * (i + 1),
+			LLMOutputTokens:     50 * (i + 1),
+			TTSCharacters:       200 * (i + 1),
+		}
+
+		costs := CallCosts{
+			TwilioCostCents: 1 * (i + 1),
+			STTCostCents:    1 * (i + 1),
+			LLMCostCents:    1,
+			TTSCostCents:    4 * (i + 1),
+			TotalCostCents:  7 * (i + 1),
+		}
+
+		err = s.RecordCallCosts(ctx, callID, metrics, costs)
+		if err != nil {
+			t.Fatalf("RecordCallCosts failed for call %d: %v", i, err)
+		}
+	}
+
+	// Cleanup at the end
+	defer func() {
+		for _, callID := range callIDs {
+			_, _ = db.Exec(ctx, "DELETE FROM call_costs WHERE call_id = $1", callID)
+			_, _ = db.Exec(ctx, "DELETE FROM calls WHERE id = $1", callID)
+		}
+		_, _ = db.Exec(ctx, "DELETE FROM tenant_usage WHERE tenant_id = $1", tenant.ID)
+		_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+	}()
+
+	t.Run("get cost summary for current month", func(t *testing.T) {
+		summary, err := s.GetTenantCostSummary(ctx, tenant.ID, currentPeriod)
+		if err != nil {
+			t.Fatalf("GetTenantCostSummary failed: %v", err)
+		}
+
+		if summary.TenantID != tenant.ID {
+			t.Errorf("TenantID = %q, want %q", summary.TenantID, tenant.ID)
+		}
+		if summary.Period != currentPeriod {
+			t.Errorf("Period = %q, want %q", summary.Period, currentPeriod)
+		}
+		if summary.CallCount != 3 {
+			t.Errorf("CallCount = %d, want 3", summary.CallCount)
+		}
+		// Total duration: 60 + 120 + 180 = 360
+		if summary.TotalDurationSeconds != 360 {
+			t.Errorf("TotalDurationSeconds = %d, want 360", summary.TotalDurationSeconds)
+		}
+		// Total API costs: 7 + 14 + 21 = 42
+		if summary.TotalAPICostCents != 42 {
+			t.Errorf("TotalAPICostCents = %d, want 42", summary.TotalAPICostCents)
+		}
+	})
+
+	t.Run("empty period has zero costs", func(t *testing.T) {
+		// Query for a month with no data
+		summary, err := s.GetTenantCostSummary(ctx, tenant.ID, "2020-01")
+		if err != nil {
+			t.Fatalf("GetTenantCostSummary failed: %v", err)
+		}
+
+		if summary.CallCount != 0 {
+			t.Errorf("CallCount = %d, want 0", summary.CallCount)
+		}
+		if summary.TotalAPICostCents != 0 {
+			t.Errorf("TotalAPICostCents = %d, want 0", summary.TotalAPICostCents)
+		}
+	})
+}
+
+func TestGetTenantPhoneNumberCount(t *testing.T) {
+	db := getTestDB(t)
+	defer db.Close()
+
+	s := New(db)
+	ctx := context.Background()
+
+	// Create test tenant
+	tenant, err := s.CreateTenant(ctx, "Phone Count Test", "Test prompt", "cs")
+	if err != nil {
+		t.Fatalf("CreateTenant failed: %v", err)
+	}
+
+	// Cleanup at the end
+	defer func() {
+		_, _ = db.Exec(ctx, "DELETE FROM tenant_phone_numbers WHERE tenant_id = $1", tenant.ID)
+		_, _ = db.Exec(ctx, "DELETE FROM tenant_usage WHERE tenant_id = $1", tenant.ID)
+		_, _ = db.Exec(ctx, "DELETE FROM tenants WHERE id = $1", tenant.ID)
+	}()
+
+	t.Run("new tenant has zero phone numbers", func(t *testing.T) {
+		count, err := s.GetTenantPhoneNumberCount(ctx, tenant.ID)
+		if err != nil {
+			t.Fatalf("GetTenantPhoneNumberCount failed: %v", err)
+		}
+		if count != 0 {
+			t.Errorf("phone count = %d, want 0", count)
+		}
+	})
+
+	t.Run("count increases with assigned numbers", func(t *testing.T) {
+		// Add some phone numbers
+		for i := 0; i < 2; i++ {
+			_, err := db.Exec(ctx, `
+				INSERT INTO tenant_phone_numbers (id, tenant_id, twilio_number, is_primary)
+				VALUES (gen_random_uuid(), $1, $2, $3)
+			`, tenant.ID, "+42077700000"+string(rune('0'+i)), i == 0)
+			if err != nil {
+				t.Fatalf("Failed to add phone number %d: %v", i, err)
+			}
+		}
+
+		count, err := s.GetTenantPhoneNumberCount(ctx, tenant.ID)
+		if err != nil {
+			t.Fatalf("GetTenantPhoneNumberCount failed: %v", err)
+		}
+		if count != 2 {
+			t.Errorf("phone count = %d, want 2", count)
+		}
+	})
+}

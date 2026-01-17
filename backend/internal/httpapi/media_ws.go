@@ -18,6 +18,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/websocket"
+	"github.com/lukasbauer/karen/internal/costs"
 	"github.com/lukasbauer/karen/internal/eventlog"
 	"github.com/lukasbauer/karen/internal/llm"
 	"github.com/lukasbauer/karen/internal/notifications"
@@ -225,6 +226,12 @@ type callSession struct {
 	// Goodbye handling
 	goodbyeDone chan struct{} // Signaled when goodbye mark is received
 	agentHungUp bool          // True if agent initiated the hangup (prevents overwrite by caller)
+
+	// Cost tracking metrics
+	costMetricsMu   sync.Mutex
+	ttsCharacters   int // Total characters sent to TTS
+	llmInputTokens  int // Estimated input tokens (chars / 4)
+	llmOutputTokens int // Estimated output tokens (chars / 4)
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -1093,6 +1100,19 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		return
 	}
 
+	// Track LLM tokens for cost calculation (estimate: ~4 chars per token).
+	// Note: This approximation is reasonable for English but may underestimate tokens
+	// for Czech text (accented characters tokenize less efficiently). For exact costs,
+	// track actual token counts from OpenAI's usage field in the streaming response.
+	inputChars := 0
+	for _, m := range msgs {
+		inputChars += len(m.Content)
+	}
+	s.costMetricsMu.Lock()
+	s.llmInputTokens += (inputChars + 3) / 4 // Round up
+	s.llmOutputTokens += (len(responseText) + 3) / 4
+	s.costMetricsMu.Unlock()
+
 	s.logger.Printf("media_ws: agent response (full): %s", responseText)
 	s.eventLog.LogAsync(s.callID, eventlog.EventLLMCompleted, map[string]any{
 		"turn_id":         turnID,
@@ -1152,6 +1172,11 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 }
 
 func (s *callSession) speakText(ctx context.Context, text string) (uint64, error) {
+	// Track TTS characters for cost calculation
+	s.costMetricsMu.Lock()
+	s.ttsCharacters += len(text)
+	s.costMetricsMu.Unlock()
+
 	ttsStartTime := time.Now()
 	s.eventLog.LogAsync(s.callID, eventlog.EventTTSStarted, map[string]any{
 		"text_length": len(text),
@@ -1530,6 +1555,17 @@ func (s *callSession) analyzeCall() {
 		return
 	}
 
+	// Track LLM tokens for cost calculation (estimate: ~4 chars per token)
+	// AnalyzeCall uses msgs + analysis prompt (~500 chars) and returns JSON (~200 chars)
+	inputChars := 500 // Analysis prompt overhead
+	for _, m := range msgs {
+		inputChars += len(m.Content)
+	}
+	s.costMetricsMu.Lock()
+	s.llmInputTokens += (inputChars + 3) / 4
+	s.llmOutputTokens += 50 // Approximate JSON response tokens
+	s.costMetricsMu.Unlock()
+
 	// Convert entities to JSON
 	entitiesJSON, _ := json.Marshal(result.Entities)
 
@@ -1673,8 +1709,65 @@ func (s *callSession) trackUsage() {
 		s.logger.Printf("media_ws: tracked usage for tenant %s: %ds (spam=%t)", s.tenantCfg.TenantID, durationSeconds, isSpam)
 	}
 
+	// Record call costs
+	s.recordCallCosts(ctx, call.ID, durationSeconds)
+
 	// Check if we need to send usage warnings
 	s.checkUsageWarnings(ctx)
+}
+
+// recordCallCosts calculates and records costs for the call
+func (s *callSession) recordCallCosts(ctx context.Context, callID string, durationSeconds int) {
+	if callID == "" {
+		return
+	}
+
+	// Get accumulated metrics from the session
+	s.costMetricsMu.Lock()
+	ttsChars := s.ttsCharacters
+	llmInput := s.llmInputTokens
+	llmOutput := s.llmOutputTokens
+	s.costMetricsMu.Unlock()
+
+	// Build metrics struct
+	metrics := costs.CallMetrics{
+		CallDurationSeconds: durationSeconds,
+		STTDurationSeconds:  durationSeconds, // Estimate: STT duration ≈ call duration
+		LLMInputTokens:      llmInput,
+		LLMOutputTokens:     llmOutput,
+		TTSCharacters:       ttsChars,
+	}
+
+	// Calculate costs
+	calculated := costs.CalculateCallCosts(metrics)
+
+	// Convert to store types
+	storeMetrics := store.CallCostMetrics{
+		CallDurationSeconds: metrics.CallDurationSeconds,
+		STTDurationSeconds:  metrics.STTDurationSeconds,
+		LLMInputTokens:      metrics.LLMInputTokens,
+		LLMOutputTokens:     metrics.LLMOutputTokens,
+		TTSCharacters:       metrics.TTSCharacters,
+	}
+
+	storeCosts := store.CallCosts{
+		TwilioCostCents: calculated.TwilioCostCents,
+		STTCostCents:    calculated.STTCostCents,
+		LLMCostCents:    calculated.LLMCostCents,
+		TTSCostCents:    calculated.TTSCostCents,
+		TotalCostCents:  calculated.TotalCostCents,
+	}
+
+	// Record in database
+	if err := s.store.RecordCallCosts(ctx, callID, storeMetrics, storeCosts); err != nil {
+		s.logger.Printf("media_ws: failed to record call costs: %v", err)
+		sentry.CaptureException(err)
+	} else {
+		s.logger.Printf("media_ws: recorded call costs for %s: %d cents (twilio=%d, stt=%d, llm=%d, tts=%d)",
+			callID, storeCosts.TotalCostCents,
+			storeCosts.TwilioCostCents, storeCosts.STTCostCents,
+			storeCosts.LLMCostCents, storeCosts.TTSCostCents)
+	}
 }
 
 // checkUsageWarnings sends push notifications if the tenant is approaching their limit

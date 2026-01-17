@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lukasbauer/karen/internal/costs"
 )
 
 type Store struct {
@@ -1567,4 +1568,169 @@ func (s *Store) GetTenantIDByStripeCustomer(ctx context.Context, stripeCustomerI
 		return "", err
 	}
 	return tenantID, nil
+}
+
+// CallCostMetrics contains the raw metrics for a call used to calculate costs.
+type CallCostMetrics struct {
+	CallDurationSeconds int
+	STTDurationSeconds  int
+	LLMInputTokens      int
+	LLMOutputTokens     int
+	TTSCharacters       int
+}
+
+// CallCosts contains the calculated costs for a call in cents.
+type CallCosts struct {
+	CallID              string    `json:"call_id"`
+	TwilioCostCents     int       `json:"twilio_cost_cents"`
+	STTCostCents        int       `json:"stt_cost_cents"`
+	LLMCostCents        int       `json:"llm_cost_cents"`
+	TTSCostCents        int       `json:"tts_cost_cents"`
+	TotalCostCents      int       `json:"total_cost_cents"`
+	CallDurationSeconds int       `json:"call_duration_seconds"`
+	STTDurationSeconds  int       `json:"stt_duration_seconds"`
+	LLMInputTokens      int       `json:"llm_input_tokens"`
+	LLMOutputTokens     int       `json:"llm_output_tokens"`
+	TTSCharacters       int       `json:"tts_characters"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
+// TenantCostSummary contains aggregated cost data for a tenant over a period.
+type TenantCostSummary struct {
+	TenantID             string `json:"tenant_id"`
+	Period               string `json:"period"` // YYYY-MM format
+	CallCount            int    `json:"call_count"`
+	TotalDurationSeconds int    `json:"total_duration_seconds"`
+	TwilioCostCents      int    `json:"twilio_cost_cents"`
+	STTCostCents         int    `json:"stt_cost_cents"`
+	LLMCostCents         int    `json:"llm_cost_cents"`
+	TTSCostCents         int    `json:"tts_cost_cents"`
+	TotalAPICostCents    int    `json:"total_api_cost_cents"`
+	PhoneNumberCount     int    `json:"phone_number_count"`
+	PhoneRentalCents     int    `json:"phone_rental_cents"`
+	TotalCostCents       int    `json:"total_cost_cents"`
+	// Raw metrics for debugging
+	TotalSTTSeconds      int `json:"total_stt_seconds"`
+	TotalLLMInputTokens  int `json:"total_llm_input_tokens"`
+	TotalLLMOutputTokens int `json:"total_llm_output_tokens"`
+	TotalTTSCharacters   int `json:"total_tts_characters"`
+}
+
+// RecordCallCosts saves the cost metrics for a call.
+func (s *Store) RecordCallCosts(ctx context.Context, callID string, metrics CallCostMetrics, costs CallCosts) error {
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO call_costs (
+			call_id, twilio_cost_cents, stt_cost_cents, llm_cost_cents, tts_cost_cents,
+			total_cost_cents, call_duration_seconds, stt_duration_seconds,
+			llm_input_tokens, llm_output_tokens, tts_characters
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (call_id) DO UPDATE SET
+			twilio_cost_cents = $2, stt_cost_cents = $3, llm_cost_cents = $4,
+			tts_cost_cents = $5, total_cost_cents = $6, call_duration_seconds = $7,
+			stt_duration_seconds = $8, llm_input_tokens = $9, llm_output_tokens = $10,
+			tts_characters = $11
+	`, callID, costs.TwilioCostCents, costs.STTCostCents, costs.LLMCostCents,
+		costs.TTSCostCents, costs.TotalCostCents, metrics.CallDurationSeconds,
+		metrics.STTDurationSeconds, metrics.LLMInputTokens, metrics.LLMOutputTokens,
+		metrics.TTSCharacters)
+	return err
+}
+
+// GetCallCosts retrieves the costs for a specific call.
+func (s *Store) GetCallCosts(ctx context.Context, callID string) (*CallCosts, error) {
+	var c CallCosts
+	err := s.db.QueryRow(ctx, `
+		SELECT call_id, twilio_cost_cents, stt_cost_cents, llm_cost_cents, tts_cost_cents,
+		       total_cost_cents, COALESCE(call_duration_seconds, 0), COALESCE(stt_duration_seconds, 0),
+		       COALESCE(llm_input_tokens, 0), COALESCE(llm_output_tokens, 0),
+		       COALESCE(tts_characters, 0), created_at
+		FROM call_costs WHERE call_id = $1
+	`, callID).Scan(
+		&c.CallID, &c.TwilioCostCents, &c.STTCostCents, &c.LLMCostCents, &c.TTSCostCents,
+		&c.TotalCostCents, &c.CallDurationSeconds, &c.STTDurationSeconds,
+		&c.LLMInputTokens, &c.LLMOutputTokens, &c.TTSCharacters, &c.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// GetTenantCostSummary retrieves aggregated costs for a tenant for a specific month.
+// period should be in YYYY-MM format.
+func (s *Store) GetTenantCostSummary(ctx context.Context, tenantID string, period string) (*TenantCostSummary, error) {
+	summary := &TenantCostSummary{
+		TenantID: tenantID,
+		Period:   period,
+	}
+
+	// Parse period to get date range (uses index on created_at instead of TO_CHAR)
+	periodStart, err := time.Parse("2006-01", period)
+	if err != nil {
+		return nil, fmt.Errorf("invalid period format: %w", err)
+	}
+	periodEnd := periodStart.AddDate(0, 1, 0) // First day of next month
+
+	// Get aggregated API costs from call_costs joined with calls
+	err = s.db.QueryRow(ctx, `
+		SELECT
+			COUNT(*),
+			COALESCE(SUM(cc.call_duration_seconds), 0),
+			COALESCE(SUM(cc.twilio_cost_cents), 0),
+			COALESCE(SUM(cc.stt_cost_cents), 0),
+			COALESCE(SUM(cc.llm_cost_cents), 0),
+			COALESCE(SUM(cc.tts_cost_cents), 0),
+			COALESCE(SUM(cc.total_cost_cents), 0),
+			COALESCE(SUM(cc.stt_duration_seconds), 0),
+			COALESCE(SUM(cc.llm_input_tokens), 0),
+			COALESCE(SUM(cc.llm_output_tokens), 0),
+			COALESCE(SUM(cc.tts_characters), 0)
+		FROM call_costs cc
+		JOIN calls c ON c.id = cc.call_id
+		WHERE c.tenant_id = $1
+		  AND cc.created_at >= $2
+		  AND cc.created_at < $3
+	`, tenantID, periodStart, periodEnd).Scan(
+		&summary.CallCount,
+		&summary.TotalDurationSeconds,
+		&summary.TwilioCostCents,
+		&summary.STTCostCents,
+		&summary.LLMCostCents,
+		&summary.TTSCostCents,
+		&summary.TotalAPICostCents,
+		&summary.TotalSTTSeconds,
+		&summary.TotalLLMInputTokens,
+		&summary.TotalLLMOutputTokens,
+		&summary.TotalTTSCharacters,
+	)
+	if err != nil && err != pgx.ErrNoRows {
+		return nil, err
+	}
+
+	// Get phone number count for this tenant
+	var phoneCount int
+	err = s.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM tenant_phone_numbers WHERE tenant_id = $1
+	`, tenantID).Scan(&phoneCount)
+	if err != nil && err != pgx.ErrNoRows {
+		return nil, err
+	}
+	summary.PhoneNumberCount = phoneCount
+
+	// Calculate phone rental using centralized pricing constant
+	summary.PhoneRentalCents = costs.CalculateMonthlyPhoneRentalCost(phoneCount)
+
+	// Calculate total
+	summary.TotalCostCents = summary.TotalAPICostCents + summary.PhoneRentalCents
+
+	return summary, nil
+}
+
+// GetTenantPhoneNumberCount returns the count of phone numbers assigned to a tenant.
+func (s *Store) GetTenantPhoneNumberCount(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := s.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM tenant_phone_numbers WHERE tenant_id = $1
+	`, tenantID).Scan(&count)
+	return count, err
 }
