@@ -431,6 +431,11 @@ export function AdminUsersPage() {
                         <Text size="xs">
                           <Text span fw={500}>Language:</Text> {tenant.language}
                         </Text>
+                        {tenant.greeting_text && (
+                          <Text size="xs">
+                            <Text span fw={500}>Pozdrav:</Text> {tenant.greeting_text}
+                          </Text>
+                        )}
                         {tenant.voice_id && (
                           <Text size="xs">
                             <Text span fw={500}>Voice:</Text> {tenant.voice_id}
@@ -791,6 +796,12 @@ export function AdminUsersPage() {
                           <Table.Td w={150}>Language</Table.Td>
                           <Table.Td>{tenant.language}</Table.Td>
                         </Table.Tr>
+                        {tenant.greeting_text && (
+                          <Table.Tr>
+                            <Table.Td>Pozdrav</Table.Td>
+                            <Table.Td>{tenant.greeting_text}</Table.Td>
+                          </Table.Tr>
+                        )}
                         {tenant.voice_id && (
                           <Table.Tr>
                             <Table.Td>Voice ID</Table.Td>

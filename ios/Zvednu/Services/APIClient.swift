@@ -11,17 +11,17 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Neplatna URL"
+            return "Neplatná URL"
         case .invalidResponse:
-            return "Neplatna odpoved serveru"
+            return "Neplatná odpověď serveru"
         case .httpError(let code, let message):
             return "Chyba \(code): \(message)"
         case .decodingError(let error):
-            return "Chyba pri zpracovani dat: \(error.localizedDescription)"
+            return "Chyba při zpracování dat: \(error.localizedDescription)"
         case .networkError(let error):
-            return "Chyba site: \(error.localizedDescription)"
+            return "Chyba sítě: \(error.localizedDescription)"
         case .unauthorized:
-            return "Neplatne prihlaseni"
+            return "Neplatné přihlášení"
         }
     }
 }
@@ -83,6 +83,10 @@ actor APIClient {
         let _: Empty = try await request(path, method: "DELETE", body: nil as Empty?)
     }
 
+    func postRaw<B: Encodable>(_ path: String, body: B?) async throws -> Data {
+        try await requestRaw(path, method: "POST", body: body)
+    }
+
     // MARK: - Private Request Implementation
 
     private func request<T: Decodable, B: Encodable>(
@@ -139,6 +143,53 @@ actor APIClient {
             } catch {
                 throw APIError.decodingError(error)
             }
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.networkError(error)
+        }
+    }
+
+    private func requestRaw<B: Encodable>(
+        _ path: String,
+        method: String,
+        body: B?
+    ) async throws -> Data {
+        guard let url = URL(string: baseURL + path) else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        if let body = body {
+            let encoder = JSONEncoder()
+            request.httpBody = try encoder.encode(body)
+        }
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+
+            if httpResponse.statusCode == 401 {
+                setAuthToken(nil)
+                throw APIError.unauthorized
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+                throw APIError.httpError(httpResponse.statusCode, message)
+            }
+
+            return data
         } catch let error as APIError {
             throw error
         } catch {

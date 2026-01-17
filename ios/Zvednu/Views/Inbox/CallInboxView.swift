@@ -17,12 +17,30 @@ struct CallInboxView: View {
                     }
                     EmptyInboxView()
                 }
+            } else if viewModel.filteredCalls.isEmpty {
+                VStack(spacing: 16) {
+                    if let billing = viewModel.billing {
+                        BillingStatusView(billing: billing)
+                            .padding(.horizontal)
+                    }
+                    AllResolvedView()
+                }
             } else {
                 callsListWithBilling
             }
         }
         .navigationTitle("Hovory")
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    viewModel.hideResolved.toggle()
+                } label: {
+                    Image(systemName: viewModel.hideResolved
+                          ? "line.3.horizontal.decrease.circle.fill"
+                          : "line.3.horizontal.decrease.circle")
+                }
+                .accessibilityLabel(viewModel.hideResolved ? "Zobrazit všechny hovory" : "Skrýt vyřešené hovory")
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.unresolvedCount > 0 {
                     Text("\(viewModel.unresolvedCount) nevyřešených")
@@ -65,7 +83,7 @@ struct CallInboxView: View {
 
             // Calls list
             Section {
-                ForEach(viewModel.calls) { call in
+                ForEach(viewModel.filteredCalls) { call in
                     Button {
                         selectedCallId = call.providerCallId
                         showCallDetail = true
@@ -110,14 +128,14 @@ struct BillingStatusView: View {
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Karen ti usetřila")
+                    Text("Karen ti ušetřila")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(billing.formattedTimeSaved)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(.teal)
-                    Text("tento mesic (\(billing.currentUsage?.callsCount ?? 0) hovoru)")
+                    Text("tento měsíc (\(billing.currentUsage?.callsCount ?? 0) hovorů)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -145,9 +163,9 @@ struct BillingStatusView: View {
                             .foregroundStyle(.secondary)
 
                         if billing.callStatus.canReceive {
-                            Text("\(billing.callStatus.trialCallsLeft ?? 0) hovoru zbyva")
+                            Text("\(billing.callStatus.trialCallsLeft ?? 0) hovorů zbývá")
                                 .font(.headline)
-                            Text("\(billing.callStatus.trialDaysLeft ?? 0) dni do konce trialu")
+                            Text("\(billing.callStatus.trialDaysLeft ?? 0) dní do konce trialu")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -155,8 +173,8 @@ struct BillingStatusView: View {
                                 .font(.headline)
                                 .foregroundStyle(.red)
                             Text(billing.callStatus.reason == "limit_exceeded"
-                                 ? "Dosahli jste limitu hovoru"
-                                 : "Trial skoncil")
+                                 ? "Dosáhli jste limitu hovorů"
+                                 : "Trial skončil")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -182,8 +200,8 @@ struct BillingStatusView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
                     Text(billing.callStatus.reason == "trial_expired"
-                         ? "Tvuj trial vypršel. Karen nebude prijimat hovory."
-                         : "Dosahli jste limitu hovoru. Karen nebude prijimat hovory.")
+                         ? "Tvůj trial vypršel. Karen nebude přijímat hovory."
+                         : "Dosáhli jste limitu hovorů. Karen nebude přijímat hovory.")
                         .font(.subheadline)
                     Spacer()
                 }

@@ -289,4 +289,129 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNil(utterance.startedAt)
         XCTAssertNil(utterance.sttConfidence)
     }
+
+    // MARK: - Voice Tests
+
+    func testVoiceDecoding() throws {
+        let json = """
+        {
+            "id": "21m00Tcm4TlvDq8ikWAM",
+            "name": "Rachel",
+            "description": "Přátelský, profesionální",
+            "gender": "female"
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        let voice = try decoder.decode(Voice.self, from: json)
+
+        XCTAssertEqual(voice.id, "21m00Tcm4TlvDq8ikWAM")
+        XCTAssertEqual(voice.name, "Rachel")
+        XCTAssertEqual(voice.description, "Přátelský, profesionální")
+        XCTAssertEqual(voice.gender, "female")
+    }
+
+    func testVoiceDecodingMale() throws {
+        let json = """
+        {
+            "id": "pNInz6obpgDQGcFmaJgB",
+            "name": "Adam",
+            "description": "Hluboký, důvěryhodný",
+            "gender": "male"
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        let voice = try decoder.decode(Voice.self, from: json)
+
+        XCTAssertEqual(voice.id, "pNInz6obpgDQGcFmaJgB")
+        XCTAssertEqual(voice.name, "Adam")
+        XCTAssertEqual(voice.description, "Hluboký, důvěryhodný")
+        XCTAssertEqual(voice.gender, "male")
+    }
+
+    func testVoiceListDecoding() throws {
+        let json = """
+        {
+            "voices": [
+                {
+                    "id": "voice-1",
+                    "name": "Rachel",
+                    "description": "Friendly voice",
+                    "gender": "female"
+                },
+                {
+                    "id": "voice-2",
+                    "name": "Adam",
+                    "description": "Professional voice",
+                    "gender": "male"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        let response = try decoder.decode(VoicesResponse.self, from: json)
+
+        XCTAssertEqual(response.voices.count, 2)
+        XCTAssertEqual(response.voices[0].name, "Rachel")
+        XCTAssertEqual(response.voices[1].name, "Adam")
+    }
+
+    func testVoiceEquality() {
+        let voice1 = Voice(id: "voice-1", name: "Rachel", description: "Friendly", gender: "female")
+        let voice2 = Voice(id: "voice-1", name: "Rachel", description: "Friendly", gender: "female")
+        let voice3 = Voice(id: "voice-2", name: "Adam", description: "Deep", gender: "male")
+
+        XCTAssertEqual(voice1, voice2)
+        XCTAssertNotEqual(voice1, voice3)
+    }
+
+    func testVoiceIdentifiable() {
+        let voice = Voice(id: "test-voice-id", name: "Test", description: "Test voice", gender: "female")
+        XCTAssertEqual(voice.id, "test-voice-id")
+    }
+
+    func testTenantWithVoiceId() throws {
+        let json = """
+        {
+            "id": "tenant-123",
+            "name": "Test Company",
+            "system_prompt": "You are a helpful assistant",
+            "greeting_text": "Hello, how can I help?",
+            "language": "cs",
+            "vip_names": [],
+            "marketing_email": null,
+            "plan": "free",
+            "status": "active",
+            "voice_id": "21m00Tcm4TlvDq8ikWAM"
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        let tenant = try decoder.decode(Tenant.self, from: json)
+
+        XCTAssertEqual(tenant.voiceId, "21m00Tcm4TlvDq8ikWAM")
+    }
+
+    func testTenantWithoutVoiceId() throws {
+        let json = """
+        {
+            "id": "tenant-456",
+            "name": "Another Company",
+            "system_prompt": "Default prompt",
+            "greeting_text": null,
+            "language": "cs",
+            "vip_names": null,
+            "marketing_email": null,
+            "plan": "trial",
+            "status": "active"
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        let tenant = try decoder.decode(Tenant.self, from: json)
+
+        XCTAssertNil(tenant.voiceId)
+    }
 }

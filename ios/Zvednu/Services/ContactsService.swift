@@ -9,11 +9,11 @@ enum ContactsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .accessDenied:
-            return "Pristup ke kontaktum byl zamitnut"
+            return "Přístup ke kontaktům byl zamítnut"
         case .accessRestricted:
-            return "Pristup ke kontaktum je omezen"
+            return "Přístup ke kontaktům je omezen"
         case .fetchFailed(let error):
-            return "Chyba pri nacitani kontaktu: \(error.localizedDescription)"
+            return "Chyba při načítání kontaktů: \(error.localizedDescription)"
         }
     }
 }

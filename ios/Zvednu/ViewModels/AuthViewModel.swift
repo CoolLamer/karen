@@ -60,7 +60,7 @@ class AuthViewModel: ObservableObject {
 
     func sendCode() async {
         guard !phoneNumber.isEmpty else {
-            error = "Zadej telefonni cislo"
+            error = "Zadej telefonní číslo"
             return
         }
 

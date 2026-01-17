@@ -188,6 +188,13 @@ export type TenantCostSummary = {
   total_tts_characters: number;
 };
 
+export type Voice = {
+  id: string;
+  name: string;
+  description: string;
+  gender: "male" | "female";
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
 
 let authToken: string | null = localStorage.getItem("karen_token");
@@ -312,6 +319,27 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+
+  // Voices
+  getVoices: () => http<{ voices: Voice[] }>("/api/voices"),
+
+  previewVoice: async (voiceId: string): Promise<Blob> => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (authToken) {
+      headers["Authorization"] = `Bearer ${authToken}`;
+    }
+    const res = await fetch(`${API_BASE}/api/voices/preview`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ voice_id: voiceId }),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to preview voice: ${res.status}`);
+    }
+    return res.blob();
+  },
 
   // Onboarding
   completeOnboarding: (name: string, greetingText: string) =>
