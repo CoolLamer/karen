@@ -228,10 +228,10 @@ type callSession struct {
 	agentHungUp bool          // True if agent initiated the hangup (prevents overwrite by caller)
 
 	// Cost tracking metrics
-	costMetricsMu    sync.Mutex
-	ttsCharacters    int // Total characters sent to TTS
-	llmInputTokens   int // Estimated input tokens (chars / 4)
-	llmOutputTokens  int // Estimated output tokens (chars / 4)
+	costMetricsMu   sync.Mutex
+	ttsCharacters   int // Total characters sent to TTS
+	llmInputTokens  int // Estimated input tokens (chars / 4)
+	llmOutputTokens int // Estimated output tokens (chars / 4)
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -1106,7 +1106,7 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		inputChars += len(m.Content)
 	}
 	s.costMetricsMu.Lock()
-	s.llmInputTokens += (inputChars + 3) / 4  // Round up
+	s.llmInputTokens += (inputChars + 3) / 4 // Round up
 	s.llmOutputTokens += (len(responseText) + 3) / 4
 	s.costMetricsMu.Unlock()
 

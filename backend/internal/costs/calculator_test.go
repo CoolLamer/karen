@@ -13,11 +13,11 @@ func TestCalculateCallCosts(t *testing.T) {
 		{
 			name: "typical 2 minute call",
 			metrics: CallMetrics{
-				CallDurationSeconds: 120,  // 2 minutes
-				STTDurationSeconds:  120,  // Same as call
-				LLMInputTokens:      500,  // Typical conversation
-				LLMOutputTokens:     200,  // AI responses
-				TTSCharacters:       400,  // Spoken response chars
+				CallDurationSeconds: 120, // 2 minutes
+				STTDurationSeconds:  120, // Same as call
+				LLMInputTokens:      500, // Typical conversation
+				LLMOutputTokens:     200, // AI responses
+				TTSCharacters:       400, // Spoken response chars
 			},
 			// Twilio: 2 * 0.85 = 1.7 -> 2 cents
 			// STT: 2 * 0.77 = 1.54 -> 2 cents
@@ -56,11 +56,11 @@ func TestCalculateCallCosts(t *testing.T) {
 		{
 			name: "long 10 minute call with lots of conversation",
 			metrics: CallMetrics{
-				CallDurationSeconds: 600,   // 10 minutes
-				STTDurationSeconds:  600,   // Same as call
-				LLMInputTokens:      5000,  // Long conversation
-				LLMOutputTokens:     2000,  // Detailed responses
-				TTSCharacters:       4000,  // Lots of spoken text
+				CallDurationSeconds: 600,  // 10 minutes
+				STTDurationSeconds:  600,  // Same as call
+				LLMInputTokens:      5000, // Long conversation
+				LLMOutputTokens:     2000, // Detailed responses
+				TTSCharacters:       4000, // Lots of spoken text
 			},
 			// Twilio: 10 * 0.85 = 8.5 -> 9 cents
 			// STT: 10 * 0.77 = 7.7 -> 8 cents
@@ -145,9 +145,9 @@ func TestCalculatePhoneRentalCost_Prorated(t *testing.T) {
 		daysInPeriod int
 		want         int
 	}{
-		{"full month", 1, 30, 150},        // $1.50
-		{"half month", 1, 15, 75},         // $0.75
-		{"10 days", 2, 10, 100},           // 2 phones * 150 * (10/30) = 100
+		{"full month", 1, 30, 150}, // $1.50
+		{"half month", 1, 15, 75},  // $0.75
+		{"10 days", 2, 10, 100},    // 2 phones * 150 * (10/30) = 100
 		{"zero days defaults to 30", 1, 0, 150},
 	}
 

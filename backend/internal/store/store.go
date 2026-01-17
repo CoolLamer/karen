@@ -1596,23 +1596,23 @@ type CallCosts struct {
 
 // TenantCostSummary contains aggregated cost data for a tenant over a period.
 type TenantCostSummary struct {
-	TenantID            string `json:"tenant_id"`
-	Period              string `json:"period"` // YYYY-MM format
-	CallCount           int    `json:"call_count"`
-	TotalDurationSeconds int   `json:"total_duration_seconds"`
-	TwilioCostCents     int    `json:"twilio_cost_cents"`
-	STTCostCents        int    `json:"stt_cost_cents"`
-	LLMCostCents        int    `json:"llm_cost_cents"`
-	TTSCostCents        int    `json:"tts_cost_cents"`
-	TotalAPICostCents   int    `json:"total_api_cost_cents"`
-	PhoneNumberCount    int    `json:"phone_number_count"`
-	PhoneRentalCents    int    `json:"phone_rental_cents"`
-	TotalCostCents      int    `json:"total_cost_cents"`
+	TenantID             string `json:"tenant_id"`
+	Period               string `json:"period"` // YYYY-MM format
+	CallCount            int    `json:"call_count"`
+	TotalDurationSeconds int    `json:"total_duration_seconds"`
+	TwilioCostCents      int    `json:"twilio_cost_cents"`
+	STTCostCents         int    `json:"stt_cost_cents"`
+	LLMCostCents         int    `json:"llm_cost_cents"`
+	TTSCostCents         int    `json:"tts_cost_cents"`
+	TotalAPICostCents    int    `json:"total_api_cost_cents"`
+	PhoneNumberCount     int    `json:"phone_number_count"`
+	PhoneRentalCents     int    `json:"phone_rental_cents"`
+	TotalCostCents       int    `json:"total_cost_cents"`
 	// Raw metrics for debugging
-	TotalSTTSeconds     int `json:"total_stt_seconds"`
-	TotalLLMInputTokens int `json:"total_llm_input_tokens"`
+	TotalSTTSeconds      int `json:"total_stt_seconds"`
+	TotalLLMInputTokens  int `json:"total_llm_input_tokens"`
 	TotalLLMOutputTokens int `json:"total_llm_output_tokens"`
-	TotalTTSCharacters  int `json:"total_tts_characters"`
+	TotalTTSCharacters   int `json:"total_tts_characters"`
 }
 
 // RecordCallCosts saves the cost metrics for a call.
