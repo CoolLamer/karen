@@ -37,8 +37,10 @@ import {
   IconCreditCard,
   IconClock,
   IconExternalLink,
+  IconVolume,
 } from "@tabler/icons-react";
 import { ForwardingSetupModal } from "./ForwardingSetupModal";
+import { VoicePickerModal, useVoiceName } from "./VoicePickerModal";
 import { api, TenantPhoneNumber, BillingInfo } from "../api";
 import { useAuth } from "../AuthContext";
 
@@ -58,6 +60,8 @@ export function SettingsPage() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [showGreetingWarning, setShowGreetingWarning] = useState(false);
   const [warningOldName, setWarningOldName] = useState("");
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const voiceName = useVoiceName(tenant?.voice_id);
 
   // Form state
   const [name, setName] = useState(tenant?.name || "");
@@ -392,6 +396,34 @@ export function SettingsPage() {
             </Stack>
           </Paper>
 
+          {/* Voice selection */}
+          <Paper p="lg" radius="md" withBorder>
+            <Stack gap="md">
+              <Group gap="xs">
+                <ThemeIcon size="sm" variant="light" color="teal">
+                  <IconVolume size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={600} tt="uppercase" c="dimmed">
+                  Hlas asistentky
+                </Text>
+              </Group>
+
+              <Group justify="space-between" align="center">
+                <div>
+                  <Text size="sm" fw={500}>
+                    {voiceName}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Hlas, kterým Karen mluví
+                  </Text>
+                </div>
+                <Button variant="light" size="xs" onClick={() => setVoiceModalOpen(true)}>
+                  Změnit
+                </Button>
+              </Group>
+            </Stack>
+          </Paper>
+
           {/* Save button */}
           <Button size="lg" onClick={handleSave} loading={isSaving}>
             Uložit změny
@@ -543,6 +575,18 @@ export function SettingsPage() {
         opened={forwardingModalOpen}
         onClose={() => setForwardingModalOpen(false)}
         karenNumber={karenNumber}
+      />
+
+      {/* Voice picker modal */}
+      <VoicePickerModal
+        opened={voiceModalOpen}
+        onClose={() => setVoiceModalOpen(false)}
+        currentVoiceId={tenant?.voice_id}
+        onSelect={(voiceId) => {
+          if (tenant) {
+            setTenant({ ...tenant, voice_id: voiceId });
+          }
+        }}
       />
 
       {/* Logout confirmation modal */}

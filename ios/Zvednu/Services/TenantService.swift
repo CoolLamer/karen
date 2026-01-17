@@ -38,6 +38,25 @@ actor TenantService {
     func createPortal() async throws -> PortalResponse {
         try await apiClient.post("/api/billing/portal", body: EmptyBody())
     }
+
+    // MARK: - Voice Selection
+
+    func getVoices() async throws -> [Voice] {
+        let response: VoicesResponse = try await apiClient.get("/api/voices")
+        return response.voices
+    }
+
+    func previewVoice(voiceId: String) async throws -> Data {
+        struct PreviewRequest: Codable {
+            let voiceId: String
+
+            enum CodingKeys: String, CodingKey {
+                case voiceId = "voice_id"
+            }
+        }
+
+        return try await apiClient.postRaw("/api/voices/preview", body: PreviewRequest(voiceId: voiceId))
+    }
 }
 
 // MARK: - Response Types

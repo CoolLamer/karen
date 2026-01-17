@@ -128,6 +128,10 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("POST /api/billing/checkout", r.withAuth(r.handleCreateCheckout))
 	r.mux.HandleFunc("POST /api/billing/portal", r.withAuth(r.handleCreatePortal))
 
+	// Voice selection endpoints (protected)
+	r.mux.HandleFunc("GET /api/voices", r.withAuth(r.handleListVoices))
+	r.mux.HandleFunc("POST /api/voices/preview", r.withAuth(r.handlePreviewVoice))
+
 	// Stripe webhook (no auth - signature verified)
 	r.mux.HandleFunc("POST /webhooks/stripe", r.handleStripeWebhook)
 

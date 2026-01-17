@@ -47,11 +47,13 @@ struct TenantUpdateRequest: Codable {
     var greetingText: String?
     var vipNames: [String]?
     var marketingEmail: String?
+    var voiceId: String?
 
     enum CodingKeys: String, CodingKey {
         case name
         case greetingText = "greeting_text"
         case vipNames = "vip_names"
         case marketingEmail = "marketing_email"
+        case voiceId = "voice_id"
     }
 }
