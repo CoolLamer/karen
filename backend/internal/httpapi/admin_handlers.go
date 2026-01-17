@@ -476,8 +476,8 @@ func (r *Router) handleAdminGetTenantCosts(w http.ResponseWriter, req *http.Requ
 		period = time.Now().Format("2006-01")
 	}
 
-	// Validate period format (YYYY-MM)
-	if len(period) != 7 || period[4] != '-' {
+	// Validate period format (YYYY-MM) using time.Parse for proper validation
+	if _, err := time.Parse("2006-01", period); err != nil {
 		http.Error(w, `{"error": "invalid period format, use YYYY-MM"}`, http.StatusBadRequest)
 		return
 	}

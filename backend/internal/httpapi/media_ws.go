@@ -1100,7 +1100,10 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 		return
 	}
 
-	// Track LLM tokens for cost calculation (estimate: ~4 chars per token)
+	// Track LLM tokens for cost calculation (estimate: ~4 chars per token).
+	// Note: This approximation is reasonable for English but may underestimate tokens
+	// for Czech text (accented characters tokenize less efficiently). For exact costs,
+	// track actual token counts from OpenAI's usage field in the streaming response.
 	inputChars := 0
 	for _, m := range msgs {
 		inputChars += len(m.Content)

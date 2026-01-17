@@ -225,15 +225,14 @@ func TestCostPeriodValidation(t *testing.T) {
 		{"invalid - full date", "2026-01-15", false},
 		{"invalid - wrong separator", "2026/01", false},
 		{"invalid - empty", "", false},
-		// Note: "abcd-ef" passes format validation (7 chars, dash at 4)
-		// but would return empty results from the database
-		{"format-valid but semantic nonsense", "abcd-ef", true},
+		{"invalid - nonsense string", "abcd-ef", false}, // Rejected by time.Parse
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Period validation: must be exactly 7 chars with dash at position 4
-			valid := len(tt.period) == 7 && tt.period[4] == '-'
+			// Period validation: uses time.Parse for proper YYYY-MM validation
+			_, err := time.Parse("2006-01", tt.period)
+			valid := err == nil
 			if valid != tt.valid {
 				t.Errorf("period %q: got valid=%v, want valid=%v", tt.period, valid, tt.valid)
 			}

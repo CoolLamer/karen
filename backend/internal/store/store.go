@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lukasbauer/karen/internal/costs"
 )
 
 type Store struct {
@@ -1663,8 +1664,15 @@ func (s *Store) GetTenantCostSummary(ctx context.Context, tenantID string, perio
 		Period:   period,
 	}
 
+	// Parse period to get date range (uses index on created_at instead of TO_CHAR)
+	periodStart, err := time.Parse("2006-01", period)
+	if err != nil {
+		return nil, fmt.Errorf("invalid period format: %w", err)
+	}
+	periodEnd := periodStart.AddDate(0, 1, 0) // First day of next month
+
 	// Get aggregated API costs from call_costs joined with calls
-	err := s.db.QueryRow(ctx, `
+	err = s.db.QueryRow(ctx, `
 		SELECT
 			COUNT(*),
 			COALESCE(SUM(cc.call_duration_seconds), 0),
@@ -1680,8 +1688,9 @@ func (s *Store) GetTenantCostSummary(ctx context.Context, tenantID string, perio
 		FROM call_costs cc
 		JOIN calls c ON c.id = cc.call_id
 		WHERE c.tenant_id = $1
-		  AND TO_CHAR(cc.created_at, 'YYYY-MM') = $2
-	`, tenantID, period).Scan(
+		  AND cc.created_at >= $2
+		  AND cc.created_at < $3
+	`, tenantID, periodStart, periodEnd).Scan(
 		&summary.CallCount,
 		&summary.TotalDurationSeconds,
 		&summary.TwilioCostCents,
@@ -1708,8 +1717,8 @@ func (s *Store) GetTenantCostSummary(ctx context.Context, tenantID string, perio
 	}
 	summary.PhoneNumberCount = phoneCount
 
-	// Calculate phone rental (150 cents = $1.50 per month per phone)
-	summary.PhoneRentalCents = phoneCount * 150
+	// Calculate phone rental using centralized pricing constant
+	summary.PhoneRentalCents = costs.CalculateMonthlyPhoneRentalCost(phoneCount)
 
 	// Calculate total
 	summary.TotalCostCents = summary.TotalAPICostCents + summary.PhoneRentalCents
