@@ -275,6 +275,7 @@ func (s *Store) GetCallDetailWithTenantCheck(ctx context.Context, providerCallID
 	if err != nil {
 		return CallDetail{}, nil, err
 	}
+	out.ID = callID
 	out.TenantID = tenantID
 
 	// Screening result (optional)
