@@ -74,7 +74,7 @@ function CellValue({ value }: { value: boolean | string }) {
 
 export function ComparisonTable() {
   return (
-    <Box py={60} bg="gray.0">
+    <Box py={60}>
       <Container size="lg">
         <Title order={2} ta="center" mb="sm">
           Proč Zvednu?

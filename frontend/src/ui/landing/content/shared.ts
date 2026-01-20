@@ -1,5 +1,8 @@
 import { SharedContent } from "./index";
 
+export const CONTACT_EMAIL = "info@zvednu.cz";
+export const CONTACT_MAILTO_FIRMA = `mailto:${CONTACT_EMAIL}?subject=Zájem o tarif Firma`;
+
 export const SHARED_CONTENT: SharedContent = {
   brand: {
     name: "Zvednu",
@@ -82,6 +85,11 @@ export const SHARED_CONTENT: SharedContent = {
       question: "Funguje to s mým operátorem?",
       answer:
         "Ano, Zvednu funguje se všemi českými operátory (O2, T-Mobile, Vodafone) i virtuálními operátory. Přesměrování hovorů je standardní funkce GSM sítě.",
+    },
+    {
+      question: "Můžu si změnit jméno asistentky?",
+      answer:
+        'Ano! V nastavení si můžete upravit "Představení" – tam si nastavíte jak se asistentka představí volajícímu. Například: "Dobrý den, tady Alfréd, pan Novák právě nemá čas, můžete mi říct co potřebujete."',
     },
     {
       question: "Co když Karen nerozumí volajícímu?",

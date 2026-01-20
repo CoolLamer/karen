@@ -15,7 +15,7 @@ import {
 } from "./components";
 import { SegmentKey } from "./content/index";
 import { SEGMENTS } from "./content/segments";
-import { SHARED_CONTENT } from "./content/shared";
+import { SHARED_CONTENT, CONTACT_MAILTO_FIRMA } from "./content/shared";
 
 interface SegmentLandingPageProps {
   segmentKey: SegmentKey;
@@ -30,7 +30,7 @@ export function SegmentLandingPage({ segmentKey }: SegmentLandingPageProps) {
     .filter(Boolean);
 
   const handleContactClick = () => {
-    window.location.href = "mailto:info@zvednu.cz?subject=Zájem o tarif Firma";
+    window.location.href = CONTACT_MAILTO_FIRMA;
   };
 
   return (

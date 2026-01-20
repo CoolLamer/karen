@@ -14,7 +14,7 @@ import {
   CTASection,
   Footer,
 } from "./components";
-import { SHARED_CONTENT } from "./content/shared";
+import { SHARED_CONTENT, CONTACT_MAILTO_FIRMA } from "./content/shared";
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export function LandingPage() {
   const allFeatures = Object.values(SHARED_CONTENT.features);
 
   const handleContactClick = () => {
-    window.location.href = "mailto:info@zvednu.cz?subject=Zájem o tarif Firma";
+    window.location.href = CONTACT_MAILTO_FIRMA;
   };
 
   return (
