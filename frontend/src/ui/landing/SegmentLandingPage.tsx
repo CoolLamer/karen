@@ -3,16 +3,19 @@ import { Box } from "@mantine/core";
 import {
   Header,
   Hero,
+  TrustBadges,
   PainPoints,
   HowItWorks,
   Features,
+  PricingSection,
+  ComparisonTable,
   ExampleCall,
   CTASection,
   Footer,
 } from "./components";
 import { SegmentKey } from "./content/index";
 import { SEGMENTS } from "./content/segments";
-import { SHARED_CONTENT } from "./content/shared";
+import { SHARED_CONTENT, CONTACT_MAILTO_FIRMA } from "./content/shared";
 
 interface SegmentLandingPageProps {
   segmentKey: SegmentKey;
@@ -26,6 +29,10 @@ export function SegmentLandingPage({ segmentKey }: SegmentLandingPageProps) {
     .map((key) => SHARED_CONTENT.features[key])
     .filter(Boolean);
 
+  const handleContactClick = () => {
+    window.location.href = CONTACT_MAILTO_FIRMA;
+  };
+
   return (
     <Box>
       <Header showBackToMain />
@@ -35,9 +42,16 @@ export function SegmentLandingPage({ segmentKey }: SegmentLandingPageProps) {
         ctaText={segment.hero.ctaText}
         onCtaClick={() => navigate("/login")}
       />
+      <TrustBadges />
       <PainPoints title={segment.painPoints.title} items={segment.painPoints.items} />
       <HowItWorks steps={SHARED_CONTENT.howItWorks} />
       <Features features={prioritizedFeatures} />
+      <PricingSection
+        onTrialClick={() => navigate("/login")}
+        onBuyClick={() => navigate("/login")}
+        onContactClick={handleContactClick}
+      />
+      <ComparisonTable />
       <ExampleCall
         scenario={segment.exampleCall.scenario}
         dialogue={segment.exampleCall.dialogue}
