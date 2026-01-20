@@ -3,9 +3,12 @@ import { Box } from "@mantine/core";
 import {
   Header,
   Hero,
+  TrustBadges,
   SegmentSelector,
   HowItWorks,
   Features,
+  PricingSection,
+  ComparisonTable,
   ExampleCall,
   FAQ,
   CTASection,
@@ -18,18 +21,29 @@ export function LandingPage() {
 
   const allFeatures = Object.values(SHARED_CONTENT.features);
 
+  const handleContactClick = () => {
+    window.location.href = "mailto:info@zvednu.cz?subject=Zájem o tarif Firma";
+  };
+
   return (
     <Box>
       <Header />
       <Hero
         title="Vaše AI asistentka na telefonu"
         tagline="Když nezvednete, Karen to zvedne za vás. Zjistí, kdo volá a proč. Spam odfiltruje."
-        ctaText="Vyzkoušet zdarma"
+        ctaText="Aktivovat Karen zdarma"
         onCtaClick={() => navigate("/login")}
       />
+      <TrustBadges />
       <SegmentSelector />
       <HowItWorks steps={SHARED_CONTENT.howItWorks} />
       <Features features={allFeatures} />
+      <PricingSection
+        onTrialClick={() => navigate("/login")}
+        onBuyClick={() => navigate("/login")}
+        onContactClick={handleContactClick}
+      />
+      <ComparisonTable />
       <ExampleCall />
       <FAQ items={SHARED_CONTENT.faq} />
       <CTASection

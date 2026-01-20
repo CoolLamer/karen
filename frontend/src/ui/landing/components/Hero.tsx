@@ -36,7 +36,8 @@ export function Hero({ title, tagline, ctaText, onCtaClick }: HeroProps) {
             Jak to funguje
           </Button>
         </Group>
-        <Group justify="center" mt="xl" gap="xl">
+        <Group justify="center" mt="xl" gap="lg" wrap="wrap">
+          <Text size="sm" c="dimmed">20 hovorů zdarma</Text>
           <Text size="sm" c="dimmed">Bez kreditky</Text>
           <Text size="sm" c="dimmed">Aktivace za 2 minuty</Text>
           <Text size="sm" c="dimmed">Zrušení kdykoli</Text>

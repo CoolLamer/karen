@@ -64,6 +64,11 @@ export const SHARED_CONTENT: SharedContent = {
   },
   faq: [
     {
+      question: "Kolik to stojí po zkušební době?",
+      answer:
+        "Základ stojí 199 Kč/měsíc za 50 hovorů. Pro s 200 hovory a VIP přepojením stojí 499 Kč/měsíc. Zrušit můžete kdykoliv jedním kliknutím.",
+    },
+    {
       question: "Budou mi lidi volat na jiné číslo?",
       answer:
         "Ne, lidé vám volají stále na vaše původní telefonní číslo. Karen se zapojí pouze když hovor nezvednete nebo odmítnete – pak se hovor automaticky přesměruje na asistentku. Volající nepozná rozdíl, prostě někdo zvedne telefon.",
@@ -74,14 +79,24 @@ export const SHARED_CONTENT: SharedContent = {
         'Přesměrování se nastavuje vytočením speciálního kódu na telefonu. Otevřete aplikaci Zvednu na mobilu, přejděte do nastavení a klikněte na tlačítko "Aktivovat přesměrování" – automaticky se vytočí aktivační kód a na obrazovce uvidíte potvrzení od operátora. Na počítači tlačítko nefunguje, musíte to udělat na telefonu.',
     },
     {
-      question: "Můžu si změnit jméno asistentky?",
-      answer:
-        'Ano! V nastavení si můžete upravit "Představení" – tam si nastavíte jak se asistentka představí volajícímu. Například: "Dobrý den, tady Alfréd, pan Novák právě nemá čas, můžete mi říct co potřebujete."',
-    },
-    {
       question: "Funguje to s mým operátorem?",
       answer:
         "Ano, Zvednu funguje se všemi českými operátory (O2, T-Mobile, Vodafone) i virtuálními operátory. Přesměrování hovorů je standardní funkce GSM sítě.",
+    },
+    {
+      question: "Co když Karen nerozumí volajícímu?",
+      answer:
+        "Karen používá nejmodernější rozpoznávání řeči a rozumí i silným přízvukům nebo hlučnému prostředí. Pokud si není jistá, zeptá se znovu. Přesnost rozpoznávání je přes 95 %.",
+    },
+    {
+      question: "Je to bezpečné? Kdo má přístup k nahrávkám?",
+      answer:
+        "Data jsou šifrovaná a uložená v EU. K nahrávkám a přepisům máte přístup pouze vy. Jsme česká firma a plně splňujeme GDPR.",
+    },
+    {
+      question: "Můžu to používat i pro firemní linku?",
+      answer:
+        "Ano! Pro firmy nabízíme tarif Firma s více čísly, týmovým přístupem a SLA. Kontaktujte nás na info@zvednu.cz pro individuální nabídku.",
     },
     {
       question: "Co když nechci přijímat spam?",

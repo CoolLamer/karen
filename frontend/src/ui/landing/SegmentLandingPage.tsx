@@ -3,9 +3,12 @@ import { Box } from "@mantine/core";
 import {
   Header,
   Hero,
+  TrustBadges,
   PainPoints,
   HowItWorks,
   Features,
+  PricingSection,
+  ComparisonTable,
   ExampleCall,
   CTASection,
   Footer,
@@ -26,6 +29,10 @@ export function SegmentLandingPage({ segmentKey }: SegmentLandingPageProps) {
     .map((key) => SHARED_CONTENT.features[key])
     .filter(Boolean);
 
+  const handleContactClick = () => {
+    window.location.href = "mailto:info@zvednu.cz?subject=Zájem o tarif Firma";
+  };
+
   return (
     <Box>
       <Header showBackToMain />
@@ -35,9 +42,16 @@ export function SegmentLandingPage({ segmentKey }: SegmentLandingPageProps) {
         ctaText={segment.hero.ctaText}
         onCtaClick={() => navigate("/login")}
       />
+      <TrustBadges />
       <PainPoints title={segment.painPoints.title} items={segment.painPoints.items} />
       <HowItWorks steps={SHARED_CONTENT.howItWorks} />
       <Features features={prioritizedFeatures} />
+      <PricingSection
+        onTrialClick={() => navigate("/login")}
+        onBuyClick={() => navigate("/login")}
+        onContactClick={handleContactClick}
+      />
+      <ComparisonTable />
       <ExampleCall
         scenario={segment.exampleCall.scenario}
         dialogue={segment.exampleCall.dialogue}

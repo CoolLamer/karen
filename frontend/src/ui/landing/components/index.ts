@@ -10,3 +10,6 @@ export { SegmentSelector } from "./SegmentSelector";
 export { PainPoints } from "./PainPoints";
 export { ExampleCall } from "./ExampleCall";
 export { FAQ } from "./FAQ";
+export { PricingSection } from "./PricingSection";
+export { ComparisonTable } from "./ComparisonTable";
+export { TrustBadges } from "./TrustBadges";
