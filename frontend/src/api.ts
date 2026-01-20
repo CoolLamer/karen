@@ -227,7 +227,11 @@ class ApiError extends Error {
   }
 }
 
-async function http<T>(path: string, options?: RequestInit): Promise<T> {
+async function http<T>(
+  path: string,
+  options?: RequestInit,
+  _isRetry = false
+): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options?.headers as Record<string, string>),
@@ -243,8 +247,8 @@ async function http<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
-      // Try to refresh token before giving up
+    if (res.status === 401 && !_isRetry) {
+      // Try to refresh token before giving up (only on first attempt)
       const currentToken = authToken;
       if (currentToken && !isRefreshing) {
         isRefreshing = true;
@@ -263,8 +267,8 @@ async function http<T>(path: string, options?: RequestInit): Promise<T> {
           setAuthToken(data.token);
           isRefreshing = false;
           refreshPromise = null;
-          // Retry original request with new token
-          return http<T>(path, options);
+          // Retry original request with new token (mark as retry to prevent loop)
+          return http<T>(path, options, true);
         } catch {
           isRefreshing = false;
           refreshPromise = null;
@@ -275,11 +279,16 @@ async function http<T>(path: string, options?: RequestInit): Promise<T> {
         // Another request is already refreshing, wait for it
         try {
           await refreshPromise;
-          return http<T>(path, options);
+          return http<T>(path, options, true);
         } catch {
           throw new ApiError(401, "unauthorized");
         }
       }
+      setAuthToken(null);
+      throw new ApiError(401, "unauthorized");
+    }
+    if (res.status === 401) {
+      // Retry after refresh still got 401, clear token and fail
       setAuthToken(null);
       throw new ApiError(401, "unauthorized");
     }
