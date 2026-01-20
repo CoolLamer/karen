@@ -183,6 +183,7 @@ jobs:
 
   deploy:
     needs: build-and-push
+    if: needs.build-and-push.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
