@@ -8,6 +8,7 @@ vi.mock('./api', () => ({
   api: {
     getMe: vi.fn(),
     logout: vi.fn(),
+    refreshToken: vi.fn(),
   },
   setAuthToken: vi.fn(),
   getAuthToken: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock('./api', () => ({
 const mockApi = apiModule.api as {
   getMe: ReturnType<typeof vi.fn>
   logout: ReturnType<typeof vi.fn>
+  refreshToken: ReturnType<typeof vi.fn>
 }
 const mockSetAuthToken = apiModule.setAuthToken as ReturnType<typeof vi.fn>
 const mockGetAuthToken = apiModule.getAuthToken as ReturnType<typeof vi.fn>
@@ -162,5 +164,42 @@ describe('AuthContext', () => {
     }).toThrow('useAuth must be used within an AuthProvider')
 
     consoleSpy.mockRestore()
+  })
+})
+
+describe('background token refresh', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('should have refreshToken api method available', () => {
+    // Verify that refreshToken is available in the api module mock
+    expect(mockApi.refreshToken).toBeDefined()
+  })
+
+  it('should not call refreshToken immediately on mount', async () => {
+    mockGetAuthToken.mockReturnValue('valid-token')
+    mockApi.getMe.mockResolvedValue({
+      user: { id: '1', phone: '+420123456789' },
+      tenant: { id: 't1', name: 'Test' },
+      is_admin: false,
+    })
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('true')
+    })
+
+    // refreshToken should not be called immediately - only on interval
+    expect(mockApi.refreshToken).not.toHaveBeenCalled()
   })
 })

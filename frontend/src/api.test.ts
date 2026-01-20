@@ -134,3 +134,92 @@ describe('api type exports', () => {
     expect(apiModule.isAuthenticated).toBeDefined()
   })
 })
+
+describe('token refresh on 401', () => {
+  const originalFetch = global.fetch
+
+  beforeEach(() => {
+    localStorage.clear()
+    // Reset module to get fresh state
+    vi.resetModules()
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch
+    localStorage.clear()
+  })
+
+  it('should attempt refresh on 401 and retry request', async () => {
+    let apiCallCount = 0
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/auth/refresh')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            token: 'new-token',
+            expires_at: new Date().toISOString(),
+            user: { id: '1', phone: '+420123' }
+          }),
+        })
+      }
+      apiCallCount++
+      if (apiCallCount === 1) {
+        // First call returns 401
+        return Promise.resolve({ ok: false, status: 401, text: () => Promise.resolve('Unauthorized') })
+      }
+      // Retry succeeds
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ user: { id: '1', phone: '+420123' } }),
+      })
+    })
+
+    // Import fresh module and set token in that module
+    const apiModule = await import('./api')
+    apiModule.setAuthToken('expired-token')
+
+    const result = await apiModule.api.getMe()
+
+    expect(result.user.id).toBe('1')
+    expect(apiModule.getAuthToken()).toBe('new-token')
+  })
+
+  it('should clear token when refresh fails', async () => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/auth/refresh')) {
+        return Promise.resolve({ ok: false, status: 401, text: () => Promise.resolve('Invalid') })
+      }
+      return Promise.resolve({ ok: false, status: 401, text: () => Promise.resolve('Unauthorized') })
+    })
+
+    // Import fresh module and set token in that module
+    const apiModule = await import('./api')
+    apiModule.setAuthToken('expired-token')
+
+    await expect(apiModule.api.getMe()).rejects.toThrow()
+    expect(apiModule.getAuthToken()).toBeNull()
+  })
+
+  it('should not attempt refresh when no token exists', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('Unauthorized'),
+    })
+
+    // Import fresh module without token
+    const apiModule = await import('./api')
+    apiModule.setAuthToken(null)
+
+    await expect(apiModule.api.getMe()).rejects.toThrow()
+
+    // Should not have called refresh endpoint
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/auth/refresh'),
+      expect.anything()
+    )
+  })
+})

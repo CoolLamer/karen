@@ -79,6 +79,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUser();
   }, []);
 
+  // Background token refresh - keeps session alive for active users
+  useEffect(() => {
+    if (!state.isAuthenticated) return;
+
+    // Refresh token every 6 days (before 7-day expiry)
+    const REFRESH_INTERVAL = 6 * 24 * 60 * 60 * 1000; // 6 days in ms
+
+    const refreshToken = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+
+      try {
+        const data = await api.refreshToken(token);
+        setAuthToken(data.token);
+      } catch {
+        // Silent fail - will be handled on next API call
+      }
+    };
+
+    const interval = setInterval(refreshToken, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [state.isAuthenticated]);
+
   const login = (token: string, user: User): boolean => {
     setAuthToken(token);
     const needsOnboarding = !user.tenant_id;
