@@ -21,7 +21,7 @@ export function CompanyInfoPage() {
       <Stack gap="lg">
         <Text>
           Provozovatelem služby Zvednu je společnost {COMPANY_INFO.name},
-          zapsaná v obchodním rejstříku vedeném {COMPANY_INFO.soud}em.
+          zapsaná v obchodním rejstříku vedeném {COMPANY_INFO.soud}.
         </Text>
 
         <Title order={2} size="h3">
@@ -49,7 +49,7 @@ export function CompanyInfoPage() {
             <Table.Tr>
               <Table.Td fw={500}>Spisová značka</Table.Td>
               <Table.Td>
-                {COMPANY_INFO.spisovaZnacka}, vedená u {COMPANY_INFO.soud}u
+                {COMPANY_INFO.spisovaZnacka}, vedená u {COMPANY_INFO.soud}
               </Table.Td>
             </Table.Tr>
           </Table.Tbody>
