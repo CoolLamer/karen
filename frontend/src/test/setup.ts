@@ -1,5 +1,14 @@
 import "@testing-library/jest-dom";
 
+// Mock ResizeObserver for Mantine components (SegmentedControl, etc.)
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+window.ResizeObserver = ResizeObserverMock;
+
 // Mock matchMedia for Mantine components
 Object.defineProperty(window, "matchMedia", {
   writable: true,

@@ -1,5 +1,8 @@
 export type RedirectType = "noAnswer" | "busy" | "unreachable";
 
+/** Code to clear all existing call forwards */
+export const CLEAR_ALL_REDIRECTS_CODE = "##002#";
+
 export interface RedirectCode {
   code: string;
   deactivateCode: string;

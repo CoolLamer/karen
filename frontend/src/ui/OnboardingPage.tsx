@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -18,7 +18,6 @@ import {
   TagsInput,
   Radio,
   List,
-  Checkbox,
 } from "@mantine/core";
 import {
   IconRobot,
@@ -29,14 +28,9 @@ import {
   IconAlertCircle,
   IconPhone,
 } from "@tabler/icons-react";
-import { RedirectSetupAccordion } from "./components/RedirectSetupAccordion";
+import { RedirectWizard } from "./components/RedirectWizard";
 import { api, Tenant, TenantPhoneNumber, setAuthToken } from "../api";
 import { useAuth } from "../AuthContext";
-import {
-  REDIRECT_CODES,
-  REDIRECT_ORDER,
-  type RedirectType,
-} from "../constants/redirectCodes";
 
 type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -48,7 +42,6 @@ export function OnboardingPage() {
   const [name, setName] = useState("");
   const [, setTenantState] = useState<Tenant | null>(null);
   const [phoneNumbers, setPhoneNumbers] = useState<TenantPhoneNumber[]>([]);
-  const [selectedRedirects, setSelectedRedirects] = useState<RedirectType[]>(["noAnswer"]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,12 +116,6 @@ export function OnboardingPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleRedirect = (type: RedirectType) => {
-    setSelectedRedirects((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
   };
 
   // Save VIP names and marketing email after configuration steps
@@ -408,72 +395,11 @@ export function OnboardingPage() {
                     Karen je připravená! Můžeš ji hned vyzkoušet zavoláním na číslo výše.
                   </Alert>
 
-                  {/* Two options explanation */}
-                  <Paper p="md" radius="md" bg="blue.0">
-                    <Stack gap="sm">
-                      <Text size="sm" fw={500} c="blue.8">Jak Karen používat dlouhodobě?</Text>
-                      <Text size="sm" c="blue.7">
-                        <strong>Varianta A:</strong> Nastav přesměrování hovorů (doporučeno) – když nezvedneš, hovor se automaticky přepojí na Karen.
-                      </Text>
-                      <Text size="sm" c="blue.7">
-                        <strong>Varianta B:</strong> Zavolej přímo na Karen číslo – ideální pro rychlé vyzkoušení.
-                      </Text>
-                    </Stack>
-                  </Paper>
-
-                  {/* Redirect type selection */}
-                  <Stack gap="md">
-                    <Text size="sm" fw={500}>
-                      Varianta A: Nastav přesměrování
-                    </Text>
-                    <Alert color="blue" variant="light">
-                      <Text size="sm">
-                        Přesměrování se nastavuje vytočením speciálního kódu na telefonu.
-                        Otevři tuto stránku na mobilu a klikni na tlačítko – automaticky se vytočí
-                        aktivační kód a na obrazovce uvidíš potvrzení od operátora.
-                      </Text>
-                      <Text size="sm" mt="xs" c="dimmed">
-                        Na počítači tlačítko nefunguje – musíš kód vytočit ručně nebo otevřít stránku na telefonu.
-                      </Text>
-                    </Alert>
-                    <Text size="sm" c="dimmed">
-                      Vyber, které typy přesměrování chceš nastavit. Pro kompletní pokrytí doporučujeme všechny tři.
-                    </Text>
-                    <Alert color="yellow" variant="light">
-                      <Text size="sm">
-                        <Text span fw={500}>Zobrazuje se chyba?</Text> Pokud máš již nastavené přesměrování na jiné číslo,
-                        musíš ho nejdřív zrušit. Použij tlačítko „Zrušit přesměrování" u příslušného typu níže.
-                      </Text>
-                    </Alert>
-                    <Stack gap="xs">
-                      {REDIRECT_ORDER.map((type) => (
-                        <Checkbox
-                          key={type}
-                          label={REDIRECT_CODES[type].label}
-                          description={REDIRECT_CODES[type].description}
-                          checked={selectedRedirects.includes(type)}
-                          onChange={() => toggleRedirect(type)}
-                        />
-                      ))}
-                    </Stack>
-                  </Stack>
-
-                  {/* Forwarding instructions for selected types */}
-                  {selectedRedirects.length > 0 && (
-                    <RedirectSetupAccordion
-                      karenNumber={primaryPhone || ""}
-                      redirectTypes={selectedRedirects}
-                    />
-                  )}
-
-                  <Button
-                    size="lg"
-                    fullWidth
-                    rightSection={<IconArrowRight size={18} />}
-                    onClick={() => setStep(5)}
-                  >
-                    Pokračovat
-                  </Button>
+                  {/* Redirect setup wizard */}
+                  <RedirectWizard
+                    karenNumber={primaryPhone || ""}
+                    onComplete={() => setStep(5)}
+                  />
                 </>
               ) : (
                 <>
