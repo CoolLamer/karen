@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActionIcon,
+  Alert,
   Box,
   Button,
   CopyButton,
@@ -24,6 +25,7 @@ import {
   IconPlayerSkipForward,
   IconCircleCheck,
   IconCircle,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import {
   CLEAR_ALL_REDIRECTS_CODE,
@@ -83,7 +85,6 @@ function WizardProgress({ currentStep, stepStatuses }: WizardProgressProps) {
         {REDIRECT_STEPS.map((step) => {
           const status = stepStatuses[step];
           const isCurrent = currentStep === step;
-          const isPast = getStepIndex(currentStep) > getStepIndex(step);
 
           return (
             <Group key={step} gap={4}>
@@ -97,10 +98,6 @@ function WizardProgress({ currentStep, stepStatuses }: WizardProgressProps) {
                 </ThemeIcon>
               ) : isCurrent ? (
                 <ThemeIcon size="xs" color="blue" variant="filled" radius="xl">
-                  <IconCircle size={12} />
-                </ThemeIcon>
-              ) : isPast ? (
-                <ThemeIcon size="xs" color="gray" variant="light" radius="xl">
                   <IconCircle size={12} />
                 </ThemeIcon>
               ) : (
@@ -165,7 +162,6 @@ interface DialStepProps {
   dialCode: string;
   karenNumber?: string;
   onConfirm: () => void;
-  onRetry: () => void;
   onSkip: () => void;
   showTimingControl?: boolean;
   noAnswerTime?: NoAnswerTime;
@@ -178,7 +174,6 @@ function DialStep({
   dialCode,
   karenNumber,
   onConfirm,
-  onRetry,
   onSkip,
   showTimingControl,
   noAnswerTime,
@@ -194,7 +189,6 @@ function DialStep({
 
   const handleRetry = () => {
     setDialed(false);
-    onRetry();
   };
 
   return (
@@ -402,6 +396,22 @@ export function RedirectWizard({ karenNumber, onComplete }: RedirectWizardProps)
 
   const cleanKarenNumber = karenNumber.replace(/\s/g, "");
 
+  // Show error state if Karen number is not available
+  if (!cleanKarenNumber) {
+    return (
+      <Stack gap="lg">
+        <Alert icon={<IconAlertCircle size={16} />} color="yellow" variant="light">
+          <Text size="sm">
+            Číslo Karen ještě není přiděleno. Přesměrování budeš moct nastavit později v Nastavení.
+          </Text>
+        </Alert>
+        <Button variant="light" fullWidth onClick={onComplete}>
+          Pokračovat bez nastavení
+        </Button>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="xl">
       {currentStep !== "intro" && currentStep !== "complete" && (
@@ -416,7 +426,6 @@ export function RedirectWizard({ karenNumber, onComplete }: RedirectWizardProps)
           description="Nejdřív vymažeme případná existující přesměrování, aby nedošlo ke konfliktu."
           dialCode={CLEAR_ALL_REDIRECTS_CODE}
           onConfirm={() => handleStepConfirm("clear")}
-          onRetry={() => {}}
           onSkip={() => handleStepSkip("clear")}
         />
       )}
@@ -428,7 +437,6 @@ export function RedirectWizard({ karenNumber, onComplete }: RedirectWizardProps)
           dialCode={getDialCode("noAnswer", cleanKarenNumber, noAnswerTime)}
           karenNumber={karenNumber}
           onConfirm={() => handleStepConfirm("noAnswer")}
-          onRetry={() => {}}
           onSkip={() => handleStepSkip("noAnswer")}
           showTimingControl
           noAnswerTime={noAnswerTime}
@@ -443,7 +451,6 @@ export function RedirectWizard({ karenNumber, onComplete }: RedirectWizardProps)
           dialCode={getDialCode("busy", cleanKarenNumber)}
           karenNumber={karenNumber}
           onConfirm={() => handleStepConfirm("busy")}
-          onRetry={() => {}}
           onSkip={() => handleStepSkip("busy")}
         />
       )}
@@ -455,7 +462,6 @@ export function RedirectWizard({ karenNumber, onComplete }: RedirectWizardProps)
           dialCode={getDialCode("unreachable", cleanKarenNumber)}
           karenNumber={karenNumber}
           onConfirm={() => handleStepConfirm("unreachable")}
-          onRetry={() => {}}
           onSkip={() => handleStepSkip("unreachable")}
         />
       )}
