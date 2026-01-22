@@ -136,7 +136,8 @@ describe("ForwardingSetupModal", () => {
       />
     );
 
-    // Should still render without crashing
-    expect(screen.getByText("Nastavíme přesměrování hovorů")).toBeInTheDocument();
+    // Should show error state when karen number is not available
+    expect(screen.getByText(/Číslo Karen ještě není přiděleno/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pokračovat bez nastavení/i })).toBeInTheDocument();
   });
 });
