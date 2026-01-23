@@ -237,10 +237,10 @@ type callSession struct {
 	llmOutputTokens int // Estimated output tokens (chars / 4)
 
 	// Robocall detection
-	robocallDetector   *RobocallDetector
-	maxDurationTimer   *time.Timer
-	robocallDetected   bool
-	robocallReason     string
+	robocallDetector *RobocallDetector
+	maxDurationTimer *time.Timer
+	robocallDetected bool
+	robocallReason   string
 
 	ctx    context.Context
 	cancel context.CancelFunc

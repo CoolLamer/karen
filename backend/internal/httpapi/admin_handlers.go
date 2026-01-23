@@ -536,9 +536,9 @@ func (r *Router) handleAdminUpdateGlobalConfig(w http.ResponseWriter, req *http.
 
 	// Validate numeric values for known numeric keys
 	numericKeys := map[string]bool{
-		"max_turn_timeout_ms":         true,
-		"adaptive_min_timeout_ms":     true,
-		"adaptive_text_decay_rate_ms": true,
+		"max_turn_timeout_ms":            true,
+		"adaptive_min_timeout_ms":        true,
+		"adaptive_text_decay_rate_ms":    true,
 		"adaptive_sentence_end_bonus_ms": true,
 		"robocall_max_call_duration_ms":  true,
 		"robocall_silence_threshold_ms":  true,

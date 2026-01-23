@@ -246,10 +246,10 @@ func TestNormalizePhrase(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"Hello World", ""},                        // Too short
-		{"One Two", ""},                            // Too short
-		{"One Two Three", "one two three"},         // Just enough
-		{"  EXTRA   SPACES  ", ""},                 // Still too short after normalization
+		{"Hello World", ""},                // Too short
+		{"One Two", ""},                    // Too short
+		{"One Two Three", "one two three"}, // Just enough
+		{"  EXTRA   SPACES  ", ""},         // Still too short after normalization
 		{"Hello This Is Test", "hello this is test"},
 		{"  Hello   This    Is   Test  ", "hello this is test"},
 	}
