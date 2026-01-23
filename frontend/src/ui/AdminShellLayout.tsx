@@ -20,12 +20,14 @@ import {
   IconPhone,
   IconUsers,
   IconFileText,
+  IconSettings,
 } from "@tabler/icons-react";
 
 const ADMIN_NAV_ITEMS = [
   { path: "/admin", label: "Phone Numbers", icon: IconPhone, exact: true },
   { path: "/admin/users", label: "Users", icon: IconUsers, exact: false },
   { path: "/admin/logs", label: "Logs", icon: IconFileText, exact: false },
+  { path: "/admin/config", label: "Config", icon: IconSettings, exact: false },
 ];
 
 export function AdminShellLayout() {

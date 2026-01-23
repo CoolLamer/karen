@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -14,11 +15,12 @@ import (
 )
 
 type App struct {
-	cfg      Config
-	logger   *log.Logger
-	db       *pgxpool.Pool
-	store    *store.Store
-	eventLog *eventlog.Logger
+	cfg        Config
+	logger     *log.Logger
+	db         *pgxpool.Pool
+	store      *store.Store
+	eventLog   *eventlog.Logger
+	httpClient *http.Client // Shared HTTP client with connection pooling for TTS
 }
 
 func New(cfg Config, logger *log.Logger) (*App, error) {
@@ -43,12 +45,30 @@ func New(cfg Config, logger *log.Logger) (*App, error) {
 	// MVP: no automatic migrations to keep startup simple in Coolify.
 	// Run migrations externally (psql) or extend later with a migration runner.
 
+	// Shared HTTP client with connection pooling for TTS.
+	// Keeps TCP connections alive to reduce latency for repeated TTS calls to ElevenLabs.
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   5 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   10, // ElevenLabs is single host
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+
 	return &App{
-		cfg:      cfg,
-		logger:   logger,
-		db:       db,
-		store:    s,
-		eventLog: el,
+		cfg:        cfg,
+		logger:     logger,
+		db:         db,
+		store:      s,
+		eventLog:   el,
+		httpClient: httpClient,
 	}, nil
 }
 
@@ -67,6 +87,7 @@ func (a *App) Router() http.Handler {
 		TTSVoiceID:            a.cfg.TTSVoiceID,
 		TTSStability:          a.cfg.TTSStability,
 		TTSSimilarity:         a.cfg.TTSSimilarity,
+		TTSHTTPClient:         a.httpClient,
 		JWTSecret:             a.cfg.JWTSecret,
 		JWTExpiry:             a.cfg.JWTExpiry,
 		AdminPhones:           a.cfg.AdminPhones,

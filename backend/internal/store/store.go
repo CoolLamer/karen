@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -1734,4 +1735,93 @@ func (s *Store) GetTenantPhoneNumberCount(ctx context.Context, tenantID string) 
 		SELECT COUNT(*) FROM tenant_phone_numbers WHERE tenant_id = $1
 	`, tenantID).Scan(&count)
 	return count, err
+}
+
+// ============================================================================
+// Global Config operations
+// ============================================================================
+
+// GlobalConfigEntry represents a single config entry.
+type GlobalConfigEntry struct {
+	Key         string     `json:"key"`
+	Value       string     `json:"value"`
+	Description *string    `json:"description,omitempty"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+// GetGlobalConfig retrieves a single config value by key.
+func (s *Store) GetGlobalConfig(ctx context.Context, key string) (string, error) {
+	var value string
+	err := s.db.QueryRow(ctx, `
+		SELECT value FROM global_config WHERE key = $1
+	`, key).Scan(&value)
+	return value, err
+}
+
+// GetGlobalConfigInt retrieves a config value as int, with fallback default.
+func (s *Store) GetGlobalConfigInt(ctx context.Context, key string, defaultVal int) int {
+	val, err := s.GetGlobalConfig(ctx, key)
+	if err != nil {
+		return defaultVal
+	}
+	if i, err := strconv.Atoi(val); err == nil {
+		return i
+	}
+	return defaultVal
+}
+
+// GetGlobalConfigBool retrieves a config value as bool, with fallback default.
+func (s *Store) GetGlobalConfigBool(ctx context.Context, key string, defaultVal bool) bool {
+	val, err := s.GetGlobalConfig(ctx, key)
+	if err != nil {
+		return defaultVal
+	}
+	return val == "true" || val == "1" || val == "yes"
+}
+
+// ListGlobalConfig retrieves all config entries.
+func (s *Store) ListGlobalConfig(ctx context.Context) ([]GlobalConfigEntry, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT key, value, description, updated_at
+		FROM global_config
+		ORDER BY key ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []GlobalConfigEntry
+	for rows.Next() {
+		var e GlobalConfigEntry
+		if err := rows.Scan(&e.Key, &e.Value, &e.Description, &e.UpdatedAt); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
+// SetGlobalConfig updates a config value.
+func (s *Store) SetGlobalConfig(ctx context.Context, key, value string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE global_config
+		SET value = $2, updated_at = NOW()
+		WHERE key = $1
+	`, key, value)
+	return err
+}
+
+// ============================================================================
+// Call robocall tracking
+// ============================================================================
+
+// MarkCallAsRobocall updates a call with robocall flag and reason.
+func (s *Store) MarkCallAsRobocall(ctx context.Context, providerCallID, reason string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE calls
+		SET is_robocall = TRUE, robocall_reason = $2
+		WHERE provider = 'twilio' AND provider_call_id = $1
+	`, providerCallID, reason)
+	return err
 }

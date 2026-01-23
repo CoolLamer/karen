@@ -36,6 +36,9 @@ type RouterConfig struct {
 	TTSStability  float64 // ElevenLabs voice stability (0.0-1.0)
 	TTSSimilarity float64 // ElevenLabs voice similarity boost (0.0-1.0)
 
+	// Shared HTTP client for TTS (connection pooling)
+	TTSHTTPClient *http.Client
+
 	// JWT Authentication
 	JWTSecret string
 	JWTExpiry time.Duration
@@ -155,6 +158,10 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("PATCH /admin/tenants/{tenantId}", r.withAdmin(r.handleAdminUpdateTenant))
 	r.mux.HandleFunc("DELETE /admin/tenants/{tenantId}", r.withAdmin(r.handleAdminDeleteTenant))
 	r.mux.HandleFunc("PATCH /admin/users/{userId}/reset-onboarding", r.withAdmin(r.handleAdminResetUserOnboarding))
+
+	// Global config (admin only)
+	r.mux.HandleFunc("GET /admin/config", r.withAdmin(r.handleAdminListGlobalConfig))
+	r.mux.HandleFunc("PATCH /admin/config/{key}", r.withAdmin(r.handleAdminUpdateGlobalConfig))
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {

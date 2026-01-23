@@ -492,3 +492,86 @@ func (r *Router) handleAdminGetTenantCosts(w http.ResponseWriter, req *http.Requ
 
 	writeJSON(w, http.StatusOK, summary)
 }
+
+// ============================================================================
+// Global Config Admin Handlers
+// ============================================================================
+
+// handleAdminListGlobalConfig returns all global config entries.
+func (r *Router) handleAdminListGlobalConfig(w http.ResponseWriter, req *http.Request) {
+	entries, err := r.store.ListGlobalConfig(req.Context())
+	if err != nil {
+		r.logger.Printf("admin: failed to list global config: %v", err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to list global config"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"config": entries})
+}
+
+// handleAdminUpdateGlobalConfig updates a global config value.
+func (r *Router) handleAdminUpdateGlobalConfig(w http.ResponseWriter, req *http.Request) {
+	key := req.PathValue("key")
+	if key == "" {
+		http.Error(w, `{"error": "missing config key"}`, http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		Value string `json:"value"`
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error": "invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate the key exists
+	_, err := r.store.GetGlobalConfig(req.Context(), key)
+	if err != nil {
+		http.Error(w, `{"error": "config key not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Validate numeric values for known numeric keys
+	numericKeys := map[string]bool{
+		"max_turn_timeout_ms":         true,
+		"adaptive_min_timeout_ms":     true,
+		"adaptive_text_decay_rate_ms": true,
+		"adaptive_sentence_end_bonus_ms": true,
+		"robocall_max_call_duration_ms":  true,
+		"robocall_silence_threshold_ms":  true,
+		"robocall_barge_in_threshold":    true,
+		"robocall_barge_in_window_ms":    true,
+		"robocall_repetition_threshold":  true,
+	}
+	if numericKeys[key] {
+		if _, err := strconv.Atoi(body.Value); err != nil {
+			http.Error(w, `{"error": "value must be a number"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate boolean values for known boolean keys
+	boolKeys := map[string]bool{
+		"adaptive_turn_enabled":      true,
+		"robocall_detection_enabled": true,
+	}
+	if boolKeys[key] {
+		if body.Value != "true" && body.Value != "false" {
+			http.Error(w, `{"error": "value must be 'true' or 'false'"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := r.store.SetGlobalConfig(req.Context(), key, body.Value); err != nil {
+		r.logger.Printf("admin: failed to update global config %s: %v", key, err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to update config"}`, http.StatusInternalServerError)
+		return
+	}
+
+	r.logger.Printf("admin: updated global config %s = %s", key, body.Value)
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
