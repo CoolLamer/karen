@@ -133,3 +133,49 @@ Backend requires: `DATABASE_URL`, `JWT_SECRET`, `TWILIO_*`, `DEEPGRAM_API_KEY`, 
 Frontend requires: `VITE_API_BASE_URL`
 
 See `backend/env.example` and `frontend/env.example` for full list.
+
+## AI Debug API
+
+The AI Debug API allows Claude CLI to remotely query call logs and update configuration for debugging.
+
+**Authentication**: Use `X-API-Key` header or `Authorization: Bearer` with the API key from `AI_DEBUG_API_KEY` env var.
+
+**Environment Variables** (set in Claude CLI):
+- `ZVEDNU_API_URL` - Base API URL (e.g., `https://api.zvednu.cz`)
+- `ZVEDNU_AI_API_KEY` - API key for authentication
+
+**Endpoints**:
+
+```
+GET /ai/calls?limit=20
+  Returns recent calls with basic info
+
+GET /ai/calls/{callSid}/events
+  Returns call details and all events for a specific call
+
+GET /ai/tenants/{tenantId}/calls?limit=20
+  Returns calls for a specific tenant
+
+GET /ai/stats?since=2024-01-01T00:00:00Z
+  Returns aggregate statistics (LLM/TTS latencies, timeout counts, empty STT streaks)
+
+GET /ai/config
+  Returns all global config values
+
+PATCH /ai/config/{key}
+  Body: {"value": "5000"}
+  Updates a global config value (e.g., max_turn_timeout_ms)
+```
+
+**Key Config Values**:
+- `max_turn_timeout_ms` - Max time to wait for speech_final (default: 4000)
+- `adaptive_turn_enabled` - Enable adaptive timeout (default: true)
+- `adaptive_text_decay_rate_ms` - Timeout reduction per character (default: 15)
+- `adaptive_sentence_end_bonus_ms` - Extra reduction for complete sentences (default: 1500)
+- `stt_debug_enabled` - Log raw Deepgram messages (default: false)
+
+**Example Usage** (from Claude CLI with WebFetch):
+```bash
+curl -H "X-API-Key: $ZVEDNU_AI_API_KEY" "$ZVEDNU_API_URL/ai/calls?limit=5"
+curl -H "X-API-Key: $ZVEDNU_AI_API_KEY" "$ZVEDNU_API_URL/ai/calls/CA123456/events"
+```

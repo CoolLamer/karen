@@ -22,6 +22,7 @@ type DeepgramClient struct {
 	closeOnce sync.Once
 	mu        sync.Mutex
 	wg        sync.WaitGroup // Wait for readLoop to finish
+	debug     bool           // Log raw Deepgram messages for debugging
 }
 
 // DeepgramConfig holds configuration for the Deepgram client.
@@ -33,8 +34,9 @@ type DeepgramConfig struct {
 	Encoding       string // e.g., "mulaw" for Twilio
 	Channels       int    // e.g., 1 for mono
 	Punctuate      bool
-	Endpointing    int // milliseconds of silence for endpointing, 0 for default
-	UtteranceEndMs int // hard timeout after last speech, regardless of noise (0 for default)
+	Endpointing    int  // milliseconds of silence for endpointing, 0 for default
+	UtteranceEndMs int  // hard timeout after last speech, regardless of noise (0 for default)
+	Debug          bool // Log raw Deepgram messages for debugging
 }
 
 // deepgramResponse represents a Deepgram WebSocket response.
@@ -88,6 +90,7 @@ func NewDeepgramClient(ctx context.Context, cfg DeepgramConfig) (*DeepgramClient
 		results: make(chan TranscriptResult, 100),
 		errors:  make(chan error, 10),
 		done:    make(chan struct{}),
+		debug:   cfg.Debug,
 	}
 
 	// Start reading responses
@@ -163,6 +166,11 @@ func (c *DeepgramClient) readLoop() {
 			default:
 			}
 			return
+		}
+
+		// Log raw message in debug mode for diagnostics
+		if c.debug {
+			log.Printf("deepgram RAW: %s", string(msg))
 		}
 
 		var resp deepgramResponse

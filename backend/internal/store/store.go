@@ -990,6 +990,98 @@ func (s *Store) ListCallEvents(ctx context.Context, callID string, limit int) ([
 	return events, rows.Err()
 }
 
+// EventStats holds aggregate statistics for call events
+type EventStats struct {
+	TotalCalls            int            `json:"total_calls"`
+	TotalEvents           int            `json:"total_events"`
+	EventCounts           map[string]int `json:"event_counts"`
+	AvgLLMLatencyMs       *float64       `json:"avg_llm_latency_ms,omitempty"`
+	AvgTTSLatencyMs       *float64       `json:"avg_tts_latency_ms,omitempty"`
+	MaxTurnTimeoutCount   int            `json:"max_turn_timeout_count"`
+	STTEmptyStreakCount   int            `json:"stt_empty_streak_count"`
+	AudioSilenceCount     int            `json:"audio_silence_count"`
+	BargeInCount          int            `json:"barge_in_count"`
+	RobocallDetectedCount int            `json:"robocall_detected_count"`
+}
+
+// GetEventStats returns aggregate statistics for events since the given time
+func (s *Store) GetEventStats(ctx context.Context, since time.Time) (*EventStats, error) {
+	// Get total calls in the time range
+	var totalCalls int
+	err := s.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM calls WHERE created_at >= $1
+	`, since).Scan(&totalCalls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get event type counts
+	rows, err := s.db.Query(ctx, `
+		SELECT event_type, COUNT(*) as count
+		FROM call_events
+		WHERE created_at >= $1
+		GROUP BY event_type
+	`, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	eventCounts := make(map[string]int)
+	totalEvents := 0
+	for rows.Next() {
+		var eventType string
+		var count int
+		if err := rows.Scan(&eventType, &count); err != nil {
+			return nil, err
+		}
+		eventCounts[eventType] = count
+		totalEvents += count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Get average LLM latency
+	var avgLLMLatency *float64
+	err = s.db.QueryRow(ctx, `
+		SELECT AVG((event_data->>'latency_ms')::float)
+		FROM call_events
+		WHERE event_type = 'llm_first_token'
+		AND created_at >= $1
+		AND event_data->>'latency_ms' IS NOT NULL
+	`, since).Scan(&avgLLMLatency)
+	if err != nil && err != pgx.ErrNoRows {
+		return nil, err
+	}
+
+	// Get average TTS latency
+	var avgTTSLatency *float64
+	err = s.db.QueryRow(ctx, `
+		SELECT AVG((event_data->>'latency_ms')::float)
+		FROM call_events
+		WHERE event_type = 'tts_first_chunk'
+		AND created_at >= $1
+		AND event_data->>'latency_ms' IS NOT NULL
+	`, since).Scan(&avgTTSLatency)
+	if err != nil && err != pgx.ErrNoRows {
+		return nil, err
+	}
+
+	return &EventStats{
+		TotalCalls:            totalCalls,
+		TotalEvents:           totalEvents,
+		EventCounts:           eventCounts,
+		AvgLLMLatencyMs:       avgLLMLatency,
+		AvgTTSLatencyMs:       avgTTSLatency,
+		MaxTurnTimeoutCount:   eventCounts["max_turn_timeout"],
+		STTEmptyStreakCount:   eventCounts["stt_empty_streak"],
+		AudioSilenceCount:     eventCounts["audio_silence_detected"],
+		BargeInCount:          eventCounts["barge_in"],
+		RobocallDetectedCount: eventCounts["robocall_detected"],
+	}, nil
+}
+
 // ============================================================================
 // Admin users dashboard operations
 // ============================================================================
