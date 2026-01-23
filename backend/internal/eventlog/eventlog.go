@@ -38,6 +38,13 @@ const (
 	EventSentenceExtracted EventType = "sentence_extracted"
 	EventTTSFirstChunk     EventType = "tts_first_chunk"
 	EventFillerDecision    EventType = "filler_decision"
+
+	// Response lifecycle debugging events
+	EventResponseCancelled EventType = "response_cancelled"
+	EventClearAudioSent    EventType = "clear_audio_sent"
+	EventHangupWaitStart   EventType = "hangup_wait_start"
+	EventHangupWaitEnd     EventType = "hangup_wait_end"
+	EventLLMCancelled      EventType = "llm_cancelled"
 )
 
 // Logger provides async event logging to the database
