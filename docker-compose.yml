@@ -38,6 +38,8 @@ services:
       STRIPE_PRICE_BASIC_ANNUAL: ${STRIPE_PRICE_BASIC_ANNUAL:-}
       STRIPE_PRICE_PRO_MONTHLY: ${STRIPE_PRICE_PRO_MONTHLY:-}
       STRIPE_PRICE_PRO_ANNUAL: ${STRIPE_PRICE_PRO_ANNUAL:-}
+      # AI Debug API
+      AI_DEBUG_API_KEY: ${AI_DEBUG_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
