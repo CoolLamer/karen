@@ -45,8 +45,8 @@ func TestAIConfigNumericKeys(t *testing.T) {
 	}
 
 	tests := []struct {
-		key        string
-		isNumeric  bool
+		key       string
+		isNumeric bool
 	}{
 		{"max_turn_timeout_ms", true},
 		{"adaptive_turn_enabled", false},
