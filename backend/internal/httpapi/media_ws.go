@@ -599,6 +599,9 @@ func (s *callSession) endResponse(respID uint64) {
 func (s *callSession) cancelResponse() {
 	s.respMu.Lock()
 	if s.respCancel != nil {
+		s.eventLog.LogAsync(s.callID, eventlog.EventResponseCancelled, map[string]any{
+			"cancelled_resp_id": s.activeRespID,
+		})
 		s.respCancel()
 	}
 	s.respMu.Unlock()
@@ -963,6 +966,11 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	gotAnyChunk := false
 	select {
 	case <-ctx.Done():
+		s.eventLog.LogAsync(s.callID, eventlog.EventLLMCancelled, map[string]any{
+			"turn_id":     turnID,
+			"reason":      "context_cancelled_early",
+			"duration_ms": time.Since(llmStartTime).Milliseconds(),
+		})
 		return
 	case chunk, ok := <-llmBuf:
 		if ok {
@@ -1028,11 +1036,21 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 	for chunk := range llmBuf {
 		select {
 		case <-ctx.Done():
+			s.eventLog.LogAsync(s.callID, eventlog.EventLLMCancelled, map[string]any{
+				"turn_id":     turnID,
+				"reason":      "context_cancelled",
+				"duration_ms": time.Since(llmStartTime).Milliseconds(),
+			})
 			return
 		default:
 		}
 		// If a newer response started, stop speaking stale content immediately.
 		if !s.isCurrentResponse(respID) {
+			s.eventLog.LogAsync(s.callID, eventlog.EventLLMCancelled, map[string]any{
+				"turn_id":     turnID,
+				"reason":      "stale_response",
+				"duration_ms": time.Since(llmStartTime).Milliseconds(),
+			})
 			return
 		}
 
@@ -1303,6 +1321,9 @@ func (s *callSession) clearAudio() error {
 	s.cancelPendingAction()
 
 	s.logger.Printf("media_ws: sent clear command (barge-in)")
+	s.eventLog.LogAsync(s.callID, eventlog.EventClearAudioSent, map[string]any{
+		"stream_sid": s.streamSid,
+	})
 	return nil
 }
 
@@ -1465,15 +1486,28 @@ func (s *callSession) hangUpCall(ctx context.Context) {
 
 	// Wait for the goodbye audio to finish playing (signaled by mark event)
 	// Use timeout as fallback in case mark never arrives
+	s.eventLog.LogAsync(s.callID, eventlog.EventHangupWaitStart, nil)
 	select {
 	case <-s.goodbyeDone:
 		s.logger.Printf("media_ws: goodbye audio finished, hanging up")
-	case <-time.After(10 * time.Second):
+		s.eventLog.LogAsync(s.callID, eventlog.EventHangupWaitEnd, map[string]any{
+			"reason": "mark_received",
+		})
+	case <-time.After(3 * time.Second):
 		s.logger.Printf("media_ws: timeout waiting for goodbye audio, hanging up anyway")
+		s.eventLog.LogAsync(s.callID, eventlog.EventHangupWaitEnd, map[string]any{
+			"reason": "timeout",
+		})
 	case <-ctx.Done():
 		s.logger.Printf("media_ws: hangup cancelled")
+		s.eventLog.LogAsync(s.callID, eventlog.EventHangupWaitEnd, map[string]any{
+			"reason": "cancelled",
+		})
 		return
 	case <-s.ctx.Done():
+		s.eventLog.LogAsync(s.callID, eventlog.EventHangupWaitEnd, map[string]any{
+			"reason": "session_closed",
+		})
 		return
 	}
 
