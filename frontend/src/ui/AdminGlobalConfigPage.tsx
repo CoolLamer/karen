@@ -131,10 +131,6 @@ export function AdminGlobalConfigPage() {
     }
   };
 
-  const getConfigValue = (key: string): string | undefined => {
-    return configs.find((c) => c.key === key)?.value;
-  };
-
   const getConfigByKey = (key: string): GlobalConfigEntry | undefined => {
     return configs.find((c) => c.key === key);
   };

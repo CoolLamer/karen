@@ -1743,10 +1743,10 @@ func (s *Store) GetTenantPhoneNumberCount(ctx context.Context, tenantID string) 
 
 // GlobalConfigEntry represents a single config entry.
 type GlobalConfigEntry struct {
-	Key         string     `json:"key"`
-	Value       string     `json:"value"`
-	Description *string    `json:"description,omitempty"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	Key         string    `json:"key"`
+	Value       string    `json:"value"`
+	Description *string   `json:"description,omitempty"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // GetGlobalConfig retrieves a single config value by key.
