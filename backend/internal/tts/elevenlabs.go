@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-const elevenLabsAPIURL = "https://api.elevenlabs.io/v1/text-to-speech"
+const elevenLabsAPIURL = "https://api-global-preview.elevenlabs.io/v1/text-to-speech"
 
 // ElevenLabsClient implements the Client interface using ElevenLabs' API.
 type ElevenLabsClient struct {
