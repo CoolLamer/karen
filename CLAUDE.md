@@ -138,44 +138,84 @@ See `backend/env.example` and `frontend/env.example` for full list.
 
 The AI Debug API allows Claude CLI to remotely query call logs and update configuration for debugging.
 
-**Authentication**: Use `X-API-Key` header or `Authorization: Bearer` with the API key from `AI_DEBUG_API_KEY` env var.
+**Authentication**: Use `X-API-Key` header with the API key from `AI_DEBUG_API_KEY` env var.
 
 **Environment Variables** (set in Claude CLI):
 - `ZVEDNU_API_URL` - Base API URL (e.g., `https://api.zvednu.cz`)
 - `ZVEDNU_AI_API_KEY` - API key for authentication
 
-**Endpoints**:
-
-```
-GET /ai/calls?limit=20
-  Returns recent calls with basic info
-
-GET /ai/calls/{callSid}/events
-  Returns call details and all events for a specific call
-
-GET /ai/tenants/{tenantId}/calls?limit=20
-  Returns calls for a specific tenant
-
-GET /ai/stats?since=2024-01-01T00:00:00Z
-  Returns aggregate statistics (LLM/TTS latencies, timeout counts, empty STT streaks)
-
-GET /ai/config
-  Returns all global config values
-
-PATCH /ai/config/{key}
-  Body: {"value": "5000"}
-  Updates a global config value (e.g., max_turn_timeout_ms)
-```
-
-**Key Config Values**:
-- `max_turn_timeout_ms` - Max time to wait for speech_final (default: 4000)
-- `adaptive_turn_enabled` - Enable adaptive timeout (default: true)
-- `adaptive_text_decay_rate_ms` - Timeout reduction per character (default: 15)
-- `adaptive_sentence_end_bonus_ms` - Extra reduction for complete sentences (default: 1500)
-- `stt_debug_enabled` - Log raw Deepgram messages (default: false)
-
-**Example Usage** (from Claude CLI with WebFetch):
+**Important**: When using curl, use single quotes around URLs with query parameters to prevent shell glob expansion:
 ```bash
-curl -H "X-API-Key: $ZVEDNU_AI_API_KEY" "$ZVEDNU_API_URL/ai/calls?limit=5"
-curl -H "X-API-Key: $ZVEDNU_AI_API_KEY" "$ZVEDNU_API_URL/ai/calls/CA123456/events"
+curl -s -H "X-API-Key: $ZVEDNU_AI_API_KEY" 'https://api.zvednu.cz/ai/calls?limit=5'
 ```
+
+### Endpoints
+
+**GET /ai/calls** - List recent calls
+- Query params: `limit` (1-100, default 20), `tenant_id`, `since` (RFC3339 timestamp)
+- Returns: calls with screening results (legitimacy, intent, entities)
+
+**GET /ai/calls/{callSid}/events** - Get call details with full event timeline
+- Returns: call info, utterances (transcript), and all diagnostic events
+- Use Twilio call SID (e.g., `CA9509ef101828137de9e0ff9e85b755e9`)
+
+**GET /ai/tenants/{tenantId}/calls** - List calls for specific tenant
+- Query params: `limit` (1-100, default 20)
+
+**GET /ai/stats** - Aggregate statistics
+- Query params: `since` (RFC3339, default last 24h)
+- Returns: total_calls, event_counts, avg_llm_latency_ms, avg_tts_latency_ms, max_turn_timeout_count, barge_in_count
+
+**GET /ai/config** - List all config values
+
+**PATCH /ai/config/{key}** - Update config value
+- Body: `{"value": "5000"}`
+
+### Key Event Types
+
+When analyzing call events, look for these patterns:
+
+| Event | Description |
+|-------|-------------|
+| `stt_result` | STT transcript chunk. Empty text with `speech_final: true` indicates silence/lost audio |
+| `turn_finalized` | Caller's turn complete, ready for LLM |
+| `max_turn_timeout` | Forced turn end due to timeout (may indicate cut-off speech) |
+| `llm_first_token` | LLM started responding. `latency_ms` shows time-to-first-token |
+| `tts_first_chunk` | TTS audio ready. `latency_ms` shows synthesis latency |
+| `barge_in` | Caller interrupted the AI response |
+| `stt_empty_streak` | Multiple consecutive empty STT results (audio issue) |
+| `audio_silence_detected` | Prolonged low audio energy detected |
+
+### Key Config Values
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `max_turn_timeout_ms` | 4000 | Max wait for speech_final before forcing turn end |
+| `adaptive_turn_enabled` | true | Enable adaptive timeout based on text length |
+| `adaptive_text_decay_rate_ms` | 15 | Timeout reduction per character (Czech uses 8) |
+| `adaptive_sentence_end_bonus_ms` | 1500 | Extra reduction for complete sentences (Czech uses 500) |
+| `stt_debug_enabled` | false | Log raw Deepgram WebSocket messages |
+| `robocall_detection_enabled` | true | Auto-detect and hang up on robocalls |
+
+### Debugging Workflow
+
+1. **Get recent calls**: Check for issues in last few calls
+   ```bash
+   curl -s -H "X-API-Key: $ZVEDNU_AI_API_KEY" 'https://api.zvednu.cz/ai/calls?limit=5'
+   ```
+
+2. **Get call events**: Analyze specific call's event timeline
+   ```bash
+   curl -s -H "X-API-Key: $ZVEDNU_AI_API_KEY" 'https://api.zvednu.cz/ai/calls/CA.../events'
+   ```
+
+3. **Check stats**: Look for patterns (high timeout counts, latency spikes)
+   ```bash
+   curl -s -H "X-API-Key: $ZVEDNU_AI_API_KEY" 'https://api.zvednu.cz/ai/stats?since=2026-01-23T00:00:00Z'
+   ```
+
+4. **Tune config**: Adjust timeout settings if needed
+   ```bash
+   curl -s -X PATCH -H "X-API-Key: $ZVEDNU_AI_API_KEY" -H "Content-Type: application/json" \
+     -d '{"value":"5000"}' 'https://api.zvednu.cz/ai/config/max_turn_timeout_ms'
+   ```
