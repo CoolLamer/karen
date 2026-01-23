@@ -195,6 +195,13 @@ export type Voice = {
   gender: "male" | "female";
 };
 
+export type GlobalConfigEntry = {
+  key: string;
+  value: string;
+  description?: string;
+  updated_at: string;
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
 
 let authToken: string | null = localStorage.getItem("karen_token");
@@ -477,4 +484,13 @@ export const api = {
     http<TenantCostSummary>(
       `/admin/tenants/${encodeURIComponent(tenantId)}/costs${period ? `?period=${period}` : ""}`
     ),
+
+  // Admin global config
+  adminListGlobalConfig: () => http<{ config: GlobalConfigEntry[] }>("/admin/config"),
+
+  adminUpdateGlobalConfig: (key: string, value: string) =>
+    http<{ success: boolean }>(`/admin/config/${encodeURIComponent(key)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ value }),
+    }),
 };

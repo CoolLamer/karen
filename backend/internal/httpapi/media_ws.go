@@ -236,6 +236,12 @@ type callSession struct {
 	llmInputTokens  int // Estimated input tokens (chars / 4)
 	llmOutputTokens int // Estimated output tokens (chars / 4)
 
+	// Robocall detection
+	robocallDetector *RobocallDetector
+	maxDurationTimer *time.Timer
+	robocallDetected bool
+	robocallReason   string
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -279,13 +285,14 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 		Model:  "gpt-4o-mini",
 	})
 
-	// Create TTS client
+	// Create TTS client with shared HTTP client for connection pooling
 	session.ttsClient = tts.NewElevenLabsClient(tts.ElevenLabsConfig{
 		APIKey:     r.cfg.ElevenLabsAPIKey,
 		VoiceID:    r.cfg.TTSVoiceID,
 		ModelID:    "eleven_flash_v2_5",
 		Stability:  r.cfg.TTSStability,
 		Similarity: r.cfg.TTSSimilarity,
+		HTTPClient: r.cfg.TTSHTTPClient,
 	})
 
 	r.logger.Printf("media_ws: connection established, waiting for start message")
@@ -447,7 +454,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 	}
 	s.sttClient = sttClient
 
-	// Update TTS client with tenant's voice ID if specified
+	// Update TTS client with tenant's voice ID if specified (preserving shared HTTP client)
 	if s.tenantCfg.VoiceID != nil && *s.tenantCfg.VoiceID != "" {
 		s.ttsClient = tts.NewElevenLabsClient(tts.ElevenLabsConfig{
 			APIKey:     s.cfg.ElevenLabsAPIKey,
@@ -455,6 +462,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 			ModelID:    "eleven_flash_v2_5",
 			Stability:  s.cfg.TTSStability,
 			Similarity: s.cfg.TTSSimilarity,
+			HTTPClient: s.cfg.TTSHTTPClient,
 		})
 	}
 
@@ -463,6 +471,9 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		s.llmClient.SetSystemPrompt(s.tenantCfg.SystemPrompt)
 		s.logger.Printf("media_ws: using tenant's custom system prompt")
 	}
+
+	// Initialize robocall detector with global config
+	s.initRobocallDetector()
 
 	// Start processing STT results
 	go s.processSTTResults()
@@ -637,6 +648,44 @@ func (s *callSession) cancelPendingAction() {
 	s.actionMu.Unlock()
 }
 
+// adaptiveTurnConfig holds config values for adaptive turn timeout calculation.
+type adaptiveTurnConfig struct {
+	enabled            bool
+	baseTimeout        time.Duration
+	minTimeout         time.Duration
+	textDecayRateMs    int // ms to reduce per character
+	sentenceEndBonusMs int // ms to reduce when sentence ends with .!?
+}
+
+// calculateAdaptiveTimeout computes the timeout based on current utterance text.
+// When adaptive is disabled, returns the base timeout.
+func calculateAdaptiveTimeout(cfg adaptiveTurnConfig, text string) time.Duration {
+	if !cfg.enabled {
+		return cfg.baseTimeout
+	}
+
+	timeout := cfg.baseTimeout
+
+	// Reduce by text length (more text = user likely done speaking)
+	textLen := len(strings.TrimSpace(text))
+	if textLen > 0 {
+		reduction := time.Duration(textLen*cfg.textDecayRateMs) * time.Millisecond
+		timeout -= reduction
+	}
+
+	// Additional reduction if sentence appears complete
+	if isSentenceEnd(text) {
+		timeout -= time.Duration(cfg.sentenceEndBonusMs) * time.Millisecond
+	}
+
+	// Enforce minimum
+	if timeout < cfg.minTimeout {
+		timeout = cfg.minTimeout
+	}
+
+	return timeout
+}
+
 func (s *callSession) processSTTResults() {
 	var currentUtterance strings.Builder
 	var utteranceStartTime *time.Time
@@ -645,14 +694,26 @@ func (s *callSession) processSTTResults() {
 	// We only finalize a user "turn" on Deepgram's end-of-speech signal (`speech_final`),
 	// with a short grace window to allow late-arriving tokens/segments.
 	const speechFinalGrace = 250 * time.Millisecond
-	// Hard cap on waiting for speech_final. If Deepgram is confused by noise, we force
-	// finalization after this timeout to avoid multi-second delays.
-	// Default is 4 seconds, but can be overridden per-tenant.
-	maxTurnTimeout := 4 * time.Second
-	if s.tenantCfg.MaxTurnTimeoutMs != nil && *s.tenantCfg.MaxTurnTimeoutMs > 0 {
-		maxTurnTimeout = time.Duration(*s.tenantCfg.MaxTurnTimeoutMs) * time.Millisecond
-		s.logger.Printf("media_ws: using tenant max_turn_timeout: %v", maxTurnTimeout)
+
+	// Load adaptive turn config from global settings
+	ctx := context.Background()
+	adaptiveCfg := adaptiveTurnConfig{
+		enabled:            s.store.GetGlobalConfigBool(ctx, "adaptive_turn_enabled", true),
+		baseTimeout:        time.Duration(s.store.GetGlobalConfigInt(ctx, "max_turn_timeout_ms", 4000)) * time.Millisecond,
+		minTimeout:         time.Duration(s.store.GetGlobalConfigInt(ctx, "adaptive_min_timeout_ms", 500)) * time.Millisecond,
+		textDecayRateMs:    s.store.GetGlobalConfigInt(ctx, "adaptive_text_decay_rate_ms", 15),
+		sentenceEndBonusMs: s.store.GetGlobalConfigInt(ctx, "adaptive_sentence_end_bonus_ms", 1500),
 	}
+
+	// Per-tenant override for base timeout (if configured)
+	if s.tenantCfg.MaxTurnTimeoutMs != nil && *s.tenantCfg.MaxTurnTimeoutMs > 0 {
+		adaptiveCfg.baseTimeout = time.Duration(*s.tenantCfg.MaxTurnTimeoutMs) * time.Millisecond
+		s.logger.Printf("media_ws: using tenant max_turn_timeout: %v", adaptiveCfg.baseTimeout)
+	}
+
+	s.logger.Printf("media_ws: adaptive turn config: enabled=%v base=%v min=%v decay=%dms/char bonus=%dms",
+		adaptiveCfg.enabled, adaptiveCfg.baseTimeout, adaptiveCfg.minTimeout,
+		adaptiveCfg.textDecayRateMs, adaptiveCfg.sentenceEndBonusMs)
 
 	var finalizeTimer *time.Timer
 	var finalizeC <-chan time.Time
@@ -683,6 +744,7 @@ func (s *callSession) processSTTResults() {
 	}
 
 	// Max turn timeout: force finalization if speech_final doesn't arrive in time.
+	// Uses adaptive timeout calculation when enabled.
 	var maxTurnTimer *time.Timer
 	var maxTurnC <-chan time.Time
 	stopMaxTurnTimer := func() {
@@ -697,11 +759,13 @@ func (s *callSession) processSTTResults() {
 		}
 	}
 	scheduleMaxTurn := func() {
+		// Calculate adaptive timeout based on current utterance text
+		timeout := calculateAdaptiveTimeout(adaptiveCfg, currentUtterance.String())
 		if maxTurnTimer == nil {
-			maxTurnTimer = time.NewTimer(maxTurnTimeout)
+			maxTurnTimer = time.NewTimer(timeout)
 		} else {
 			stopMaxTurnTimer()
-			maxTurnTimer.Reset(maxTurnTimeout)
+			maxTurnTimer.Reset(timeout)
 		}
 		maxTurnC = maxTurnTimer.C
 	}
@@ -724,6 +788,13 @@ func (s *callSession) processSTTResults() {
 			return
 		}
 
+		// Record speech for robocall detection
+		if s.robocallDetector != nil {
+			s.robocallDetector.RecordSpeech(text)
+			// Check for robocall keywords
+			s.checkRobocallKeywords(text)
+		}
+
 		// Barge-in is defined as the caller speaking while the agent is speaking.
 		// Skip barge-in handling during greeting - let the caller hear the full introduction.
 		isSpeaking := bargeInSent || s.isAudioPlaying() || s.isResponseActive()
@@ -740,6 +811,10 @@ func (s *callSession) processSTTResults() {
 			select {
 			case s.bargeInCh <- text:
 			default:
+			}
+			// Record barge-in for robocall detection
+			if s.robocallDetector != nil {
+				s.robocallDetector.RecordBargeIn()
 			}
 		}
 
@@ -1167,6 +1242,12 @@ func (s *callSession) speakFillerAndGenerate(turnID uint64, lastUserText string)
 			StartedAt:   &startTime,
 			Interrupted: false,
 		})
+	}
+
+	// Record agent turn for robocall detection and check
+	if s.robocallDetector != nil {
+		s.robocallDetector.RecordAgentTurn()
+		s.checkRobocall()
 	}
 
 	// If we need to forward/hang up, wait for the final mark of the response.
@@ -1688,6 +1769,11 @@ func (s *callSession) sendPushNotifications(legitimacyLabel, intentText string) 
 func (s *callSession) cleanup() {
 	s.cancel()
 
+	// Stop max duration timer if running
+	if s.maxDurationTimer != nil {
+		s.maxDurationTimer.Stop()
+	}
+
 	if s.sttClient != nil {
 		s.sttClient.Close()
 	}
@@ -1884,4 +1970,180 @@ func (s *callSession) checkUsageWarnings(ctx context.Context) {
 	}
 
 	s.logger.Printf("media_ws: sent %s warning to %d devices for tenant %s", warningType, len(tokens), tenant.ID)
+}
+
+// initRobocallDetector initializes the robocall detector with global config settings.
+func (s *callSession) initRobocallDetector() {
+	ctx := context.Background()
+
+	// Check if robocall detection is enabled
+	enabled := s.store.GetGlobalConfigBool(ctx, "robocall_detection_enabled", true)
+	if !enabled {
+		s.logger.Printf("media_ws: robocall detection disabled")
+		return
+	}
+
+	// Load config values from global config
+	cfg := RobocallConfig{
+		SilenceThreshold:    time.Duration(s.store.GetGlobalConfigInt(ctx, "robocall_silence_threshold_ms", 30000)) * time.Millisecond,
+		BargeInThreshold:    s.store.GetGlobalConfigInt(ctx, "robocall_barge_in_threshold", 3),
+		BargeInWindow:       time.Duration(s.store.GetGlobalConfigInt(ctx, "robocall_barge_in_window_ms", 15000)) * time.Millisecond,
+		RepetitionThreshold: s.store.GetGlobalConfigInt(ctx, "robocall_repetition_threshold", 3),
+		HoldKeywords:        DefaultRobocallConfig().HoldKeywords, // Use defaults, can be extended later
+	}
+
+	// Try to load keywords from config (JSON array)
+	if keywordsJSON, err := s.store.GetGlobalConfig(ctx, "robocall_hold_keywords"); err == nil && keywordsJSON != "" {
+		var keywords []string
+		if err := json.Unmarshal([]byte(keywordsJSON), &keywords); err == nil && len(keywords) > 0 {
+			cfg.HoldKeywords = keywords
+		}
+	}
+
+	s.robocallDetector = NewRobocallDetector(cfg)
+
+	// Start max duration timer
+	maxDurationMs := s.store.GetGlobalConfigInt(ctx, "robocall_max_call_duration_ms", 300000)
+	if maxDurationMs > 0 {
+		s.maxDurationTimer = time.AfterFunc(time.Duration(maxDurationMs)*time.Millisecond, s.handleMaxDuration)
+		s.logger.Printf("media_ws: max call duration set to %dms", maxDurationMs)
+	}
+
+	s.logger.Printf("media_ws: robocall detector initialized (silence=%v, barge-in=%d/%v, repetition=%d)",
+		cfg.SilenceThreshold, cfg.BargeInThreshold, cfg.BargeInWindow, cfg.RepetitionThreshold)
+}
+
+// handleMaxDuration is called when the max call duration timer fires.
+func (s *callSession) handleMaxDuration() {
+	s.logger.Printf("media_ws: MAX DURATION reached - terminating call")
+	s.eventLog.LogAsync(s.callID, eventlog.EventMaxDurationReached, nil)
+
+	s.robocallDetected = true
+	s.robocallReason = "max_duration_exceeded"
+
+	// Mark call as robocall
+	if s.callID != "" && s.callSid != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.store.MarkCallAsRobocall(ctx, s.callSid, "max_duration_exceeded")
+	}
+
+	// Speak goodbye and hang up
+	go s.speakAndHangUp("Toto spojení bylo ukončeno z důvodu příliš dlouhého hovoru. Na shledanou.")
+}
+
+// checkRobocall checks the detector and handles robocall detection.
+func (s *callSession) checkRobocall() {
+	if s.robocallDetector == nil || s.robocallDetected {
+		return
+	}
+
+	result := s.robocallDetector.Check()
+	if result.IsRobocall {
+		s.logger.Printf("media_ws: ROBOCALL DETECTED: %s", result.Reason)
+		s.eventLog.LogAsync(s.callID, eventlog.EventRobocallDetected, map[string]any{
+			"reason": result.Reason,
+		})
+
+		s.robocallDetected = true
+		s.robocallReason = result.Reason
+
+		// Mark call as robocall
+		if s.callID != "" && s.callSid != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = s.store.MarkCallAsRobocall(ctx, s.callSid, result.Reason)
+		}
+
+		// Speak brief message and hang up
+		go s.speakAndHangUp("Toto spojení bylo ukončeno. Na shledanou.")
+	}
+}
+
+// checkRobocallKeywords checks text for robocall keywords.
+func (s *callSession) checkRobocallKeywords(text string) {
+	if s.robocallDetector == nil || s.robocallDetected {
+		return
+	}
+
+	result := s.robocallDetector.CheckText(text)
+	if result.IsRobocall {
+		s.logger.Printf("media_ws: ROBOCALL KEYWORD DETECTED: %s", result.Reason)
+		s.eventLog.LogAsync(s.callID, eventlog.EventRobocallDetected, map[string]any{
+			"reason": result.Reason,
+			"text":   text,
+		})
+
+		s.robocallDetected = true
+		s.robocallReason = result.Reason
+
+		// Mark call as robocall
+		if s.callID != "" && s.callSid != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = s.store.MarkCallAsRobocall(ctx, s.callSid, result.Reason)
+		}
+
+		// Speak brief message and hang up
+		go s.speakAndHangUp("Toto spojení bylo ukončeno. Na shledanou.")
+	}
+}
+
+// speakAndHangUp speaks a message and then hangs up the call.
+func (s *callSession) speakAndHangUp(message string) {
+	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+	defer cancel()
+
+	// Speak the message
+	if _, err := s.speakText(ctx, message); err != nil && err != context.Canceled {
+		s.logger.Printf("media_ws: failed to speak hangup message: %v", err)
+	}
+
+	// Wait a bit for audio to play
+	time.Sleep(2 * time.Second)
+
+	// Hang up
+	s.agentHungUp = true
+	s.hangUpCallSync()
+}
+
+// hangUpCallSync hangs up the call synchronously (for use in goroutines).
+func (s *callSession) hangUpCallSync() {
+	if s.callSid == "" || s.cfg.TwilioAccountSID == "" || s.cfg.TwilioAuthToken == "" {
+		return
+	}
+
+	hangupURL := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Calls/%s.json",
+		s.cfg.TwilioAccountSID, s.callSid)
+
+	data := url.Values{}
+	data.Set("Status", "completed")
+
+	req, err := http.NewRequest("POST", hangupURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		s.logger.Printf("media_ws: failed to create hangup request: %v", err)
+		return
+	}
+	req.SetBasicAuth(s.cfg.TwilioAccountSID, s.cfg.TwilioAuthToken)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		s.logger.Printf("media_ws: failed to hang up call: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		s.logger.Printf("media_ws: hangup returned status %d", resp.StatusCode)
+	} else {
+		s.logger.Printf("media_ws: call hung up successfully")
+	}
+
+	// Update DB
+	if s.callID != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.store.UpdateCallEndedBy(ctx, s.callSid, "agent")
+	}
 }

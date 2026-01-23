@@ -45,6 +45,11 @@ const (
 	EventHangupWaitStart   EventType = "hangup_wait_start"
 	EventHangupWaitEnd     EventType = "hangup_wait_end"
 	EventLLMCancelled      EventType = "llm_cancelled"
+
+	// Robocall detection events
+	EventRobocallDetected    EventType = "robocall_detected"
+	EventMaxDurationReached  EventType = "max_duration_reached"
+	EventAdaptiveTurnTimeout EventType = "adaptive_turn_timeout"
 )
 
 // Logger provides async event logging to the database

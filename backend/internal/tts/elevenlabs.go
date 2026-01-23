@@ -25,10 +25,11 @@ type ElevenLabsClient struct {
 // Use -1 for Stability/Similarity to use defaults (allows 0.0 as valid value).
 type ElevenLabsConfig struct {
 	APIKey     string
-	VoiceID    string  // ElevenLabs voice ID
-	ModelID    string  // e.g., "eleven_flash_v2_5" for low latency
-	Stability  float64 // Voice stability (0.0-1.0, default 0.5). Use -1 for default.
-	Similarity float64 // Voice similarity boost (0.0-1.0, default 0.75). Use -1 for default.
+	VoiceID    string       // ElevenLabs voice ID
+	ModelID    string       // e.g., "eleven_flash_v2_5" for low latency
+	Stability  float64      // Voice stability (0.0-1.0, default 0.5). Use -1 for default.
+	Similarity float64      // Voice similarity boost (0.0-1.0, default 0.75). Use -1 for default.
+	HTTPClient *http.Client // Optional: shared HTTP client with connection pooling
 }
 
 // NewElevenLabsClient creates a new ElevenLabs client.
@@ -49,13 +50,18 @@ func NewElevenLabsClient(cfg ElevenLabsConfig) *ElevenLabsClient {
 	if similarity < 0 {
 		similarity = 0.75 // Default similarity boost
 	}
+	// Use provided HTTP client or create default
+	httpClient := cfg.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
 	return &ElevenLabsClient{
 		apiKey:     cfg.APIKey,
 		voiceID:    voiceID,
 		modelID:    modelID,
 		stability:  stability,
 		similarity: similarity,
-		httpClient: &http.Client{},
+		httpClient: httpClient,
 	}
 }
 
