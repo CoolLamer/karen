@@ -17,6 +17,15 @@ import (
 // and update configuration settings for debugging purposes.
 // ============================================================================
 
+// handleAIHealth returns API status without requiring authentication.
+// This allows Claude CLI to verify connectivity before attempting authenticated requests.
+func (r *Router) handleAIHealth(w http.ResponseWriter, req *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":         "ok",
+		"api_configured": r.cfg.AIDebugAPIKey != "",
+	})
+}
+
 // handleAIListCalls returns recent calls with basic info.
 // Query params: ?tenant_id=, ?limit=, ?since= (ISO timestamp)
 func (r *Router) handleAIListCalls(w http.ResponseWriter, req *http.Request) {

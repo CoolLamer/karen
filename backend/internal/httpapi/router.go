@@ -168,6 +168,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("PATCH /admin/config/{key}", r.withAdmin(r.handleAdminUpdateGlobalConfig))
 
 	// AI Debug API (for Claude CLI remote debugging)
+	r.mux.HandleFunc("GET /ai/health", r.handleAIHealth) // Unauthenticated health check
 	r.mux.HandleFunc("GET /ai/calls", r.withAIKey(r.handleAIListCalls))
 	r.mux.HandleFunc("GET /ai/calls/{callSid}/events", r.withAIKey(r.handleAIGetCallEvents))
 	r.mux.HandleFunc("GET /ai/tenants/{tenantId}/calls", r.withAIKey(r.handleAIGetTenantCalls))
@@ -238,7 +239,7 @@ func (r *Router) withAIKey(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if apiKey == "" {
-			http.Error(w, `{"error": "missing API key"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error": "missing API key - provide via X-API-Key header or Authorization: Bearer <key>"}`, http.StatusUnauthorized)
 			return
 		}
 

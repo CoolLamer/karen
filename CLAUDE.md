@@ -151,6 +151,10 @@ curl -s -H "X-API-Key: $ZVEDNU_AI_API_KEY" 'https://api.zvednu.cz/ai/calls?limit
 
 ### Endpoints
 
+**GET /ai/health** - Health check (no authentication required)
+- Returns: `{"status": "ok", "api_configured": true}`
+- Use this to verify API connectivity before attempting authenticated requests
+
 **GET /ai/calls** - List recent calls
 - Query params: `limit` (1-100, default 20), `tenant_id`, `since` (RFC3339 timestamp)
 - Returns: calls with screening results (legitimacy, intent, entities)
@@ -219,3 +223,72 @@ When analyzing call events, look for these patterns:
    curl -s -X PATCH -H "X-API-Key: $ZVEDNU_AI_API_KEY" -H "Content-Type: application/json" \
      -d '{"value":"5000"}' 'https://api.zvednu.cz/ai/config/max_turn_timeout_ms'
    ```
+
+### Troubleshooting
+
+**"missing API key" error:**
+
+If your API calls return `{"error": "missing API key"}`, the environment variable may not be expanding properly. Verify with:
+
+```bash
+# Check if variable is set
+echo "Key length: ${#ZVEDNU_AI_API_KEY}"
+echo "First 8 chars: ${ZVEDNU_AI_API_KEY:0:8}"
+```
+
+If the variable appears empty in curl but is set in your shell:
+1. Try exporting it: `export ZVEDNU_AI_API_KEY="your-key"`
+2. Use the literal key value instead of the variable
+3. Check for newlines/whitespace: `printenv ZVEDNU_AI_API_KEY | xxd | head`
+
+**Verify API is reachable (no auth required):**
+
+```bash
+curl -s 'https://api.zvednu.cz/ai/health'
+# Returns: {"status":"ok","api_configured":true}
+```
+
+**Alternative: Use literal key**
+
+If environment variable expansion fails, use the key directly:
+```bash
+curl -s -H 'X-API-Key: your-64-char-key-here' 'https://api.zvednu.cz/ai/calls?limit=5'
+```
+
+### Example Responses
+
+**GET /ai/calls** returns:
+```json
+{
+  "calls": [
+    {
+      "provider_call_id": "CA9509ef101828137de9e0ff9e85b755e9",
+      "from_number": "+420724794686",
+      "to_number": "+420228811386",
+      "status": "completed",
+      "started_at": "2026-01-23T12:57:46.582748Z",
+      "screening": {
+        "legitimacy_label": "legitimní",
+        "intent_text": "Dotaz na stav webu.",
+        "entities_json": {"name": "Tepa", "purpose": "stav webu"}
+      }
+    }
+  ],
+  "count": 1
+}
+```
+
+**GET /ai/stats** returns:
+```json
+{
+  "since": "2026-01-23T00:00:00Z",
+  "stats": {
+    "total_calls": 19,
+    "total_events": 673,
+    "avg_llm_latency_ms": 1259.67,
+    "avg_tts_latency_ms": 398.16,
+    "max_turn_timeout_count": 30,
+    "barge_in_count": 32
+  }
+}
+```
