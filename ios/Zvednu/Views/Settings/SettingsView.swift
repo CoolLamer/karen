@@ -5,6 +5,7 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @ObservedObject private var contactsManager = ContactsManager.shared
     @State private var showLogoutConfirmation = false
+    @State private var showForwardingSheet = false
     @State private var newVipName = ""
 
     var body: some View {
@@ -63,6 +64,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $viewModel.showVoiceSheet) {
             VoicePickerView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showForwardingSheet) {
+            ForwardingSetupSheet(karenNumber: viewModel.primaryPhoneNumber ?? "")
         }
     }
 
@@ -252,27 +256,24 @@ struct SettingsView: View {
             }
 
             // Forwarding Instructions Section
-            if let phoneNumber = viewModel.primaryPhoneNumber {
+            if viewModel.primaryPhoneNumber != nil {
                 Section("Přesměrování hovoru") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Vytočte tyto kódy pro aktivaci přesměrování:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        forwardingCodeRow(
-                            title: "Když nezvedneš (10s)",
-                            code: "**61*\(phoneNumber.replacingOccurrences(of: " ", with: ""))**10#"
-                        )
-
-                        forwardingCodeRow(
-                            title: "Když máš obsazeno",
-                            code: "**67*\(phoneNumber.replacingOccurrences(of: " ", with: ""))#"
-                        )
-
-                        forwardingCodeRow(
-                            title: "Když jsi nedostupný",
-                            code: "**62*\(phoneNumber.replacingOccurrences(of: " ", with: ""))#"
-                        )
+                    Button {
+                        showForwardingSheet = true
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Nastavit přesměrování")
+                                    .foregroundStyle(.primary)
+                                Text("Průvodce krok za krokem")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -451,34 +452,6 @@ struct SettingsView: View {
             return .yellow
         }
         return .blue
-    }
-
-    private func forwardingCodeRow(title: String, code: String) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                Text(code)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(Color.accentColor)
-            }
-
-            Spacer()
-
-            if let url = URL(string: "tel:\(code)") {
-                Link(destination: url) {
-                    Text("Vytočit")
-                        .font(.caption2)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.accentColor)
-                        .foregroundStyle(.white)
-                        .clipShape(Capsule())
-                }
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
 

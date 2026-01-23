@@ -117,80 +117,16 @@ struct PhoneSetupStepView: View {
             Text("Nastavení přesměrování")
                 .font(.headline)
 
-            Text("Přesměrování se nastavuje vytočením speciálního kódu na telefonu. Otevři tuto stránku na mobilu a klikni na tlačítko.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            // Warning about existing forwarding
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text("**Zobrazuje se chyba?** Pokud máš již nastavené přesměrování na jiné číslo, musíš ho nejdřív zrušit kódem ##61#, ##67# nebo ##62#.")
-                    .font(.caption)
-            }
-            .padding(10)
-            .background(Color.orange.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // Forwarding code examples
-            VStack(spacing: 8) {
-                forwardingCodeRow(
-                    title: "Když nezvedneš (10s)",
-                    code: "**61*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")**10#",
-                    description: "Aktivuje přesměrování po 10 sekundách vyzvánění"
-                )
-
-                forwardingCodeRow(
-                    title: "Když máš obsazeno",
-                    code: "**67*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")#",
-                    description: "Aktivuje přesměrování při obsazení"
-                )
-
-                forwardingCodeRow(
-                    title: "Když jsi nedostupný",
-                    code: "**62*\(viewModel.primaryPhoneNumber?.replacingOccurrences(of: " ", with: "") ?? "")#",
-                    description: "Aktivuje přesměrování při nedostupnosti"
-                )
-            }
+            RedirectWizardView(
+                karenNumber: viewModel.primaryPhoneNumber ?? "",
+                onComplete: {
+                    viewModel.goToNext()
+                }
+            )
         }
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private func forwardingCodeRow(title: String, code: String, description: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.medium)
-
-            HStack {
-                Text(code)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(Color.accentColor)
-
-                Spacer()
-
-                if let url = URL(string: "tel:\(code)") {
-                    Link(destination: url) {
-                        Text("Vytočit")
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.accentColor)
-                            .foregroundStyle(.white)
-                            .clipShape(Capsule())
-                    }
-                }
-            }
-
-            Text(description)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private var noPhoneSection: some View {
