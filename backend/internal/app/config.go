@@ -45,6 +45,9 @@ type Config struct {
 
 	// Notifications
 	DiscordWebhookURL string
+
+	// AI Debug API
+	AIDebugAPIKey string
 }
 
 func LoadConfigFromEnv() Config {
@@ -96,6 +99,9 @@ func LoadConfigFromEnv() Config {
 
 		// Notifications
 		DiscordWebhookURL: os.Getenv("DISCORD_WEBHOOK_URL"),
+
+		// AI Debug API
+		AIDebugAPIKey: os.Getenv("AI_DEBUG_API_KEY"),
 	}
 }
 

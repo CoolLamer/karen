@@ -50,6 +50,10 @@ const (
 	EventRobocallDetected    EventType = "robocall_detected"
 	EventMaxDurationReached  EventType = "max_duration_reached"
 	EventAdaptiveTurnTimeout EventType = "adaptive_turn_timeout"
+
+	// STT diagnostic events
+	EventSTTEmptyStreak       EventType = "stt_empty_streak"
+	EventAudioSilenceDetected EventType = "audio_silence_detected"
 )
 
 // Logger provides async event logging to the database

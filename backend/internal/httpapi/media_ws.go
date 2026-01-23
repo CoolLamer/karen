@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -97,6 +98,52 @@ func extractCompleteSentences(buffer string) (string, string) {
 
 	return buffer[:lastBoundary+1], buffer[lastBoundary+1:]
 }
+
+// muLawToLinear converts a μ-law encoded byte to a linear 16-bit sample.
+// μ-law is used by Twilio for 8kHz audio compression.
+func muLawToLinear(muLaw byte) int16 {
+	// μ-law lookup table (standard G.711 decoding)
+	muLaw = ^muLaw // μ-law is inverted
+	sign := int16(muLaw & 0x80)
+	exponent := int(muLaw>>4) & 0x07
+	mantissa := int(muLaw & 0x0F)
+
+	sample := int16((mantissa<<3 + 0x84) << exponent)
+	sample -= 0x84
+
+	if sign != 0 {
+		return -sample
+	}
+	return sample
+}
+
+// calculateAudioEnergy computes the RMS (root mean square) energy of μ-law audio.
+// Returns a value between 0 and 1, where 0 is silence and 1 is max volume.
+func calculateAudioEnergy(audio []byte) float64 {
+	if len(audio) == 0 {
+		return 0
+	}
+
+	var sumSquares float64
+	for _, b := range audio {
+		sample := float64(muLawToLinear(b))
+		sumSquares += sample * sample
+	}
+
+	rms := math.Sqrt(sumSquares / float64(len(audio)))
+	// Normalize to 0-1 range (max 16-bit value is 32767)
+	return rms / 32767.0
+}
+
+// audioEnergyThreshold is the normalized RMS below which audio is considered silent.
+// Typical speech has energy ~0.01-0.1, silence/noise is usually < 0.005.
+const audioEnergyThreshold = 0.005
+
+// lowEnergyCheckInterval is how often to check and log audio energy stats
+const lowEnergyCheckInterval = 30 * time.Second
+
+// lowEnergyChunkThreshold is the number of consecutive low-energy chunks before logging
+const lowEnergyChunkThreshold = 50 // ~1 second at 20ms/chunk
 
 // Twilio Media Stream message types
 type twilioMessage struct {
@@ -241,6 +288,14 @@ type callSession struct {
 	maxDurationTimer *time.Timer
 	robocallDetected bool
 	robocallReason   string
+
+	// Audio level monitoring (for diagnosing one-way audio or silence issues)
+	audioEnergyMu       sync.Mutex
+	audioChunkCount     int
+	audioEnergySum      float64
+	lowEnergyChunkCount int       // consecutive low-energy chunks
+	lastEnergyCheckTime time.Time // last time we logged energy stats
+	silenceEventLogged  bool      // prevent duplicate silence events per call
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -437,6 +492,9 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		s.logger.Printf("media_ws: using tenant utterance_end: %dms", utteranceEnd)
 	}
 
+	// Check if STT debug logging is enabled (via global config)
+	sttDebug := s.store.GetGlobalConfigBool(s.ctx, "stt_debug_enabled", false)
+
 	// Connect to Deepgram STT
 	sttClient, err := stt.NewDeepgramClient(s.ctx, stt.DeepgramConfig{
 		APIKey:         s.cfg.DeepgramAPIKey,
@@ -448,6 +506,7 @@ func (s *callSession) handleStart(start *twilioStart) error {
 		Punctuate:      true,
 		Endpointing:    endpointing,  // Silence-based turn detection
 		UtteranceEndMs: utteranceEnd, // Hard timeout after last speech (noise-resistant)
+		Debug:          sttDebug,     // Log raw Deepgram messages for diagnostics
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to Deepgram: %w", err)
@@ -505,8 +564,57 @@ func (s *callSession) handleMedia(media *twilioMedia) error {
 		return fmt.Errorf("failed to decode audio: %w", err)
 	}
 
+	// Track audio energy for diagnostics
+	s.trackAudioEnergy(audio)
+
 	// Forward to STT
 	return s.sttClient.StreamAudio(s.ctx, audio)
+}
+
+// trackAudioEnergy monitors audio levels to detect one-way audio or silence issues.
+func (s *callSession) trackAudioEnergy(audio []byte) {
+	energy := calculateAudioEnergy(audio)
+
+	s.audioEnergyMu.Lock()
+	defer s.audioEnergyMu.Unlock()
+
+	s.audioChunkCount++
+	s.audioEnergySum += energy
+
+	// Track consecutive low-energy chunks
+	if energy < audioEnergyThreshold {
+		s.lowEnergyChunkCount++
+	} else {
+		s.lowEnergyChunkCount = 0
+	}
+
+	// Log warning if we've had prolonged silence (and haven't logged yet)
+	if s.lowEnergyChunkCount >= lowEnergyChunkThreshold && !s.silenceEventLogged {
+		avgEnergy := s.audioEnergySum / float64(s.audioChunkCount)
+		s.logger.Printf("media_ws: AUDIO SILENCE DETECTED - %d consecutive low-energy chunks (avg energy: %.6f)",
+			s.lowEnergyChunkCount, avgEnergy)
+		s.eventLog.LogAsync(s.callID, eventlog.EventAudioSilenceDetected, map[string]any{
+			"consecutive_low_energy_chunks": s.lowEnergyChunkCount,
+			"avg_energy":                    avgEnergy,
+			"threshold":                     audioEnergyThreshold,
+			"total_chunks":                  s.audioChunkCount,
+		})
+		s.silenceEventLogged = true
+	}
+
+	// Periodic energy stats logging (every lowEnergyCheckInterval, only if concerning)
+	now := time.Now()
+	if s.lastEnergyCheckTime.IsZero() {
+		s.lastEnergyCheckTime = now
+	} else if now.Sub(s.lastEnergyCheckTime) >= lowEnergyCheckInterval {
+		avgEnergy := s.audioEnergySum / float64(s.audioChunkCount)
+		// Only log if there's a notable low-energy streak
+		if s.lowEnergyChunkCount >= lowEnergyChunkThreshold/2 {
+			s.logger.Printf("media_ws: audio stats - chunks=%d avg_energy=%.6f low_energy_streak=%d",
+				s.audioChunkCount, avgEnergy, s.lowEnergyChunkCount)
+		}
+		s.lastEnergyCheckTime = now
+	}
 }
 
 func (s *callSession) nextAudioMarkID() uint64 {
@@ -691,6 +799,10 @@ func (s *callSession) processSTTResults() {
 	var utteranceStartTime *time.Time
 	var lastConfidence float64
 
+	// Track consecutive empty STT results for diagnostics
+	var emptyResultCount int
+	const emptyResultThreshold = 5 // Log warning after 5 consecutive empty results
+
 	// We only finalize a user "turn" on Deepgram's end-of-speech signal (`speech_final`),
 	// with a short grace window to allow late-arriving tokens/segments.
 	const speechFinalGrace = 250 * time.Millisecond
@@ -709,6 +821,22 @@ func (s *callSession) processSTTResults() {
 	if s.tenantCfg.MaxTurnTimeoutMs != nil && *s.tenantCfg.MaxTurnTimeoutMs > 0 {
 		adaptiveCfg.baseTimeout = time.Duration(*s.tenantCfg.MaxTurnTimeoutMs) * time.Millisecond
 		s.logger.Printf("media_ws: using tenant max_turn_timeout: %v", adaptiveCfg.baseTimeout)
+	}
+
+	// Czech language tuning: use longer timeouts to accommodate natural mid-sentence pauses
+	// (e.g., before dependent clauses) that can trigger premature turn finalization.
+	// These settings ensure minimum thresholds for Czech - global config can make them even longer.
+	if s.tenantCfg.Language == "cs" || s.tenantCfg.Language == "" {
+		if adaptiveCfg.baseTimeout < 5*time.Second {
+			adaptiveCfg.baseTimeout = 5 * time.Second // Ensure at least 5s base (default: 4s)
+		}
+		if adaptiveCfg.textDecayRateMs > 8 {
+			adaptiveCfg.textDecayRateMs = 8 // Cap decay: 8ms/char keeps timeout longer (default: 15ms)
+		}
+		if adaptiveCfg.sentenceEndBonusMs > 500 {
+			adaptiveCfg.sentenceEndBonusMs = 500 // Cap bonus: 500ms reduction vs default 1500ms
+		}
+		s.logger.Printf("media_ws: applied Czech language tuning for adaptive timeout")
 	}
 
 	s.logger.Printf("media_ws: adaptive turn config: enabled=%v base=%v min=%v decay=%dms/char bonus=%dms",
@@ -902,6 +1030,29 @@ func (s *callSession) processSTTResults() {
 					"segment_final": result.SegmentFinal,
 					"speech_final":  result.SpeechFinal,
 				})
+			}
+
+			// Track consecutive empty STT results (diagnostic for one-way audio issues)
+			if strings.TrimSpace(result.Text) == "" && (result.SegmentFinal || result.SpeechFinal) {
+				emptyResultCount++
+				if emptyResultCount == emptyResultThreshold {
+					s.logger.Printf("media_ws: STT EMPTY STREAK - %d consecutive empty results", emptyResultCount)
+					s.eventLog.LogAsync(s.callID, eventlog.EventSTTEmptyStreak, map[string]any{
+						"count": emptyResultCount,
+					})
+				} else if emptyResultCount > emptyResultThreshold && emptyResultCount%10 == 0 {
+					// Log every 10 additional empty results
+					s.logger.Printf("media_ws: STT EMPTY STREAK continues - %d consecutive empty results", emptyResultCount)
+					s.eventLog.LogAsync(s.callID, eventlog.EventSTTEmptyStreak, map[string]any{
+						"count": emptyResultCount,
+					})
+				}
+			} else if strings.TrimSpace(result.Text) != "" {
+				// Reset counter when we get valid text
+				if emptyResultCount >= emptyResultThreshold {
+					s.logger.Printf("media_ws: STT EMPTY STREAK ended after %d empty results", emptyResultCount)
+				}
+				emptyResultCount = 0
 			}
 
 			// Detect barge-in as early as possible (on any non-empty transcript),

@@ -53,6 +53,20 @@ func TestLatencyDebugEventTypes(t *testing.T) {
 	}
 }
 
+func TestSTTDiagnosticEventTypes(t *testing.T) {
+	// Verify all STT diagnostic event types are defined
+	diagnosticEvents := map[EventType]string{
+		EventSTTEmptyStreak:       "stt_empty_streak",
+		EventAudioSilenceDetected: "audio_silence_detected",
+	}
+
+	for eventType, expectedValue := range diagnosticEvents {
+		if string(eventType) != expectedValue {
+			t.Errorf("Diagnostic EventType %q = %q, want %q", expectedValue, string(eventType), expectedValue)
+		}
+	}
+}
+
 func TestLoggerNew(t *testing.T) {
 	// Test that New returns a non-nil logger even with nil DB
 	logger := New(nil)

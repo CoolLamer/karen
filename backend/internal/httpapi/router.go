@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -55,6 +56,9 @@ type RouterConfig struct {
 	APNsTeamID     string // Team ID from Apple Developer Portal
 	APNsBundleID   string // App bundle ID (e.g., cz.zvednu.app)
 	APNsProduction bool   // Use production environment
+
+	// AI Debug API (for Claude CLI remote debugging)
+	AIDebugAPIKey string // API key for AI debug endpoints
 }
 
 type Router struct {
@@ -162,6 +166,14 @@ func (r *Router) routes() {
 	// Global config (admin only)
 	r.mux.HandleFunc("GET /admin/config", r.withAdmin(r.handleAdminListGlobalConfig))
 	r.mux.HandleFunc("PATCH /admin/config/{key}", r.withAdmin(r.handleAdminUpdateGlobalConfig))
+
+	// AI Debug API (for Claude CLI remote debugging)
+	r.mux.HandleFunc("GET /ai/calls", r.withAIKey(r.handleAIListCalls))
+	r.mux.HandleFunc("GET /ai/calls/{callSid}/events", r.withAIKey(r.handleAIGetCallEvents))
+	r.mux.HandleFunc("GET /ai/tenants/{tenantId}/calls", r.withAIKey(r.handleAIGetTenantCalls))
+	r.mux.HandleFunc("GET /ai/stats", r.withAIKey(r.handleAIGetStats))
+	r.mux.HandleFunc("GET /ai/config", r.withAIKey(r.handleAIListConfig))
+	r.mux.HandleFunc("PATCH /ai/config/{key}", r.withAIKey(r.handleAIUpdateConfig))
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {
@@ -194,13 +206,50 @@ func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
 		if req.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		next.ServeHTTP(w, req)
 	})
+}
+
+// withAIKey is middleware that requires a valid AI Debug API key.
+// It checks for the API key in the X-API-Key header or Authorization: Bearer header.
+func (r *Router) withAIKey(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		// Check if AI Debug API is configured
+		if r.cfg.AIDebugAPIKey == "" {
+			http.Error(w, `{"error": "AI Debug API not configured"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		// Get API key from X-API-Key header or Authorization: Bearer header
+		apiKey := req.Header.Get("X-API-Key")
+		if apiKey == "" {
+			authHeader := req.Header.Get("Authorization")
+			if authHeader != "" {
+				parts := strings.SplitN(authHeader, " ", 2)
+				if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+					apiKey = parts[1]
+				}
+			}
+		}
+
+		if apiKey == "" {
+			http.Error(w, `{"error": "missing API key"}`, http.StatusUnauthorized)
+			return
+		}
+
+		// Validate API key using constant-time comparison to prevent timing attacks
+		if subtle.ConstantTimeCompare([]byte(apiKey), []byte(r.cfg.AIDebugAPIKey)) != 1 {
+			http.Error(w, `{"error": "invalid API key"}`, http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, req)
+	}
 }
 
 func nowUTC() time.Time { return time.Now().UTC() }
