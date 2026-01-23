@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -241,8 +242,8 @@ func (r *Router) withAIKey(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Validate API key
-		if apiKey != r.cfg.AIDebugAPIKey {
+		// Validate API key using constant-time comparison to prevent timing attacks
+		if subtle.ConstantTimeCompare([]byte(apiKey), []byte(r.cfg.AIDebugAPIKey)) != 1 {
 			http.Error(w, `{"error": "invalid API key"}`, http.StatusUnauthorized)
 			return
 		}

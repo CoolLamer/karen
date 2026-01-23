@@ -140,7 +140,7 @@ func calculateAudioEnergy(audio []byte) float64 {
 const audioEnergyThreshold = 0.005
 
 // lowEnergyCheckInterval is how often to check and log audio energy stats
-const lowEnergyCheckInterval = 5 * time.Second
+const lowEnergyCheckInterval = 30 * time.Second
 
 // lowEnergyChunkThreshold is the number of consecutive low-energy chunks before logging
 const lowEnergyChunkThreshold = 50 // ~1 second at 20ms/chunk
@@ -602,14 +602,17 @@ func (s *callSession) trackAudioEnergy(audio []byte) {
 		s.silenceEventLogged = true
 	}
 
-	// Periodic energy stats logging (every lowEnergyCheckInterval)
+	// Periodic energy stats logging (every lowEnergyCheckInterval, only if concerning)
 	now := time.Now()
 	if s.lastEnergyCheckTime.IsZero() {
 		s.lastEnergyCheckTime = now
 	} else if now.Sub(s.lastEnergyCheckTime) >= lowEnergyCheckInterval {
 		avgEnergy := s.audioEnergySum / float64(s.audioChunkCount)
-		s.logger.Printf("media_ws: audio stats - chunks=%d avg_energy=%.6f low_energy_streak=%d",
-			s.audioChunkCount, avgEnergy, s.lowEnergyChunkCount)
+		// Only log if there's a notable low-energy streak
+		if s.lowEnergyChunkCount >= lowEnergyChunkThreshold/2 {
+			s.logger.Printf("media_ws: audio stats - chunks=%d avg_energy=%.6f low_energy_streak=%d",
+				s.audioChunkCount, avgEnergy, s.lowEnergyChunkCount)
+		}
 		s.lastEnergyCheckTime = now
 	}
 }
@@ -820,19 +823,18 @@ func (s *callSession) processSTTResults() {
 		s.logger.Printf("media_ws: using tenant max_turn_timeout: %v", adaptiveCfg.baseTimeout)
 	}
 
-	// Czech language tuning: use less aggressive adaptive timeout settings.
-	// Czech speech patterns have natural mid-sentence pauses (e.g., before dependent clauses)
-	// that can trigger premature turn finalization with aggressive settings.
+	// Czech language tuning: use longer timeouts to accommodate natural mid-sentence pauses
+	// (e.g., before dependent clauses) that can trigger premature turn finalization.
+	// These settings ensure minimum thresholds for Czech - global config can make them even longer.
 	if s.tenantCfg.Language == "cs" || s.tenantCfg.Language == "" {
-		// Apply Czech-specific defaults (can still be overridden by global config)
 		if adaptiveCfg.baseTimeout < 5*time.Second {
-			adaptiveCfg.baseTimeout = 5 * time.Second
+			adaptiveCfg.baseTimeout = 5 * time.Second // Ensure at least 5s base (default: 4s)
 		}
 		if adaptiveCfg.textDecayRateMs > 8 {
-			adaptiveCfg.textDecayRateMs = 8 // Less aggressive decay (was 15)
+			adaptiveCfg.textDecayRateMs = 8 // Cap decay: 8ms/char keeps timeout longer (default: 15ms)
 		}
 		if adaptiveCfg.sentenceEndBonusMs > 500 {
-			adaptiveCfg.sentenceEndBonusMs = 500 // Less aggressive sentence-end bonus (was 1500)
+			adaptiveCfg.sentenceEndBonusMs = 500 // Cap bonus: 500ms reduction vs default 1500ms
 		}
 		s.logger.Printf("media_ws: applied Czech language tuning for adaptive timeout")
 	}

@@ -220,6 +220,79 @@ func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error
 	return out, rows.Err()
 }
 
+// ListCallsFiltered returns calls with optional tenant_id and since filters.
+func (s *Store) ListCallsFiltered(ctx context.Context, tenantID string, since time.Time, limit int) ([]CallListItem, error) {
+	query := `
+		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.started_at, c.ended_at, c.ended_by,
+		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
+		FROM calls c
+		LEFT JOIN call_screening_results r ON r.call_id = c.id
+		WHERE 1=1`
+
+	args := []any{}
+	argNum := 1
+
+	if tenantID != "" {
+		query += fmt.Sprintf(" AND c.tenant_id = $%d", argNum)
+		args = append(args, tenantID)
+		argNum++
+	}
+
+	if !since.IsZero() {
+		query += fmt.Sprintf(" AND c.started_at >= $%d", argNum)
+		args = append(args, since)
+		argNum++
+	}
+
+	query += fmt.Sprintf(" ORDER BY c.started_at DESC LIMIT $%d", argNum)
+	args = append(args, limit)
+
+	rows, err := s.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []CallListItem
+	for rows.Next() {
+		var item CallListItem
+		var legitimacyLabel *string
+		var legitimacyConfidence *float64
+		var leadLabel *string
+		var intentCategory *string
+		var intentText *string
+		var entities []byte
+		var screeningCreatedAt *time.Time
+
+		err := rows.Scan(
+			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.StartedAt, &item.EndedAt, &item.EndedBy,
+			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if screeningCreatedAt != nil && legitimacyLabel != nil && legitimacyConfidence != nil && intentCategory != nil && intentText != nil {
+			sr := ScreeningResult{
+				LegitimacyLabel:      *legitimacyLabel,
+				LegitimacyConfidence: *legitimacyConfidence,
+				LeadLabel:            stringOrDefault(leadLabel, "nezjisteno"),
+				IntentCategory:       *intentCategory,
+				IntentText:           *intentText,
+				CreatedAt:            *screeningCreatedAt,
+			}
+			if len(entities) > 0 {
+				sr.EntitiesJSON = json.RawMessage(entities)
+			} else {
+				sr.EntitiesJSON = json.RawMessage(`{}`)
+			}
+			item.Screening = &sr
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 // GetCallID retrieves the internal call ID for a provider call ID.
 func (s *Store) GetCallID(ctx context.Context, providerCallID string) (string, error) {
 	var callID string

@@ -662,3 +662,102 @@ func TestGreetingFlagDeferOnPanic(t *testing.T) {
 		t.Error("greetingInProgress should be false after panic (defer should clean up)")
 	}
 }
+
+func TestMuLawToLinear(t *testing.T) {
+	// Test μ-law to linear conversion
+	tests := []struct {
+		muLaw    byte
+		expected int16
+	}{
+		{0xFF, 0},      // Silence (μ-law 0xFF = silence)
+		{0x7F, 0},      // Also near silence
+		{0x00, -32124}, // Max negative (actual μ-law value)
+		{0x80, 32124},  // Max positive (actual μ-law value)
+	}
+
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			result := muLawToLinear(tt.muLaw)
+			// Allow some tolerance due to quantization
+			diff := result - tt.expected
+			if diff < -200 || diff > 200 {
+				t.Errorf("muLawToLinear(0x%02X) = %d, want ~%d", tt.muLaw, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestMuLawToLinearSymmetry(t *testing.T) {
+	// μ-law has symmetry: complementary values should give opposite signs
+	// (with some tolerance for the encoding scheme)
+	for i := 0; i < 128; i++ {
+		pos := muLawToLinear(byte(i + 128))
+		neg := muLawToLinear(byte(i))
+		// They should be roughly opposite
+		sum := int(pos) + int(neg)
+		if sum < -200 || sum > 200 {
+			t.Errorf("muLawToLinear(0x%02X)=%d + muLawToLinear(0x%02X)=%d = %d, expected ~0",
+				i+128, pos, i, neg, sum)
+		}
+	}
+}
+
+func TestCalculateAudioEnergy(t *testing.T) {
+	tests := []struct {
+		name      string
+		audio     []byte
+		minEnergy float64
+		maxEnergy float64
+	}{
+		{"empty", []byte{}, 0, 0},
+		{"silence", []byte{0xFF, 0xFF, 0xFF, 0xFF}, 0, 0.001},
+		{"mixed", []byte{0x00, 0x80, 0xFF, 0x7F}, 0.5, 1.0}, // High energy due to extreme values
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			energy := calculateAudioEnergy(tt.audio)
+			if energy < tt.minEnergy || energy > tt.maxEnergy {
+				t.Errorf("calculateAudioEnergy(%v) = %f, want between %f and %f",
+					tt.audio, energy, tt.minEnergy, tt.maxEnergy)
+			}
+		})
+	}
+}
+
+func TestCalculateAudioEnergyNormalized(t *testing.T) {
+	// Test that energy is normalized between 0 and 1
+	for i := 0; i < 256; i++ {
+		audio := []byte{byte(i), byte(i), byte(i), byte(i)}
+		energy := calculateAudioEnergy(audio)
+		if energy < 0 || energy > 1 {
+			t.Errorf("calculateAudioEnergy with byte %d = %f, should be between 0 and 1",
+				i, energy)
+		}
+	}
+}
+
+func TestAudioEnergyThreshold(t *testing.T) {
+	// Verify the threshold constant is reasonable
+	if audioEnergyThreshold <= 0 || audioEnergyThreshold >= 1 {
+		t.Errorf("audioEnergyThreshold = %f, should be between 0 and 1", audioEnergyThreshold)
+	}
+	// Should be small enough to detect most speech
+	if audioEnergyThreshold > 0.01 {
+		t.Errorf("audioEnergyThreshold = %f, should be < 0.01 to detect speech", audioEnergyThreshold)
+	}
+}
+
+func TestLowEnergyCheckInterval(t *testing.T) {
+	// Verify the check interval is reasonable (between 10s and 5m)
+	if lowEnergyCheckInterval < 10*time.Second || lowEnergyCheckInterval > 5*time.Minute {
+		t.Errorf("lowEnergyCheckInterval = %v, should be between 10s and 5m", lowEnergyCheckInterval)
+	}
+}
+
+func TestLowEnergyChunkThreshold(t *testing.T) {
+	// Verify the chunk threshold is reasonable
+	if lowEnergyChunkThreshold < 10 || lowEnergyChunkThreshold > 500 {
+		t.Errorf("lowEnergyChunkThreshold = %d, should be between 10 and 500", lowEnergyChunkThreshold)
+	}
+}

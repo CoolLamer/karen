@@ -27,9 +27,16 @@ func (r *Router) handleAIListCalls(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// For now, use the existing ListCalls which returns all calls
-	// TODO: Add filtering by tenant_id and since timestamp
-	calls, err := r.store.ListCalls(req.Context(), limit)
+	tenantID := req.URL.Query().Get("tenant_id")
+
+	var since time.Time
+	if s := req.URL.Query().Get("since"); s != "" {
+		if parsed, err := time.Parse(time.RFC3339, s); err == nil {
+			since = parsed
+		}
+	}
+
+	calls, err := r.store.ListCallsFiltered(req.Context(), tenantID, since, limit)
 	if err != nil {
 		r.logger.Printf("ai: failed to list calls: %v", err)
 		sentry.CaptureException(err)
@@ -179,7 +186,13 @@ func (r *Router) handleAIUpdateConfig(w http.ResponseWriter, req *http.Request) 
 	// Validate the key exists
 	_, err := r.store.GetGlobalConfig(req.Context(), key)
 	if err != nil {
-		http.Error(w, `{"error": "config key not found"}`, http.StatusNotFound)
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, `{"error": "config key not found"}`, http.StatusNotFound)
+			return
+		}
+		r.logger.Printf("ai: failed to check config key %s: %v", key, err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to check config key"}`, http.StatusInternalServerError)
 		return
 	}
 
