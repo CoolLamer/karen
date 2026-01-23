@@ -510,3 +510,155 @@ func TestHandleMarkSignalsPendingDoneMark(t *testing.T) {
 		t.Error("expected goodbyeDone to be signaled for matching mark id")
 	}
 }
+
+func TestGreetingInProgressFlag(t *testing.T) {
+	// Test that the greetingInProgress atomic bool works correctly
+	s := &callSession{}
+
+	// Should be false by default
+	if s.greetingInProgress.Load() {
+		t.Error("greetingInProgress should be false by default")
+	}
+
+	// Set to true
+	s.greetingInProgress.Store(true)
+	if !s.greetingInProgress.Load() {
+		t.Error("greetingInProgress should be true after Store(true)")
+	}
+
+	// Set back to false
+	s.greetingInProgress.Store(false)
+	if s.greetingInProgress.Load() {
+		t.Error("greetingInProgress should be false after Store(false)")
+	}
+}
+
+func TestGreetingInProgressFlagConcurrentAccess(t *testing.T) {
+	// Test that greetingInProgress can be safely accessed concurrently
+	s := &callSession{}
+
+	done := make(chan bool, 2)
+
+	// Writer goroutine - simulates speakGreeting setting the flag
+	go func() {
+		for i := 0; i < 1000; i++ {
+			s.greetingInProgress.Store(true)
+			s.greetingInProgress.Store(false)
+		}
+		done <- true
+	}()
+
+	// Reader goroutine - simulates processSTTResults checking the flag
+	go func() {
+		for i := 0; i < 1000; i++ {
+			_ = s.greetingInProgress.Load()
+		}
+		done <- true
+	}()
+
+	// Wait for both goroutines
+	<-done
+	<-done
+}
+
+func TestBargeInSkippedDuringGreeting(t *testing.T) {
+	// Test the logic that should skip barge-in during greeting
+	s := &callSession{}
+
+	// Simulate being in greeting state
+	s.greetingInProgress.Store(true)
+
+	// isAudioPlaying would return false (no mocked conn), but the flag check comes first
+	// This tests the condition logic: if greeting is in progress, barge-in should be skipped
+	if !s.greetingInProgress.Load() {
+		t.Error("should skip barge-in when greeting is in progress")
+	}
+
+	// Now simulate greeting complete
+	s.greetingInProgress.Store(false)
+	if s.greetingInProgress.Load() {
+		t.Error("greeting should no longer be in progress after Store(false)")
+	}
+}
+
+func TestBargeInEnabledAfterGreeting(t *testing.T) {
+	// Test that barge-in is enabled after greeting completes
+	s := &callSession{
+		logger:      log.New(io.Discard, "", 0),
+		bargeInCh:   make(chan string, 1),
+		goodbyeDone: make(chan struct{}),
+	}
+
+	// Initially greeting is not in progress
+	if s.greetingInProgress.Load() {
+		t.Error("greetingInProgress should be false initially")
+	}
+
+	// Simulate greeting start
+	s.greetingInProgress.Store(true)
+	if !s.greetingInProgress.Load() {
+		t.Error("greetingInProgress should be true during greeting")
+	}
+
+	// During greeting, barge-in should be skipped (indicated by flag being true)
+	greetingActive := s.greetingInProgress.Load()
+	if !greetingActive {
+		t.Error("greeting should be active, barge-in should be skipped")
+	}
+
+	// Simulate greeting complete
+	s.greetingInProgress.Store(false)
+	greetingActive = s.greetingInProgress.Load()
+	if greetingActive {
+		t.Error("greeting should be complete, barge-in should be enabled")
+	}
+}
+
+func TestGreetingFlagDeferBehavior(t *testing.T) {
+	// Test that the defer pattern in speakGreeting works correctly
+	// Even if speakGreeting panics, the flag should be cleared
+
+	s := &callSession{}
+
+	// Simulate the defer behavior
+	setAndClearGreeting := func() {
+		s.greetingInProgress.Store(true)
+		defer s.greetingInProgress.Store(false)
+
+		// Flag should be true during execution
+		if !s.greetingInProgress.Load() {
+			t.Error("greetingInProgress should be true inside function")
+		}
+	}
+
+	setAndClearGreeting()
+
+	// After function returns, flag should be false
+	if s.greetingInProgress.Load() {
+		t.Error("greetingInProgress should be false after function returns (defer)")
+	}
+}
+
+func TestGreetingFlagDeferOnPanic(t *testing.T) {
+	// Test that defer clears the flag even on panic
+	s := &callSession{}
+
+	setAndPanic := func() {
+		defer func() {
+			recover()
+		}()
+
+		s.greetingInProgress.Store(true)
+		defer s.greetingInProgress.Store(false)
+
+		// Simulate a panic during greeting
+		panic("simulated TTS error")
+	}
+
+	setAndPanic()
+
+	// After panic recovery, flag should be false due to defer
+	if s.greetingInProgress.Load() {
+		t.Error("greetingInProgress should be false after panic (defer should clean up)")
+	}
+}

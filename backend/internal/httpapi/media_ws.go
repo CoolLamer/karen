@@ -227,6 +227,9 @@ type callSession struct {
 	goodbyeDone chan struct{} // Signaled when goodbye mark is received
 	agentHungUp bool          // True if agent initiated the hangup (prevents overwrite by caller)
 
+	// Greeting state - barge-in is disabled while greeting is being spoken
+	greetingInProgress atomic.Bool
+
 	// Cost tracking metrics
 	costMetricsMu   sync.Mutex
 	ttsCharacters   int // Total characters sent to TTS
@@ -719,9 +722,10 @@ func (s *callSession) processSTTResults() {
 		}
 
 		// Barge-in is defined as the caller speaking while the agent is speaking.
+		// Skip barge-in handling during greeting - let the caller hear the full introduction.
 		isSpeaking := bargeInSent || s.isAudioPlaying() || s.isResponseActive()
 
-		if isSpeaking && !bargeInSent {
+		if isSpeaking && !bargeInSent && !s.greetingInProgress.Load() {
 			// Ensure playback is stopped (safety net). We may have already cleared on interim results.
 			s.logger.Printf("media_ws: BARGE-IN detected - caller said: %s", text)
 			if err := s.clearAudio(); err != nil {
@@ -824,25 +828,31 @@ func (s *callSession) processSTTResults() {
 
 			// Detect barge-in as early as possible (on any non-empty transcript),
 			// not only after endpointing emits a final utterance.
+			// BUT skip during greeting - let the caller hear the full introduction.
 			if strings.TrimSpace(result.Text) != "" {
-				isSpeaking := s.isAudioPlaying() || s.isResponseActive()
-				if isSpeaking && !bargeInSent {
-					s.logger.Printf("media_ws: early BARGE-IN (partial) - caller: %s", strings.TrimSpace(result.Text))
-					s.eventLog.LogAsync(s.callID, eventlog.EventBargeIn, map[string]any{
-						"partial_text":       strings.TrimSpace(result.Text),
-						"agent_was_speaking": true,
-					})
-					if err := s.clearAudio(); err != nil {
-						s.logger.Printf("media_ws: failed to clear audio: %v", err)
-						sentry.CaptureException(err)
+				// Skip barge-in during greeting
+				if s.greetingInProgress.Load() {
+					s.logger.Printf("media_ws: skipping barge-in during greeting - caller: %s", strings.TrimSpace(result.Text))
+				} else {
+					isSpeaking := s.isAudioPlaying() || s.isResponseActive()
+					if isSpeaking && !bargeInSent {
+						s.logger.Printf("media_ws: early BARGE-IN (partial) - caller: %s", strings.TrimSpace(result.Text))
+						s.eventLog.LogAsync(s.callID, eventlog.EventBargeIn, map[string]any{
+							"partial_text":       strings.TrimSpace(result.Text),
+							"agent_was_speaking": true,
+						})
+						if err := s.clearAudio(); err != nil {
+							s.logger.Printf("media_ws: failed to clear audio: %v", err)
+							sentry.CaptureException(err)
+						}
+						s.cancelResponse()
+						s.cancelPendingAction()
+						select {
+						case s.bargeInCh <- strings.TrimSpace(result.Text):
+						default:
+						}
+						bargeInSent = true
 					}
-					s.cancelResponse()
-					s.cancelPendingAction()
-					select {
-					case s.bargeInCh <- strings.TrimSpace(result.Text):
-					default:
-					}
-					bargeInSent = true
 				}
 			}
 
@@ -1308,6 +1318,11 @@ func (s *callSession) clearAudio() error {
 
 // speakGreeting sends the initial greeting via ElevenLabs TTS
 func (s *callSession) speakGreeting() {
+	// Mark greeting as in progress - barge-in is disabled during greeting
+	// so the caller hears the full introduction
+	s.greetingInProgress.Store(true)
+	defer s.greetingInProgress.Store(false)
+
 	// Use tenant's greeting if available, otherwise fall back to config default
 	var greeting string
 	if s.tenantCfg.GreetingText != nil && *s.tenantCfg.GreetingText != "" {
