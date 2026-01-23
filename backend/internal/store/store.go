@@ -1082,7 +1082,7 @@ func (s *Store) GetEventStats(ctx context.Context, since time.Time) (*EventStats
 	// Get total calls in the time range
 	var totalCalls int
 	err := s.db.QueryRow(ctx, `
-		SELECT COUNT(*) FROM calls WHERE created_at >= $1
+		SELECT COUNT(*) FROM calls WHERE started_at >= $1
 	`, since).Scan(&totalCalls)
 	if err != nil {
 		return nil, err
