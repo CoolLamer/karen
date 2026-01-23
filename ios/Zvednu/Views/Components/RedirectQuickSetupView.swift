@@ -124,37 +124,7 @@ struct RedirectQuickSetupView: View {
 
                     // Timing selector for noAnswer
                     if type == .noAnswer {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Po kolika sekundách přesměrovat?")
-                                .font(.caption)
-                                .fontWeight(.medium)
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(RedirectCodes.noAnswerTimeOptions, id: \.self) { time in
-                                        Button {
-                                            noAnswerTime = time
-                                        } label: {
-                                            Text("\(time)s")
-                                                .font(.caption)
-                                                .padding(.horizontal, 12)
-                                                .padding(.vertical, 6)
-                                                .background(
-                                                    noAnswerTime == time
-                                                        ? Color.accentColor
-                                                        : Color(.systemGray5)
-                                                )
-                                                .foregroundStyle(
-                                                    noAnswerTime == time
-                                                        ? .white
-                                                        : .primary
-                                                )
-                                                .clipShape(Capsule())
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        TimingSelector(selectedTime: $noAnswerTime)
                     }
 
                     // Activation code

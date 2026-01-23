@@ -120,7 +120,7 @@ struct PhoneSetupStepView: View {
             RedirectWizardView(
                 karenNumber: viewModel.primaryPhoneNumber ?? "",
                 onComplete: {
-                    // Wizard completed, user can proceed
+                    viewModel.goToNext()
                 }
             )
         }

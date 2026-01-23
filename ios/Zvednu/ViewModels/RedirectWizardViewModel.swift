@@ -61,37 +61,23 @@ class RedirectWizardViewModel: ObservableObject {
     }
 
     var activatedSteps: [(key: String, label: String)] {
-        var result: [(String, String)] = []
-        if clearStepStatus == .completed {
-            result.append(("clear", "Vymazání stávajících přesměrování"))
-        }
-        if noAnswerStepStatus == .completed {
-            result.append(("noAnswer", "Přesměrování když nezvedáš"))
-        }
-        if busyStepStatus == .completed {
-            result.append(("busy", "Přesměrování při obsazení"))
-        }
-        if unreachableStepStatus == .completed {
-            result.append(("unreachable", "Přesměrování při nedostupnosti"))
-        }
-        return result
+        stepsWithStatus(.completed)
     }
 
     var skippedSteps: [(key: String, label: String)] {
-        var result: [(String, String)] = []
-        if clearStepStatus == .skipped {
-            result.append(("clear", "Vymazání stávajících přesměrování"))
-        }
-        if noAnswerStepStatus == .skipped {
-            result.append(("noAnswer", "Přesměrování když nezvedáš"))
-        }
-        if busyStepStatus == .skipped {
-            result.append(("busy", "Přesměrování při obsazení"))
-        }
-        if unreachableStepStatus == .skipped {
-            result.append(("unreachable", "Přesměrování při nedostupnosti"))
-        }
-        return result
+        stepsWithStatus(.skipped)
+    }
+
+    private func stepsWithStatus(_ targetStatus: StepStatus) -> [(key: String, label: String)] {
+        let stepLabels: [(key: String, label: String, status: StepStatus)] = [
+            ("clear", "Vymazání stávajících přesměrování", clearStepStatus),
+            ("noAnswer", "Přesměrování když nezvedáš", noAnswerStepStatus),
+            ("busy", "Přesměrování při obsazení", busyStepStatus),
+            ("unreachable", "Přesměrování při nedostupnosti", unreachableStepStatus),
+        ]
+        return stepLabels
+            .filter { $0.status == targetStatus }
+            .map { (key: $0.key, label: $0.label) }
     }
 
     // MARK: - Actions

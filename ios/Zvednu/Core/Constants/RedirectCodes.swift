@@ -25,14 +25,6 @@ enum RedirectType: String, CaseIterable, Identifiable {
         }
     }
 
-    var codeTemplate: String {
-        switch self {
-        case .noAnswer: return "**61*{number}**{time}#"
-        case .busy: return "**67*{number}#"
-        case .unreachable: return "**62*{number}#"
-        }
-    }
-
     var deactivateCode: String {
         switch self {
         case .noAnswer: return "##61#"

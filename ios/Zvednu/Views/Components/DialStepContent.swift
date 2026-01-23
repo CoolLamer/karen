@@ -96,57 +96,29 @@ struct DialStepContent: View {
                         .foregroundStyle(Color.accentColor)
                 }
             } else {
-                Text("Po kolika sekundách přesměrovat?")
-                    .font(.caption)
-                    .fontWeight(.medium)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(RedirectCodes.noAnswerTimeOptions, id: \.self) { time in
-                            Button {
-                                viewModel.noAnswerTime = time
-                            } label: {
-                                Text("\(time)s")
-                                    .font(.caption)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        viewModel.noAnswerTime == time
-                                            ? Color.accentColor
-                                            : Color(.systemGray5)
-                                    )
-                                    .foregroundStyle(
-                                        viewModel.noAnswerTime == time
-                                            ? .white
-                                            : .primary
-                                    )
-                                    .clipShape(Capsule())
-                            }
-                        }
-                    }
-                }
+                TimingSelector(selectedTime: $viewModel.noAnswerTime)
             }
         }
     }
 
     private var primaryActions: some View {
         VStack(spacing: 12) {
-            // Primary dial button
-            if let url = URL(string: "tel:\(dialCode)") {
-                Link(destination: url) {
-                    HStack {
-                        Image(systemName: "phone.fill")
-                        Text("Vytočit kód")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .simultaneousGesture(TapGesture().onEnded {
+            // Primary dial button - using explicit Button to ensure markDialed is called reliably
+            Button {
+                if let url = URL(string: "tel:\(dialCode)") {
                     viewModel.markDialed()
-                })
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "phone.fill")
+                    Text("Vytočit kód")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.accentColor)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
             // Skip button
