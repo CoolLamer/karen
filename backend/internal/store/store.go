@@ -48,6 +48,12 @@ type Tenant struct {
 	// Billing fields
 	TrialEndsAt        *time.Time `json:"trial_ends_at,omitempty"`
 	CurrentPeriodCalls int        `json:"current_period_calls"`
+	// Trial notification tracking
+	TrialDay10NotificationSentAt  *time.Time `json:"trial_day10_notification_sent_at,omitempty"`
+	TrialDay12NotificationSentAt  *time.Time `json:"trial_day12_notification_sent_at,omitempty"`
+	TrialDay14NotificationSentAt  *time.Time `json:"trial_day14_notification_sent_at,omitempty"`
+	TrialGraceNotificationSentAt  *time.Time `json:"trial_grace_notification_sent_at,omitempty"`
+	PhoneNumberReleasedAt         *time.Time `json:"phone_number_released_at,omitempty"`
 }
 
 // User represents an authenticated user
@@ -1989,4 +1995,274 @@ func (s *Store) MarkCallAsRobocall(ctx context.Context, providerCallID, reason s
 		WHERE provider = 'twilio' AND provider_call_id = $1
 	`, providerCallID, reason)
 	return err
+}
+
+// ============================================================================
+// Trial Lifecycle Operations
+// ============================================================================
+
+// TrialTenantInfo contains tenant information needed for trial lifecycle processing.
+type TrialTenantInfo struct {
+	TenantID        string
+	TenantName      string
+	TrialEndsAt     time.Time
+	PhoneNumber     *string // Primary phone number assigned to tenant
+	TimeSavedTotal  int     // Total time saved in seconds (for personalized messages)
+	CallsHandled    int     // Total calls handled (for personalized messages)
+}
+
+// TrialUserInfo contains user information for sending notifications.
+type TrialUserInfo struct {
+	UserID    string
+	Phone     string
+	PushToken *string // APNs push token (if iOS user)
+}
+
+// GetTenantsNeedingDay10Notification returns trial tenants where trial ends in 4 days
+// and the day10 notification has not been sent yet.
+func (s *Store) GetTenantsNeedingDay10Notification(ctx context.Context) ([]TrialTenantInfo, error) {
+	// Day 10 = 4 days before trial ends
+	rows, err := s.db.Query(ctx, `
+		SELECT t.id, t.name, t.trial_ends_at,
+		       (SELECT twilio_number FROM tenant_phone_numbers WHERE tenant_id = t.id AND is_primary = true LIMIT 1),
+		       COALESCE((SELECT SUM(time_saved_seconds) FROM tenant_usage WHERE tenant_id = t.id), 0),
+		       COALESCE(t.current_period_calls, 0)
+		FROM tenants t
+		WHERE t.plan = 'trial'
+		  AND t.trial_ends_at IS NOT NULL
+		  AND t.trial_ends_at > NOW()
+		  AND t.trial_ends_at <= NOW() + INTERVAL '4 days'
+		  AND t.trial_day10_notification_sent_at IS NULL
+		  AND EXISTS (SELECT 1 FROM tenant_phone_numbers WHERE tenant_id = t.id)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tenants []TrialTenantInfo
+	for rows.Next() {
+		var t TrialTenantInfo
+		if err := rows.Scan(&t.TenantID, &t.TenantName, &t.TrialEndsAt, &t.PhoneNumber, &t.TimeSavedTotal, &t.CallsHandled); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
+// GetTenantsNeedingDay12Notification returns trial tenants where trial ends in 2 days
+// and the day12 notification has not been sent yet.
+func (s *Store) GetTenantsNeedingDay12Notification(ctx context.Context) ([]TrialTenantInfo, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT t.id, t.name, t.trial_ends_at,
+		       (SELECT twilio_number FROM tenant_phone_numbers WHERE tenant_id = t.id AND is_primary = true LIMIT 1),
+		       COALESCE((SELECT SUM(time_saved_seconds) FROM tenant_usage WHERE tenant_id = t.id), 0),
+		       COALESCE(t.current_period_calls, 0)
+		FROM tenants t
+		WHERE t.plan = 'trial'
+		  AND t.trial_ends_at IS NOT NULL
+		  AND t.trial_ends_at > NOW()
+		  AND t.trial_ends_at <= NOW() + INTERVAL '2 days'
+		  AND t.trial_day12_notification_sent_at IS NULL
+		  AND EXISTS (SELECT 1 FROM tenant_phone_numbers WHERE tenant_id = t.id)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tenants []TrialTenantInfo
+	for rows.Next() {
+		var t TrialTenantInfo
+		if err := rows.Scan(&t.TenantID, &t.TenantName, &t.TrialEndsAt, &t.PhoneNumber, &t.TimeSavedTotal, &t.CallsHandled); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
+// GetTenantsNeedingDay14Notification returns trial tenants where trial has just expired
+// (within last 24 hours) and the day14 notification has not been sent yet.
+func (s *Store) GetTenantsNeedingDay14Notification(ctx context.Context) ([]TrialTenantInfo, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT t.id, t.name, t.trial_ends_at,
+		       (SELECT twilio_number FROM tenant_phone_numbers WHERE tenant_id = t.id AND is_primary = true LIMIT 1),
+		       COALESCE((SELECT SUM(time_saved_seconds) FROM tenant_usage WHERE tenant_id = t.id), 0),
+		       COALESCE(t.current_period_calls, 0)
+		FROM tenants t
+		WHERE t.plan = 'trial'
+		  AND t.trial_ends_at IS NOT NULL
+		  AND t.trial_ends_at <= NOW()
+		  AND t.trial_ends_at >= NOW() - INTERVAL '24 hours'
+		  AND t.trial_day14_notification_sent_at IS NULL
+		  AND EXISTS (SELECT 1 FROM tenant_phone_numbers WHERE tenant_id = t.id)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tenants []TrialTenantInfo
+	for rows.Next() {
+		var t TrialTenantInfo
+		if err := rows.Scan(&t.TenantID, &t.TenantName, &t.TrialEndsAt, &t.PhoneNumber, &t.TimeSavedTotal, &t.CallsHandled); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
+// GetTenantsNeedingGraceNotification returns expired trial tenants where grace notification
+// has not been sent yet.
+func (s *Store) GetTenantsNeedingGraceNotification(ctx context.Context) ([]TrialTenantInfo, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT t.id, t.name, t.trial_ends_at,
+		       (SELECT twilio_number FROM tenant_phone_numbers WHERE tenant_id = t.id AND is_primary = true LIMIT 1),
+		       COALESCE((SELECT SUM(time_saved_seconds) FROM tenant_usage WHERE tenant_id = t.id), 0),
+		       COALESCE(t.current_period_calls, 0)
+		FROM tenants t
+		WHERE t.plan = 'trial'
+		  AND t.trial_ends_at IS NOT NULL
+		  AND t.trial_ends_at < NOW()
+		  AND t.trial_grace_notification_sent_at IS NULL
+		  AND t.phone_number_released_at IS NULL
+		  AND EXISTS (SELECT 1 FROM tenant_phone_numbers WHERE tenant_id = t.id)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tenants []TrialTenantInfo
+	for rows.Next() {
+		var t TrialTenantInfo
+		if err := rows.Scan(&t.TenantID, &t.TenantName, &t.TrialEndsAt, &t.PhoneNumber, &t.TimeSavedTotal, &t.CallsHandled); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
+// GetTenantsForPhoneNumberRelease returns expired trial tenants where grace period has passed
+// and phone number should be released.
+func (s *Store) GetTenantsForPhoneNumberRelease(ctx context.Context, gracePeriodDays int) ([]TrialTenantInfo, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT t.id, t.name, t.trial_ends_at,
+		       (SELECT twilio_number FROM tenant_phone_numbers WHERE tenant_id = t.id AND is_primary = true LIMIT 1),
+		       COALESCE((SELECT SUM(time_saved_seconds) FROM tenant_usage WHERE tenant_id = t.id), 0),
+		       COALESCE(t.current_period_calls, 0)
+		FROM tenants t
+		WHERE t.plan = 'trial'
+		  AND t.trial_ends_at IS NOT NULL
+		  AND t.trial_ends_at + $1 * INTERVAL '1 day' < NOW()
+		  AND t.trial_grace_notification_sent_at IS NOT NULL
+		  AND t.phone_number_released_at IS NULL
+		  AND EXISTS (SELECT 1 FROM tenant_phone_numbers WHERE tenant_id = t.id)
+	`, gracePeriodDays)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tenants []TrialTenantInfo
+	for rows.Next() {
+		var t TrialTenantInfo
+		if err := rows.Scan(&t.TenantID, &t.TenantName, &t.TrialEndsAt, &t.PhoneNumber, &t.TimeSavedTotal, &t.CallsHandled); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
+// MarkTrialDay10NotificationSent marks the day10 notification as sent.
+func (s *Store) MarkTrialDay10NotificationSent(ctx context.Context, tenantID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE tenants SET trial_day10_notification_sent_at = NOW() WHERE id = $1
+	`, tenantID)
+	return err
+}
+
+// MarkTrialDay12NotificationSent marks the day12 notification as sent.
+func (s *Store) MarkTrialDay12NotificationSent(ctx context.Context, tenantID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE tenants SET trial_day12_notification_sent_at = NOW() WHERE id = $1
+	`, tenantID)
+	return err
+}
+
+// MarkTrialDay14NotificationSent marks the day14 notification as sent.
+func (s *Store) MarkTrialDay14NotificationSent(ctx context.Context, tenantID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE tenants SET trial_day14_notification_sent_at = NOW() WHERE id = $1
+	`, tenantID)
+	return err
+}
+
+// MarkTrialGraceNotificationSent marks the grace period notification as sent.
+func (s *Store) MarkTrialGraceNotificationSent(ctx context.Context, tenantID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE tenants SET trial_grace_notification_sent_at = NOW() WHERE id = $1
+	`, tenantID)
+	return err
+}
+
+// ReleaseExpiredTrialPhoneNumber releases phone numbers for an expired trial tenant
+// and marks the tenant as churned.
+func (s *Store) ReleaseExpiredTrialPhoneNumber(ctx context.Context, tenantID string) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Release phone numbers back to pool
+	_, err = tx.Exec(ctx, `
+		UPDATE tenant_phone_numbers
+		SET tenant_id = NULL, is_primary = false
+		WHERE tenant_id = $1
+	`, tenantID)
+	if err != nil {
+		return err
+	}
+
+	// Mark tenant as having phone number released and set status to churned
+	_, err = tx.Exec(ctx, `
+		UPDATE tenants
+		SET phone_number_released_at = NOW(), status = 'churned'
+		WHERE id = $1
+	`, tenantID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// GetTenantUsers returns all users for a tenant with their push tokens (if any).
+func (s *Store) GetTenantUsers(ctx context.Context, tenantID string) ([]TrialUserInfo, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT u.id, u.phone,
+		       (SELECT token FROM push_tokens WHERE user_id = u.id AND platform = 'ios' LIMIT 1)
+		FROM users u
+		WHERE u.tenant_id = $1
+	`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []TrialUserInfo
+	for rows.Next() {
+		var u TrialUserInfo
+		if err := rows.Scan(&u.UserID, &u.Phone, &u.PushToken); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
 }
