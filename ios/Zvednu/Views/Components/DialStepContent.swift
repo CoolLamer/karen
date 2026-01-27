@@ -45,7 +45,7 @@ struct DialStepContent: View {
     private func karenNumberCard(number: String) -> some View {
         VStack(spacing: 4) {
             Text("Karen číslo")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Text(number)
@@ -62,7 +62,7 @@ struct DialStepContent: View {
     private var dialCodeCard: some View {
         VStack(spacing: 4) {
             Text("Kód k vytočení")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
@@ -134,9 +134,20 @@ struct DialStepContent: View {
 
     private var confirmationActions: some View {
         VStack(spacing: 12) {
-            Text("Viděl/a jsi potvrzení od operátora?")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            // Highlighted confirmation question
+            VStack(spacing: 8) {
+                Text("Viděl/a jsi potvrzení od operátora?")
+                    .font(.headline)
+                    .foregroundStyle(Color.accentColor)
+
+                Text("Měla by se zobrazit zpráva jako \u{201E}Přesměrování aktivováno\u{201C}")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.accentColor.opacity(0.8))
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.accentColor.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Confirm button
             Button {

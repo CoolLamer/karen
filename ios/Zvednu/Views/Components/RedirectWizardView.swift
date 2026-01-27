@@ -125,10 +125,10 @@ struct WizardProgressView: View {
 
         HStack(spacing: 4) {
             stepIcon(status: status, isCurrent: isCurrent)
-                .font(.caption2)
+                .font(.caption)
 
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(isCurrent ? Color.accentColor : status == .completed ? Color.green : Color.secondary)
                 .fontWeight(isCurrent ? .medium : .regular)
         }
