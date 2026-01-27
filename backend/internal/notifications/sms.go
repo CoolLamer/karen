@@ -74,9 +74,9 @@ func (c *SMSClient) GetSenderNumber() string {
 
 // twilioMessageResponse represents a Twilio Messages API response
 type twilioMessageResponse struct {
-	SID         string `json:"sid"`
-	Status      string `json:"status"`
-	ErrorCode   int    `json:"error_code,omitempty"`
+	SID          string `json:"sid"`
+	Status       string `json:"status"`
+	ErrorCode    int    `json:"error_code,omitempty"`
 	ErrorMessage string `json:"error_message,omitempty"`
 }
 

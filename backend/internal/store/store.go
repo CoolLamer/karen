@@ -49,11 +49,11 @@ type Tenant struct {
 	TrialEndsAt        *time.Time `json:"trial_ends_at,omitempty"`
 	CurrentPeriodCalls int        `json:"current_period_calls"`
 	// Trial notification tracking
-	TrialDay10NotificationSentAt  *time.Time `json:"trial_day10_notification_sent_at,omitempty"`
-	TrialDay12NotificationSentAt  *time.Time `json:"trial_day12_notification_sent_at,omitempty"`
-	TrialDay14NotificationSentAt  *time.Time `json:"trial_day14_notification_sent_at,omitempty"`
-	TrialGraceNotificationSentAt  *time.Time `json:"trial_grace_notification_sent_at,omitempty"`
-	PhoneNumberReleasedAt         *time.Time `json:"phone_number_released_at,omitempty"`
+	TrialDay10NotificationSentAt *time.Time `json:"trial_day10_notification_sent_at,omitempty"`
+	TrialDay12NotificationSentAt *time.Time `json:"trial_day12_notification_sent_at,omitempty"`
+	TrialDay14NotificationSentAt *time.Time `json:"trial_day14_notification_sent_at,omitempty"`
+	TrialGraceNotificationSentAt *time.Time `json:"trial_grace_notification_sent_at,omitempty"`
+	PhoneNumberReleasedAt        *time.Time `json:"phone_number_released_at,omitempty"`
 }
 
 // User represents an authenticated user
@@ -2003,12 +2003,12 @@ func (s *Store) MarkCallAsRobocall(ctx context.Context, providerCallID, reason s
 
 // TrialTenantInfo contains tenant information needed for trial lifecycle processing.
 type TrialTenantInfo struct {
-	TenantID        string
-	TenantName      string
-	TrialEndsAt     time.Time
-	PhoneNumber     *string // Primary phone number assigned to tenant
-	TimeSavedTotal  int     // Total time saved in seconds (for personalized messages)
-	CallsHandled    int     // Total calls handled (for personalized messages)
+	TenantID       string
+	TenantName     string
+	TrialEndsAt    time.Time
+	PhoneNumber    *string // Primary phone number assigned to tenant
+	TimeSavedTotal int     // Total time saved in seconds (for personalized messages)
+	CallsHandled   int     // Total calls handled (for personalized messages)
 }
 
 // TrialUserInfo contains user information for sending notifications.
@@ -2218,7 +2218,7 @@ func (s *Store) ReleaseExpiredTrialPhoneNumber(ctx context.Context, tenantID str
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Release phone numbers back to pool
 	_, err = tx.Exec(ctx, `
