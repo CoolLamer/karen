@@ -106,9 +106,9 @@ function WizardProgress({ currentStep, stepStatuses }: WizardProgressProps) {
                 </ThemeIcon>
               )}
               <Text
-                size="xs"
+                size="sm"
                 c={isCurrent ? "blue" : status === "completed" ? "green" : "dimmed"}
-                fw={isCurrent ? 500 : 400}
+                fw={isCurrent ? 600 : 400}
               >
                 {labels[step]}
               </Text>
@@ -204,7 +204,7 @@ function DialStep({
 
       {karenNumber && (
         <Paper p="md" radius="md" bg="teal.0" ta="center">
-          <Text size="xs" c="teal.7" mb={4}>
+          <Text size="sm" c="teal.7" mb={4}>
             Karen číslo
           </Text>
           <Text size="lg" fw={700} c="teal.8">
@@ -214,7 +214,7 @@ function DialStep({
       )}
 
       <Paper p="md" radius="md" withBorder ta="center">
-        <Text size="xs" c="dimmed" mb={4}>
+        <Text size="sm" c="dimmed" mb={4}>
           Kód k vytočení
         </Text>
         <Group justify="center" gap="xs">
@@ -243,7 +243,7 @@ function DialStep({
             </UnstyledButton>
           ) : (
             <Box>
-              <Text size="xs" fw={500} mb={4}>
+              <Text size="sm" fw={500} mb={4}>
                 Po kolika sekundách přesměrovat?
               </Text>
               <SegmentedControl
@@ -267,9 +267,14 @@ function DialStep({
         </Button>
       ) : (
         <Stack gap="md">
-          <Text size="sm" ta="center" c="dimmed">
-            Viděl/a jsi potvrzení od operátora?
-          </Text>
+          <Paper p="md" radius="md" bg="blue.0" ta="center">
+            <Text size="lg" fw={500} c="blue.8">
+              Viděl/a jsi potvrzení od operátora?
+            </Text>
+            <Text size="sm" c="blue.6" mt={4}>
+              Měla by se zobrazit zpráva jako „Přesměrování aktivováno"
+            </Text>
+          </Paper>
           <Group grow>
             <Button variant="filled" color="green" leftSection={<IconCheck size={16} />} onClick={onConfirm}>
               Ano, aktivováno

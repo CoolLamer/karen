@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Container,
+  Divider,
   Group,
   Paper,
   Stack,
@@ -26,6 +27,7 @@ import {
   IconCopy,
   IconConfetti,
   IconAlertCircle,
+  IconInfoCircle,
   IconPhone,
 } from "@tabler/icons-react";
 import { RedirectWizard } from "./components/RedirectWizard";
@@ -151,8 +153,8 @@ export function OnboardingPage() {
         {step > 0 && step < 5 && (
           <Stack gap="xs" mb="xl">
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Krok {step} z 5</Text>
-              <Text size="sm" c="dimmed">{Math.round((step / 5) * 100)}%</Text>
+              <Text size="sm" c="gray.7">Krok {step} z 5</Text>
+              <Text size="sm" c="gray.7">{Math.round((step / 5) * 100)}%</Text>
             </Group>
             <Progress value={(step / 5) * 100} size="sm" radius="xl" />
           </Stack>
@@ -258,12 +260,14 @@ export function OnboardingPage() {
                 </Text>
               </Stack>
 
-              <Paper p="md" radius="md" bg="gray.0">
-                <Text size="sm" c="dimmed">
+              <Alert variant="light" color="teal" icon={<IconInfoCircle size={16} />}>
+                <Text size="sm">
                   Když se volající představí jedním z těchto jmen, Karen ho okamžitě přepojí na tebe.
-                  Například: „Tady máma" → Karen řekne „Přepojuji" a zavolá ti.
                 </Text>
-              </Paper>
+                <Text size="sm" c="teal.7" mt={4}>
+                  <strong>Příklad:</strong> „Tady máma" → Karen řekne „Přepojuji" a zavolá ti.
+                </Text>
+              </Alert>
 
               <TagsInput
                 size="md"
@@ -394,6 +398,13 @@ export function OnboardingPage() {
                   <Alert icon={<IconCheck size={16} />} color="green" variant="light">
                     Karen je připravená! Můžeš ji hned vyzkoušet zavoláním na číslo výše.
                   </Alert>
+
+                  {/* Visual separator */}
+                  <Divider
+                    my="lg"
+                    label={<Text size="sm" fw={500}>Nastavení přesměrování</Text>}
+                    labelPosition="center"
+                  />
 
                   {/* Redirect setup wizard */}
                   <RedirectWizard
