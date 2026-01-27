@@ -276,6 +276,7 @@ type callSession struct {
 
 	// Greeting state - barge-in is disabled while greeting is being spoken
 	greetingInProgress atomic.Bool
+	greetingMarkID     uint64 // mark ID for greeting audio; protected by audioMu
 
 	// Cost tracking metrics
 	costMetricsMu   sync.Mutex
@@ -671,9 +672,16 @@ func (s *callSession) handleMark(mark *twilioMarkData) {
 		s.logger.Printf("media_ws: mark received (unparsed) %q (pending=%d)", mark.Name, pending)
 	}
 
-	// Signal goodbye/forward completion only for the final mark we’re waiting on.
+	// Signal goodbye/forward completion only for the final mark we're waiting on.
 	if ok {
 		s.audioMu.Lock()
+		// Check if this is the greeting mark - enable barge-in now that greeting finished
+		if s.greetingMarkID != 0 && markID == s.greetingMarkID {
+			s.greetingMarkID = 0
+			s.greetingInProgress.Store(false)
+			s.logger.Printf("media_ws: greeting audio complete, barge-in now enabled")
+		}
+		// Check if this is the goodbye/forward mark we're waiting on
 		awaitID := s.pendingDoneMarkID
 		if awaitID != 0 && markID == awaitID {
 			s.pendingDoneMarkID = 0
@@ -1572,9 +1580,12 @@ func (s *callSession) clearAudio() error {
 // speakGreeting sends the initial greeting via ElevenLabs TTS
 func (s *callSession) speakGreeting() {
 	// Mark greeting as in progress - barge-in is disabled during greeting
-	// so the caller hears the full introduction
+	// so the caller hears the full introduction.
+	// NOTE: We do NOT use defer here because greetingInProgress must stay true
+	// until the greeting audio finishes playing (mark received), not just when
+	// TTS chunks are queued. The flag is cleared in handleMark() when the
+	// greeting mark is received.
 	s.greetingInProgress.Store(true)
-	defer s.greetingInProgress.Store(false)
 
 	// Use tenant's greeting if available, otherwise fall back to config default
 	var greeting string
@@ -1612,10 +1623,21 @@ func (s *callSession) speakGreeting() {
 		}
 	}
 
-	if _, err := s.speakText(s.ctx, greeting); err != nil && !errors.Is(err, context.Canceled) {
-		s.logger.Printf("media_ws: greeting TTS error: %v", err)
-		sentry.CaptureException(err)
+	markID, err := s.speakText(s.ctx, greeting)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			s.logger.Printf("media_ws: greeting TTS error: %v", err)
+			sentry.CaptureException(err)
+		}
+		// On error, clear the flag immediately since no mark will be received
+		s.greetingInProgress.Store(false)
+		return
 	}
+
+	// Store mark ID so handleMark() can clear greetingInProgress when audio finishes
+	s.audioMu.Lock()
+	s.greetingMarkID = markID
+	s.audioMu.Unlock()
 }
 
 // isGoodbye checks if the response contains goodbye phrases
