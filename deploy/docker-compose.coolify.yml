@@ -72,6 +72,12 @@ services:
       STRIPE_PRICE_PRO_ANNUAL: ${STRIPE_PRICE_PRO_ANNUAL:-}
       # AI Debug API
       AI_DEBUG_API_KEY: ${AI_DEBUG_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       db:
         condition: service_healthy
@@ -98,8 +104,15 @@ services:
     image: ghcr.io/coollamer/karen/frontend:latest
     container_name: karen-frontend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       # HTTPS
