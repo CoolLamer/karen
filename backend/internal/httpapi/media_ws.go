@@ -1635,7 +1635,9 @@ func (s *callSession) speakGreeting() {
 	s.utteranceSeq++ // Increments from 0 to 1
 	startTime := time.Now().UTC()
 	if s.callID != "" {
-		if err := s.store.InsertUtterance(s.ctx, s.callID, store.Utterance{
+		dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer dbCancel()
+		if err := s.store.InsertUtterance(dbCtx, s.callID, store.Utterance{
 			Speaker:     "agent",
 			Text:        greeting,
 			Sequence:    s.utteranceSeq,
@@ -1643,7 +1645,9 @@ func (s *callSession) speakGreeting() {
 			Interrupted: false,
 		}); err != nil {
 			s.logger.Printf("media_ws: failed to store greeting utterance: %v", err)
-			sentry.CaptureException(err)
+			if !errors.Is(err, context.Canceled) {
+				sentry.CaptureException(err)
+			}
 		}
 	}
 
