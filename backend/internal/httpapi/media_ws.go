@@ -233,11 +233,11 @@ type callSession struct {
 	llmClient *llm.OpenAIClient
 	ttsClient *tts.ElevenLabsClient
 
-	store      *store.Store
-	logger     *log.Logger
-	eventLog   *eventlog.Logger
-	cfg        RouterConfig
-	httpClient *http.Client
+	store        *store.Store
+	logger       *log.Logger
+	eventLog     *eventlog.Logger
+	cfg          RouterConfig
+	httpClient   *http.Client
 	apns         *notifications.APNsClient
 	callRegistry *CallRegistry
 
