@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: CI
 
 on:
   push:
@@ -183,49 +183,9 @@ jobs:
 
   deploy:
     needs: build-and-push
-    if: always() && needs.build-and-push.result == 'success'
+    if: needs.build-and-push.result == 'success'
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Copy docker-compose to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: root
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: deploy/docker-compose.coolify.yml
-          target: /opt/karen/
-          strip_components: 1
-
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: root
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            set -e
-            cd /opt/karen
-
-            # Use the synced docker-compose file
-            mv docker-compose.coolify.yml docker-compose.yml
-
-            # Pull latest images
-            docker compose pull
-
-            # Deploy with zero downtime
-            docker compose up -d
-
-            # Wait for services to be healthy
-            echo "Waiting for services..."
-            sleep 5
-
-            # Run migrations (idempotent)
-            docker exec karen-backend sh -c 'for f in /app/migrations/*.sql; do cat "$f" | psql $DATABASE_URL; done' 2>/dev/null || true
-
-            echo ""
-            echo "Deployment complete!"
-            docker compose ps
+      - name: Trigger Coolify deployment
+        run: |
+          curl -sf "${{ secrets.COOLIFY_WEBHOOK_URL }}"
