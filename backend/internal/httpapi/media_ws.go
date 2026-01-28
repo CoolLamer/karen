@@ -1002,6 +1002,30 @@ func (s *callSession) processSTTResults() {
 		case <-s.ctx.Done():
 			cancelFinalize()
 			cancelMaxTurn()
+			// Save any pending utterance before exiting (call ended mid-speech)
+			text := strings.TrimSpace(currentUtterance.String())
+			if text != "" && s.callID != "" {
+				s.logger.Printf("media_ws: saving pending utterance on call end: %s", text)
+				s.eventLog.LogAsync(s.callID, eventlog.EventTurnFinalized, map[string]any{
+					"turn_id":     atomic.AddUint64(&s.turnSeq, 1),
+					"text":        text,
+					"confidence":  lastConfidence,
+					"interrupted": true, // Call ended mid-utterance
+				})
+				// Use background context since call context is cancelled
+				s.utteranceSeq++
+				now := time.Now().UTC()
+				conf := lastConfidence
+				_ = s.store.InsertUtterance(context.Background(), s.callID, store.Utterance{
+					Speaker:       "caller",
+					Text:          text,
+					Sequence:      s.utteranceSeq,
+					StartedAt:     utteranceStartTime,
+					EndedAt:       &now,
+					STTConfidence: &conf,
+					Interrupted:   true,
+				})
+			}
 			return
 
 		case err := <-s.sttClient.Errors():
