@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
+  Alert,
   Badge,
   Group,
   Paper,
@@ -11,6 +12,7 @@ import {
   ThemeIcon,
   Button,
   Progress,
+  Anchor,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -18,24 +20,10 @@ import {
   IconUser,
   IconCircleCheck,
   IconCircle,
+  IconPhoneOff,
 } from "@tabler/icons-react";
 import { api, CallDetail } from "../api";
-import { getLegitimacyConfig, getLeadLabelConfig } from "./callLabels";
-
-function formatStatus(status: string) {
-  switch (status) {
-    case "in_progress":
-      return "Probíhá";
-    case "completed":
-      return "Dokončeno";
-    case "queued":
-      return "Čeká";
-    case "ringing":
-      return "Vyzvání";
-    default:
-      return status;
-  }
-}
+import { getLegitimacyConfig, getLeadLabelConfig, formatCallStatus, getRejectionExplanation } from "./callLabels";
 
 function formatSpeaker(speaker: string) {
   switch (speaker) {
@@ -162,8 +150,13 @@ export function CallDetailPage() {
                   {new Date(call.started_at).toLocaleString("cs-CZ")}
                 </Text>
                 <Group gap="xs" mt="xs">
-                  <Badge variant="light" color="gray" size="sm">
-                    {formatStatus(call.status)}
+                  <Badge
+                    variant="light"
+                    color={call.status === "rejected_limit" ? "orange" : "gray"}
+                    size="sm"
+                    leftSection={call.status === "rejected_limit" ? <IconPhoneOff size={12} /> : undefined}
+                  >
+                    {formatCallStatus(call.status, call.rejection_reason)}
                   </Badge>
                   {isResolved && (
                     <Badge variant="light" color="teal" size="sm" leftSection={<IconCircleCheck size={12} />}>
@@ -172,40 +165,44 @@ export function CallDetailPage() {
                   )}
                 </Group>
               </Stack>
-              <Stack gap="xs" align="flex-end">
-                <Group gap="xs">
-                  <Badge
-                    variant="light"
-                    color={legitimacyConfig.color}
-                    size="lg"
-                    leftSection={legitimacyConfig.icon}
-                  >
-                    {legitimacyConfig.label}
-                  </Badge>
-                  <Badge
-                    variant="light"
-                    color={leadConfig.color}
-                    size="lg"
-                    leftSection={leadConfig.icon}
-                  >
-                    {leadConfig.label}
-                  </Badge>
-                </Group>
-                {typeof call.screening?.legitimacy_confidence === "number" && (
-                  <Box w={100}>
-                    <Text size="xs" c="dimmed" ta="right" mb={4}>
-                      Spolehlivost: {(call.screening.legitimacy_confidence * 100).toFixed(0)}%
-                    </Text>
-                    <Progress
-                      value={call.screening.legitimacy_confidence * 100}
-                      size="xs"
+              {/* Only show legitimacy/lead badges for non-rejected calls */}
+              {call.status !== "rejected_limit" && (
+                <Stack gap="xs" align="flex-end">
+                  <Group gap="xs">
+                    <Badge
+                      variant="light"
                       color={legitimacyConfig.color}
-                    />
-                  </Box>
-                )}
-              </Stack>
+                      size="lg"
+                      leftSection={legitimacyConfig.icon}
+                    >
+                      {legitimacyConfig.label}
+                    </Badge>
+                    <Badge
+                      variant="light"
+                      color={leadConfig.color}
+                      size="lg"
+                      leftSection={leadConfig.icon}
+                    >
+                      {leadConfig.label}
+                    </Badge>
+                  </Group>
+                  {typeof call.screening?.legitimacy_confidence === "number" && (
+                    <Box w={100}>
+                      <Text size="xs" c="dimmed" ta="right" mb={4}>
+                        Spolehlivost: {(call.screening.legitimacy_confidence * 100).toFixed(0)}%
+                      </Text>
+                      <Progress
+                        value={call.screening.legitimacy_confidence * 100}
+                        size="xs"
+                        color={legitimacyConfig.color}
+                      />
+                    </Box>
+                  )}
+                </Stack>
+              )}
             </Group>
-            {call.screening?.intent_text && (
+            {/* Intent for non-rejected calls */}
+            {call.status !== "rejected_limit" && call.screening?.intent_text && (
               <Paper p="sm" radius="sm" bg="gray.0" mt="md">
                 <Text size="sm" fw={500}>
                   Účel hovoru:
@@ -217,62 +214,81 @@ export function CallDetailPage() {
             )}
           </Paper>
 
-          {/* Transcript with chat bubbles */}
-          <Paper p="lg" withBorder radius="md">
-            <Title order={4} mb="md">
-              Přepis hovoru
-            </Title>
-            {call.utterances?.length ? (
-              <Stack gap="md">
-                {call.utterances.map((u) => (
-                  <Box
-                    key={u.sequence}
-                    style={{
-                      display: "flex",
-                      justifyContent: u.speaker === "agent" ? "flex-end" : "flex-start",
-                    }}
-                  >
-                    <Paper
-                      p="sm"
-                      radius="md"
+          {/* Rejection explanation alert */}
+          {call.status === "rejected_limit" && (
+            <Alert
+              icon={<IconPhoneOff size={16} />}
+              title={formatCallStatus(call.status, call.rejection_reason)}
+              color="orange"
+              variant="light"
+            >
+              <Text size="sm">
+                {getRejectionExplanation(call.rejection_reason)}
+              </Text>
+              <Text size="sm" mt="xs">
+                Pro obnovení služby <Anchor href="/settings" onClick={(e) => { e.preventDefault(); navigate("/settings"); }}>upgradujte svůj plán</Anchor>.
+              </Text>
+            </Alert>
+          )}
+
+          {/* Transcript with chat bubbles (not shown for rejected calls) */}
+          {call.status !== "rejected_limit" && (
+            <Paper p="lg" withBorder radius="md">
+              <Title order={4} mb="md">
+                Přepis hovoru
+              </Title>
+              {call.utterances?.length ? (
+                <Stack gap="md">
+                  {call.utterances.map((u) => (
+                    <Box
+                      key={u.sequence}
                       style={{
-                        maxWidth: "80%",
-                        backgroundColor:
-                          u.speaker === "agent"
-                            ? "var(--mantine-color-teal-0)"
-                            : "var(--mantine-color-gray-1)",
-                        borderBottomRightRadius: u.speaker === "agent" ? 4 : undefined,
-                        borderBottomLeftRadius: u.speaker === "caller" ? 4 : undefined,
+                        display: "flex",
+                        justifyContent: u.speaker === "agent" ? "flex-end" : "flex-start",
                       }}
                     >
-                      <Group gap="xs" mb={4}>
-                        <ThemeIcon
-                          size="xs"
-                          color={u.speaker === "agent" ? "teal" : "gray"}
-                          variant="transparent"
-                        >
-                          {u.speaker === "agent" ? <IconRobot size={12} /> : <IconUser size={12} />}
-                        </ThemeIcon>
-                        <Text size="xs" fw={500} c={u.speaker === "agent" ? "teal.7" : "gray.7"}>
-                          {formatSpeaker(u.speaker)}
-                        </Text>
-                      </Group>
-                      <Text size="sm">{u.text}</Text>
-                    </Paper>
-                  </Box>
-                ))}
-                {formatCallTermination(call.ended_by) && (
-                  <Text size="sm" c="dimmed" mt="xs" fs="italic">
-                    — {formatCallTermination(call.ended_by)} —
-                  </Text>
-                )}
-              </Stack>
-            ) : (
-              <Text size="sm" c="dimmed">
-                Přepis zatím není k dispozici.
-              </Text>
-            )}
-          </Paper>
+                      <Paper
+                        p="sm"
+                        radius="md"
+                        style={{
+                          maxWidth: "80%",
+                          backgroundColor:
+                            u.speaker === "agent"
+                              ? "var(--mantine-color-teal-0)"
+                              : "var(--mantine-color-gray-1)",
+                          borderBottomRightRadius: u.speaker === "agent" ? 4 : undefined,
+                          borderBottomLeftRadius: u.speaker === "caller" ? 4 : undefined,
+                        }}
+                      >
+                        <Group gap="xs" mb={4}>
+                          <ThemeIcon
+                            size="xs"
+                            color={u.speaker === "agent" ? "teal" : "gray"}
+                            variant="transparent"
+                          >
+                            {u.speaker === "agent" ? <IconRobot size={12} /> : <IconUser size={12} />}
+                          </ThemeIcon>
+                          <Text size="xs" fw={500} c={u.speaker === "agent" ? "teal.7" : "gray.7"}>
+                            {formatSpeaker(u.speaker)}
+                          </Text>
+                        </Group>
+                        <Text size="sm">{u.text}</Text>
+                      </Paper>
+                    </Box>
+                  ))}
+                  {formatCallTermination(call.ended_by) && (
+                    <Text size="sm" c="dimmed" mt="xs" fs="italic">
+                      — {formatCallTermination(call.ended_by)} —
+                    </Text>
+                  )}
+                </Stack>
+              ) : (
+                <Text size="sm" c="dimmed">
+                  Přepis zatím není k dispozici.
+                </Text>
+              )}
+            </Paper>
+          )}
         </>
       )}
     </Stack>

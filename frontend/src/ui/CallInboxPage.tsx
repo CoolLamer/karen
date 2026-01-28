@@ -30,7 +30,7 @@ import {
   IconPhoneOff,
 } from "@tabler/icons-react";
 import { api, CallListItem, TenantPhoneNumber, BillingInfo } from "../api";
-import { getLegitimacyConfig, getLeadLabelConfig } from "./callLabels";
+import { getLegitimacyConfig, getLeadLabelConfig, formatCallStatus, getRejectionExplanation } from "./callLabels";
 
 // Format time saved in a human-readable format (Czech)
 function formatTimeSaved(seconds: number): string {
@@ -41,21 +41,6 @@ function formatTimeSaved(seconds: number): string {
   const remainingMins = minutes % 60;
   if (remainingMins === 0) return `${hours}h`;
   return `${hours}h ${remainingMins}min`;
-}
-
-function formatStatus(status: string) {
-  switch (status) {
-    case "in_progress":
-      return "Probíhá";
-    case "completed":
-      return "Dokončeno";
-    case "queued":
-      return "Čeká";
-    case "ringing":
-      return "Vyzvání";
-    default:
-      return status;
-  }
 }
 
 function formatRelativeTime(date: Date): string {
@@ -377,6 +362,7 @@ export function CallInboxPage() {
       {filteredCalls && filteredCalls.length > 0 && isMobile && (
         <Stack gap="sm">
           {filteredCalls.map((c) => {
+            const isRejected = c.status === "rejected_limit";
             const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label, 12);
             const lead = getLeadLabelConfig(c.screening?.lead_label, 12);
             const intent = c.screening?.intent_text ?? "";
@@ -396,13 +382,16 @@ export function CallInboxPage() {
                   radius="md"
                   withBorder
                   style={{
-                    borderLeft: `4px solid var(--mantine-color-${legitimacy.color}-5)`,
+                    borderLeft: isRejected
+                      ? "4px solid var(--mantine-color-orange-5)"
+                      : `4px solid var(--mantine-color-${legitimacy.color}-5)`,
                     cursor: "pointer",
                     transition: "background-color 0.15s",
-                    opacity: isResolved ? 0.7 : 1,
+                    opacity: isResolved ? 0.7 : isRejected ? 0.85 : 1,
+                    backgroundColor: isRejected ? "var(--mantine-color-gray-0)" : undefined,
                   }}
                 >
-                  {/* Row 1: Resolution icon + Phone number + Lead badge + Chevron */}
+                  {/* Row 1: Resolution icon + Phone number + Lead/Rejected badge + Chevron */}
                   <Group justify="space-between" wrap="nowrap" mb={4}>
                     <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                       {/* Resolution status indicator */}
@@ -416,10 +405,12 @@ export function CallInboxPage() {
                         <ActionIcon
                           variant="subtle"
                           size="md"
-                          color={isResolved ? "teal" : isNew ? "blue" : "gray"}
+                          color={isRejected ? "orange" : isResolved ? "teal" : isNew ? "blue" : "gray"}
                           onClick={(e) => handleToggleResolved(e, c.provider_call_id, isResolved)}
                         >
-                          {isResolved ? (
+                          {isRejected ? (
+                            <IconPhoneOff size={20} />
+                          ) : isResolved ? (
                             <IconCircleCheck size={20} />
                           ) : isNew ? (
                             <IconCircleFilled size={12} />
@@ -431,42 +422,62 @@ export function CallInboxPage() {
                       <Text size="sm" fw={isNew ? 700 : 600} truncate style={{ flex: 1, minWidth: 0 }}>
                         {c.from_number}
                       </Text>
-                      <Badge
-                        color={lead.color}
-                        variant="light"
-                        leftSection={lead.icon}
-                        size="sm"
-                        style={{ flexShrink: 0 }}
-                      >
-                        {lead.label}
-                      </Badge>
+                      {isRejected ? (
+                        <Badge
+                          color="orange"
+                          variant="light"
+                          leftSection={<IconPhoneOff size={12} />}
+                          size="sm"
+                          style={{ flexShrink: 0 }}
+                        >
+                          {formatCallStatus(c.status, c.rejection_reason)}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          color={lead.color}
+                          variant="light"
+                          leftSection={lead.icon}
+                          size="sm"
+                          style={{ flexShrink: 0 }}
+                        >
+                          {lead.label}
+                        </Badge>
+                      )}
                     </Group>
                     <IconChevronRight size={20} color="gray" style={{ flexShrink: 0 }} />
                   </Group>
 
-                  {/* Row 2: to_number + relative time + legitimacy label */}
+                  {/* Row 2: to_number + relative time + legitimacy label (or nothing for rejected) */}
                   <Group gap="xs" mb="xs" pl={30}>
                     <Text size="xs" c="dimmed">
                       na {c.to_number} | {formatRelativeTime(new Date(c.started_at))}
                     </Text>
-                    <Text size="xs" c={legitimacy.color} fw={500}>
-                      • {legitimacy.label}
-                    </Text>
+                    {!isRejected && (
+                      <Text size="xs" c={legitimacy.color} fw={500}>
+                        • {legitimacy.label}
+                      </Text>
+                    )}
                   </Group>
 
-                  {/* Row 3: Intent text */}
-                  {intent && (
+                  {/* Row 3: Intent text or rejection explanation */}
+                  {isRejected ? (
+                    <Text size="sm" c="dimmed" mb="xs" pl={30}>
+                      {getRejectionExplanation(c.rejection_reason)}
+                    </Text>
+                  ) : intent ? (
                     <Text size="sm" lineClamp={2} mb="xs" pl={30}>
                       "{intent}"
                     </Text>
-                  )}
+                  ) : null}
 
-                  {/* Row 4: Status badge */}
-                  <Box ta="right">
-                    <Badge variant="light" color="gray" size="sm">
-                      {formatStatus(c.status)}
-                    </Badge>
-                  </Box>
+                  {/* Row 4: Status badge (hide for rejected calls since badge is shown at top) */}
+                  {!isRejected && (
+                    <Box ta="right">
+                      <Badge variant="light" color="gray" size="sm">
+                        {formatCallStatus(c.status, c.rejection_reason)}
+                      </Badge>
+                    </Box>
+                  )}
                 </Paper>
               </UnstyledButton>
             );
@@ -491,6 +502,7 @@ export function CallInboxPage() {
             </Table.Thead>
             <Table.Tbody>
               {filteredCalls.map((c) => {
+                const isRejected = c.status === "rejected_limit";
                 const legitimacy = getLegitimacyConfig(c.screening?.legitimacy_label);
                 const lead = getLeadLabelConfig(c.screening?.lead_label);
                 const intent = c.screening?.intent_text ?? "";
@@ -503,9 +515,12 @@ export function CallInboxPage() {
                     key={c.provider_call_id}
                     onClick={() => handleCallClick(c.provider_call_id)}
                     style={{
-                      borderLeft: `4px solid var(--mantine-color-${legitimacy.color}-5)`,
+                      borderLeft: isRejected
+                        ? "4px solid var(--mantine-color-orange-5)"
+                        : `4px solid var(--mantine-color-${legitimacy.color}-5)`,
                       cursor: "pointer",
-                      opacity: isResolved ? 0.7 : 1,
+                      opacity: isResolved ? 0.7 : isRejected ? 0.85 : 1,
+                      backgroundColor: isRejected ? "var(--mantine-color-gray-0)" : undefined,
                     }}
                   >
                     <Table.Td>
@@ -519,10 +534,12 @@ export function CallInboxPage() {
                         <ActionIcon
                           variant="subtle"
                           size="md"
-                          color={isResolved ? "teal" : isNew ? "blue" : "gray"}
+                          color={isRejected ? "orange" : isResolved ? "teal" : isNew ? "blue" : "gray"}
                           onClick={(e) => handleToggleResolved(e, c.provider_call_id, isResolved)}
                         >
-                          {isResolved ? (
+                          {isRejected ? (
+                            <IconPhoneOff size={20} />
+                          ) : isResolved ? (
                             <IconCircleCheck size={20} />
                           ) : isNew ? (
                             <IconCircleFilled size={12} />
@@ -552,27 +569,41 @@ export function CallInboxPage() {
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Badge color={legitimacy.color} variant="light" leftSection={legitimacy.icon}>
-                        {legitimacy.label}
-                      </Badge>
+                      {isRejected ? (
+                        <Text size="sm" c="dimmed">—</Text>
+                      ) : (
+                        <Badge color={legitimacy.color} variant="light" leftSection={legitimacy.icon}>
+                          {legitimacy.label}
+                        </Badge>
+                      )}
                     </Table.Td>
                     <Table.Td>
-                      <Badge
-                        color={lead.color}
-                        variant="light"
-                        leftSection={lead.icon}
-                      >
-                        {lead.label}
-                      </Badge>
+                      {isRejected ? (
+                        <Text size="sm" c="dimmed">—</Text>
+                      ) : (
+                        <Badge
+                          color={lead.color}
+                          variant="light"
+                          leftSection={lead.icon}
+                        >
+                          {lead.label}
+                        </Badge>
+                      )}
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm" lineClamp={2} maw={200}>
-                        {intent || "—"}
-                      </Text>
+                      {isRejected ? (
+                        <Text size="sm" c="dimmed" lineClamp={2} maw={200}>
+                          {getRejectionExplanation(c.rejection_reason)}
+                        </Text>
+                      ) : (
+                        <Text size="sm" lineClamp={2} maw={200}>
+                          {intent || "—"}
+                        </Text>
+                      )}
                     </Table.Td>
                     <Table.Td>
-                      <Badge variant="light" color="gray" size="sm">
-                        {formatStatus(c.status)}
+                      <Badge variant="light" color={isRejected ? "orange" : "gray"} size="sm">
+                        {formatCallStatus(c.status, c.rejection_reason)}
                       </Badge>
                     </Table.Td>
                   </Table.Tr>

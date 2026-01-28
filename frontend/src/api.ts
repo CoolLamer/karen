@@ -14,6 +14,7 @@ export type CallListItem = {
   from_number: string;
   to_number: string;
   status: string;
+  rejection_reason?: string | null;
   started_at: string;
   ended_at?: string | null;
   ended_by?: string | null;

@@ -33,6 +33,49 @@ export function getLegitimacyConfig(
   }
 }
 
+export function formatCallStatus(status: string, rejectionReason?: string | null) {
+  switch (status) {
+    case "in_progress":
+      return "Probíhá";
+    case "completed":
+      return "Dokončeno";
+    case "queued":
+      return "Čeká";
+    case "ringing":
+      return "Vyzvání";
+    case "rejected_limit":
+      switch (rejectionReason) {
+        case "trial_expired":
+          return "Trial vypršel";
+        case "limit_exceeded":
+          return "Limit dosažen";
+        case "subscription_cancelled":
+          return "Předplatné zrušeno";
+        case "subscription_suspended":
+          return "Předplatné pozastaveno";
+        default:
+          return "Nepřijato";
+      }
+    default:
+      return status;
+  }
+}
+
+export function getRejectionExplanation(rejectionReason?: string | null): string {
+  switch (rejectionReason) {
+    case "trial_expired":
+      return "Asistentka nemohla přijmout hovor - váš trial skončil";
+    case "limit_exceeded":
+      return "Asistentka nemohla přijmout hovor - dosáhli jste měsíčního limitu";
+    case "subscription_cancelled":
+      return "Asistentka nemohla přijmout hovor - předplatné bylo zrušeno";
+    case "subscription_suspended":
+      return "Asistentka nemohla přijmout hovor - předplatné bylo pozastaveno";
+    default:
+      return "Asistentka nemohla přijmout tento hovor";
+  }
+}
+
 export function getLeadLabelConfig(
   label: string | undefined,
   iconSize = 14
