@@ -85,20 +85,20 @@ type UserSession struct {
 }
 
 type Call struct {
-	ID             string     `json:"id,omitempty"`
-	TenantID       *string    `json:"tenant_id,omitempty"`
-	Provider       string     `json:"provider"`
-	ProviderCallID string     `json:"provider_call_id"`
-	FromNumber     string     `json:"from_number"`
-	ToNumber       string     `json:"to_number"`
+	ID              string     `json:"id,omitempty"`
+	TenantID        *string    `json:"tenant_id,omitempty"`
+	Provider        string     `json:"provider"`
+	ProviderCallID  string     `json:"provider_call_id"`
+	FromNumber      string     `json:"from_number"`
+	ToNumber        string     `json:"to_number"`
 	Status          string     `json:"status"`
 	RejectionReason *string    `json:"rejection_reason,omitempty"`
 	StartedAt       time.Time  `json:"started_at"`
-	EndedAt        *time.Time `json:"ended_at,omitempty"`
-	EndedBy        *string    `json:"ended_by,omitempty"`
-	FirstViewedAt  *time.Time `json:"first_viewed_at,omitempty"`
-	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
-	ResolvedBy     *string    `json:"resolved_by,omitempty"`
+	EndedAt         *time.Time `json:"ended_at,omitempty"`
+	EndedBy         *string    `json:"ended_by,omitempty"`
+	FirstViewedAt   *time.Time `json:"first_viewed_at,omitempty"`
+	ResolvedAt      *time.Time `json:"resolved_at,omitempty"`
+	ResolvedBy      *string    `json:"resolved_by,omitempty"`
 }
 
 type ScreeningResult struct {

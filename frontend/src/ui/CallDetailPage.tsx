@@ -15,7 +15,6 @@ import {
   Anchor,
 } from "@mantine/core";
 import {
-  IconAlertCircle,
   IconArrowLeft,
   IconRobot,
   IconUser,
