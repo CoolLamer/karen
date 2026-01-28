@@ -105,7 +105,7 @@ services:
     container_name: karen-frontend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/health"]
       interval: 10s
       timeout: 5s
       retries: 3
