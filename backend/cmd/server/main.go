@@ -11,6 +11,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/lukasbauer/karen/internal/app"
+	"github.com/lukasbauer/karen/internal/httpapi"
 )
 
 func main() {
@@ -43,9 +44,11 @@ func main() {
 		logger.Fatalf("init app: %v", err)
 	}
 
+	calls := httpapi.NewCallRegistry()
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           a.Router(),
+		Handler:           a.Router(calls),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -61,10 +64,30 @@ func main() {
 
 	<-ctx.Done()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Phase 1: Start draining — reject new calls immediately
+	calls.StartDraining()
+	logger.Printf("shutdown: draining started, %d active call(s)", calls.ActiveCount())
 
+	// Phase 2: Wait for active calls to finish (max 10 minutes)
+	drainDone := make(chan struct{})
+	go func() {
+		calls.Wait()
+		close(drainDone)
+	}()
+
+	select {
+	case <-drainDone:
+		logger.Printf("shutdown: all calls completed")
+	case <-time.After(10 * time.Minute):
+		logger.Printf("shutdown: drain timeout reached, %d call(s) still active", calls.ActiveCount())
+	}
+
+	// Phase 3: Shut down HTTP server
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+
+	// Phase 4: Close DB pool
 	_ = a.Close()
 }
 

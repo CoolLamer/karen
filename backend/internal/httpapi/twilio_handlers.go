@@ -42,6 +42,17 @@ type twimlParameter struct {
 }
 
 func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
+	// Reject new calls during graceful shutdown (draining)
+	if r.calls.IsDraining() {
+		r.logger.Printf("inbound: rejecting call, server is draining")
+		resp := twimlResponse{Reject: &twimlReject{Reason: "busy"}}
+		out, _ := xml.MarshalIndent(resp, "", "  ")
+		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
+		_, _ = w.Write([]byte(xml.Header))
+		_, _ = w.Write(out)
+		return
+	}
+
 	// Twilio sends application/x-www-form-urlencoded by default.
 	if err := req.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)

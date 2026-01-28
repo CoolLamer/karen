@@ -238,7 +238,8 @@ type callSession struct {
 	eventLog   *eventlog.Logger
 	cfg        RouterConfig
 	httpClient *http.Client
-	apns       *notifications.APNsClient
+	apns         *notifications.APNsClient
+	callRegistry *CallRegistry
 
 	// Tenant-specific configuration
 	tenantCfg TenantConfig
@@ -303,6 +304,13 @@ type callSession struct {
 }
 
 func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
+	// Reject new calls when draining (graceful shutdown in progress)
+	if r.calls.IsDraining() {
+		r.logger.Printf("media_ws: rejecting new call, server is draining")
+		http.Error(w, "server is draining", http.StatusServiceUnavailable)
+		return
+	}
+
 	// Check if we have required API keys
 	if r.cfg.DeepgramAPIKey == "" || r.cfg.OpenAIAPIKey == "" || r.cfg.ElevenLabsAPIKey == "" {
 		r.logger.Printf("media_ws: missing API keys")
@@ -318,21 +326,30 @@ func (r *Router) handleMediaWS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Register this call in the registry. If draining started between the check
+	// above and now, reject and close the connection.
+	if !r.calls.Add() {
+		r.logger.Printf("media_ws: rejecting new call, server is draining")
+		conn.Close()
+		return
+	}
+
 	ctx, cancel := context.WithCancel(req.Context())
 
 	session := &callSession{
-		conn:        conn,
-		store:       r.store,
-		logger:      r.logger,
-		eventLog:    r.eventLog,
-		cfg:         r.cfg,
-		httpClient:  &http.Client{Timeout: 10 * time.Second},
-		apns:        r.apns,
-		messages:    []llm.Message{},
-		bargeInCh:   make(chan string, 1), // Buffered channel for barge-in
-		goodbyeDone: make(chan struct{}),
-		ctx:         ctx,
-		cancel:      cancel,
+		conn:         conn,
+		store:        r.store,
+		logger:       r.logger,
+		eventLog:     r.eventLog,
+		cfg:          r.cfg,
+		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		apns:         r.apns,
+		callRegistry: r.calls,
+		messages:     []llm.Message{},
+		bargeInCh:    make(chan string, 1), // Buffered channel for barge-in
+		goodbyeDone:  make(chan struct{}),
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 
 	// Create LLM client (doesn't require connection)
@@ -1968,6 +1985,7 @@ func (s *callSession) sendPushNotifications(legitimacyLabel, intentText string) 
 }
 
 func (s *callSession) cleanup() {
+	defer s.callRegistry.Done()
 	s.cancel()
 
 	// Stop max duration timer if running

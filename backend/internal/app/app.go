@@ -72,7 +72,7 @@ func New(cfg Config, logger *log.Logger) (*App, error) {
 	}, nil
 }
 
-func (a *App) Router() http.Handler {
+func (a *App) Router(calls *httpapi.CallRegistry) http.Handler {
 	routerCfg := httpapi.RouterConfig{
 		PublicBaseURL:         a.cfg.PublicBaseURL,
 		TwilioAuthToken:       a.cfg.TwilioAuthTok,
@@ -94,7 +94,7 @@ func (a *App) Router() http.Handler {
 		DiscordWebhookURL:     a.cfg.DiscordWebhookURL,
 		AIDebugAPIKey:         a.cfg.AIDebugAPIKey,
 	}
-	return httpapi.NewRouter(routerCfg, a.logger, a.store, a.eventLog)
+	return httpapi.NewRouter(routerCfg, a.logger, a.store, a.eventLog, calls)
 }
 
 func (a *App) Close() error {
