@@ -68,10 +68,11 @@ type Router struct {
 	eventLog *eventlog.Logger
 	discord  *notifications.Discord
 	apns     *notifications.APNsClient
+	calls    *CallRegistry
 	mux      *http.ServeMux
 }
 
-func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store, eventLog *eventlog.Logger) http.Handler {
+func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store, eventLog *eventlog.Logger, calls *CallRegistry) http.Handler {
 	// Initialize APNs client (may be nil if not configured)
 	apnsClient, err := notifications.NewAPNsClient(notifications.APNsConfig{
 		KeyPath:    cfg.APNsKeyPath,
@@ -91,6 +92,7 @@ func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store, eventLog *e
 		eventLog: eventLog,
 		discord:  notifications.NewDiscord(cfg.DiscordWebhookURL, logger),
 		apns:     apnsClient,
+		calls:    calls,
 		mux:      http.NewServeMux(),
 	}
 
@@ -101,6 +103,7 @@ func NewRouter(cfg RouterConfig, logger *log.Logger, s *store.Store, eventLog *e
 func (r *Router) routes() {
 	// Health check
 	r.mux.HandleFunc("GET /healthz", r.handleHealthz)
+	r.mux.HandleFunc("GET /readyz", r.handleReadyz)
 
 	// Twilio webhooks (no auth - signature verified)
 	r.mux.HandleFunc("POST /telephony/inbound", r.handleTwilioInbound)
@@ -178,6 +181,16 @@ func (r *Router) routes() {
 }
 
 func (r *Router) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
+}
+
+func (r *Router) handleReadyz(w http.ResponseWriter, _ *http.Request) {
+	if r.calls.IsDraining() {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("draining"))
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
 }

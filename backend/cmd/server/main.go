@@ -11,6 +11,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/lukasbauer/karen/internal/app"
+	"github.com/lukasbauer/karen/internal/httpapi"
 )
 
 func main() {
@@ -43,9 +44,11 @@ func main() {
 		logger.Fatalf("init app: %v", err)
 	}
 
+	calls := httpapi.NewCallRegistry()
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           a.Router(),
+		Handler:           a.Router(calls),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -61,10 +64,34 @@ func main() {
 
 	<-ctx.Done()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Phase 1: Stop accepting new HTTP connections. This closes the listener
+	// so no new requests can reach handleMediaWS or handleTwilioInbound.
+	// Existing upgraded WebSocket connections are unaffected.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	_ = srv.Shutdown(shutdownCtx)
+	logger.Printf("shutdown: HTTP listener closed")
+
+	// Phase 2: Mark as draining. With the listener closed, no new Add() calls
+	// can arrive, so there is no TOCTOU race between StartDraining and Wait.
+	calls.StartDraining()
+	logger.Printf("shutdown: draining started, %d active call(s)", calls.ActiveCount())
+
+	// Phase 3: Wait for active calls to finish (max 10 minutes)
+	drainDone := make(chan struct{})
+	go func() {
+		calls.Wait()
+		close(drainDone)
+	}()
+
+	select {
+	case <-drainDone:
+		logger.Printf("shutdown: all calls completed")
+	case <-time.After(10 * time.Minute):
+		logger.Printf("shutdown: drain timeout reached, %d call(s) still active", calls.ActiveCount())
+	}
+
+	// Phase 4: Close DB pool
 	_ = a.Close()
 }
 
