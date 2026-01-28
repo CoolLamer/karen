@@ -61,15 +61,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin: data.is_admin ?? false,
         onboardingInProgress: prev.onboardingInProgress, // Preserve session flag
       }));
-    } catch {
-      setAuthToken(null);
+    } catch (err) {
+      // Only clear auth on 401 (invalid/expired token).
+      // Network errors (e.g. backend briefly down during deploy) should
+      // preserve the token so the user isn't logged out unnecessarily.
+      const isAuthError = err instanceof Error && "status" in err && (err as { status: number }).status === 401;
+      if (isAuthError) {
+        setAuthToken(null);
+      }
       setState((prev) => ({
         isLoading: false,
-        isAuthenticated: false,
-        user: null,
-        tenant: null,
-        needsOnboarding: false,
-        isAdmin: false,
+        isAuthenticated: isAuthError ? false : prev.isAuthenticated,
+        user: isAuthError ? null : prev.user,
+        tenant: isAuthError ? null : prev.tenant,
+        needsOnboarding: isAuthError ? false : prev.needsOnboarding,
+        isAdmin: isAuthError ? false : prev.isAdmin,
         onboardingInProgress: prev.onboardingInProgress,
       }));
     }
