@@ -173,6 +173,14 @@ const (
 	UsageWarningExpired   UsageWarningType = "expired"
 )
 
+// TrialDayType represents the type of trial day notification
+type TrialDayType string
+
+const (
+	TrialDay10 TrialDayType = "day10"
+	TrialDay12 TrialDayType = "day12"
+)
+
 // SendUsageWarning sends a push notification about usage limits
 func (c *APNsClient) SendUsageWarning(deviceToken string, warningType UsageWarningType, callsUsed, callsLimit int) error {
 	if c == nil || c.client == nil {
@@ -219,5 +227,96 @@ func (c *APNsClient) SendUsageWarning(deviceToken string, warningType UsageWarni
 	}
 
 	c.logger.Printf("APNs: usage warning sent successfully to %s...", deviceToken[:16])
+	return nil
+}
+
+// SendTrialDayNotification sends a push notification about trial days remaining
+func (c *APNsClient) SendTrialDayNotification(deviceToken string, dayType TrialDayType, timeSavedMinutes, callsHandled int) error {
+	if c == nil || c.client == nil {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var title, body string
+	switch dayType {
+	case TrialDay10:
+		title = "Zbývají 4 dny trialu"
+		body = fmt.Sprintf("Karen ti zatím ušetřila %d minut. Upgraduj na zvednu.cz", timeSavedMinutes)
+	case TrialDay12:
+		title = "Zbývají 2 dny trialu"
+		body = fmt.Sprintf("Karen ti vyřídila %d hovorů. Upgraduj na zvednu.cz", callsHandled)
+	default:
+		return nil
+	}
+
+	p := payload.NewPayload().
+		AlertTitle(title).
+		AlertBody(body).
+		Sound("default").
+		Custom("notification_type", "trial_reminder").
+		Custom("trial_day", string(dayType))
+
+	notification := &apns2.Notification{
+		DeviceToken: deviceToken,
+		Topic:       c.bundleID,
+		Payload:     p,
+		Expiration:  time.Now().Add(24 * time.Hour),
+	}
+
+	res, err := c.client.Push(notification)
+	if err != nil {
+		c.logger.Printf("APNs: failed to send trial day notification: %v", err)
+		return err
+	}
+
+	if res.StatusCode != 200 {
+		c.logger.Printf("APNs: trial day notification rejected (status=%d, reason=%s)", res.StatusCode, res.Reason)
+		return fmt.Errorf("APNs rejected notification: %s", res.Reason)
+	}
+
+	c.logger.Printf("APNs: trial day notification sent successfully to %s...", deviceToken[:16])
+	return nil
+}
+
+// SendTrialGraceWarning sends a push notification that phone number will be released
+func (c *APNsClient) SendTrialGraceWarning(deviceToken string, daysUntilRelease int, assignedNumber string) error {
+	if c == nil || c.client == nil {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	title := "Služba bude ukončena"
+	body := fmt.Sprintf("Za %d dní bude vaše číslo %s odpojeno. Zrušte přesměrování nebo upgradujte.", daysUntilRelease, assignedNumber)
+
+	p := payload.NewPayload().
+		AlertTitle(title).
+		AlertBody(body).
+		Sound("default").
+		Custom("notification_type", "trial_grace_warning").
+		Custom("days_until_release", daysUntilRelease)
+
+	notification := &apns2.Notification{
+		DeviceToken: deviceToken,
+		Topic:       c.bundleID,
+		Payload:     p,
+		Expiration:  time.Now().Add(24 * time.Hour),
+	}
+
+	res, err := c.client.Push(notification)
+	if err != nil {
+		c.logger.Printf("APNs: failed to send grace warning: %v", err)
+		return err
+	}
+
+	if res.StatusCode != 200 {
+		c.logger.Printf("APNs: grace warning rejected (status=%d, reason=%s)", res.StatusCode, res.Reason)
+		return fmt.Errorf("APNs rejected notification: %s", res.Reason)
+	}
+
+	c.logger.Printf("APNs: grace warning sent successfully to %s...", deviceToken[:16])
 	return nil
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lukasbauer/karen/internal/eventlog"
 	"github.com/lukasbauer/karen/internal/httpapi"
+	"github.com/lukasbauer/karen/internal/jobs"
+	"github.com/lukasbauer/karen/internal/notifications"
 	"github.com/lukasbauer/karen/internal/store"
 )
 
@@ -21,6 +23,13 @@ type App struct {
 	store      *store.Store
 	eventLog   *eventlog.Logger
 	httpClient *http.Client // Shared HTTP client with connection pooling for TTS
+
+	// Notification clients
+	smsClient  *notifications.SMSClient
+	apnsClient *notifications.APNsClient
+
+	// Background jobs
+	trialLifecycleJob *jobs.TrialLifecycleJob
 }
 
 func New(cfg Config, logger *log.Logger) (*App, error) {
@@ -62,14 +71,53 @@ func New(cfg Config, logger *log.Logger) (*App, error) {
 		},
 	}
 
-	return &App{
+	// Initialize notification clients
+	// SMS sender number is primarily configured via global_config (sms_sender_number).
+	// The env var SMS_SENDER_NUMBER is an optional fallback for initial setup.
+	smsClient, err := notifications.NewSMSClient(notifications.SMSConfig{
+		AccountSID:   cfg.TwilioAccountSID,
+		AuthToken:    cfg.TwilioAuthTok,
+		SenderNumber: cfg.SMSSenderNumber, // Optional - will be fetched from global_config by the job
+	}, logger)
+	if err != nil {
+		logger.Printf("Warning: SMS client initialization failed: %v", err)
+	}
+
+	apnsClient, err := notifications.NewAPNsClient(notifications.APNsConfig{
+		KeyPath:    cfg.APNsKeyPath,
+		KeyID:      cfg.APNsKeyID,
+		TeamID:     cfg.APNsTeamID,
+		BundleID:   cfg.APNsBundleID,
+		Production: cfg.APNsProduction,
+	}, logger)
+	if err != nil {
+		logger.Printf("Warning: APNs client initialization failed: %v", err)
+	}
+
+	app := &App{
 		cfg:        cfg,
 		logger:     logger,
 		db:         db,
 		store:      s,
 		eventLog:   el,
 		httpClient: httpClient,
-	}, nil
+		smsClient:  smsClient,
+		apnsClient: apnsClient,
+	}
+
+	// Start trial lifecycle job if enabled
+	if cfg.TrialLifecycleJobEnabled {
+		app.trialLifecycleJob = jobs.NewTrialLifecycleJob(
+			s,
+			smsClient,
+			apnsClient,
+			logger,
+			cfg.TrialLifecycleJobInterval,
+		)
+		app.trialLifecycleJob.Start()
+	}
+
+	return app, nil
 }
 
 func (a *App) Router(calls *httpapi.CallRegistry) http.Handler {
@@ -98,6 +146,12 @@ func (a *App) Router(calls *httpapi.CallRegistry) http.Handler {
 }
 
 func (a *App) Close() error {
+	// Stop background jobs
+	if a.trialLifecycleJob != nil {
+		a.trialLifecycleJob.Stop()
+	}
+
+	// Close database connection
 	if a.db != nil {
 		a.db.Close()
 	}
