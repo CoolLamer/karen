@@ -134,13 +134,14 @@ type CallDetail struct {
 
 func (s *Store) UpsertCall(ctx context.Context, c Call) error {
 	_, err := s.db.Exec(ctx, `
-		INSERT INTO calls (id, provider, provider_call_id, from_number, to_number, status, started_at)
-		VALUES (gen_random_uuid(), $1,$2,$3,$4,$5,$6)
+		INSERT INTO calls (id, provider, provider_call_id, from_number, to_number, status, rejection_reason, started_at)
+		VALUES (gen_random_uuid(), $1,$2,$3,$4,$5,$6,$7)
 		ON CONFLICT (provider, provider_call_id) DO UPDATE SET
 			from_number = EXCLUDED.from_number,
 			to_number = EXCLUDED.to_number,
-			status = EXCLUDED.status
-	`, c.Provider, c.ProviderCallID, c.FromNumber, c.ToNumber, c.Status, c.StartedAt)
+			status = EXCLUDED.status,
+			rejection_reason = EXCLUDED.rejection_reason
+	`, c.Provider, c.ProviderCallID, c.FromNumber, c.ToNumber, c.Status, c.RejectionReason, c.StartedAt)
 	return err
 }
 

@@ -30,7 +30,7 @@ import {
   IconPhoneOff,
 } from "@tabler/icons-react";
 import { api, CallListItem, TenantPhoneNumber, BillingInfo } from "../api";
-import { getLegitimacyConfig, getLeadLabelConfig } from "./callLabels";
+import { getLegitimacyConfig, getLeadLabelConfig, formatCallStatus, getRejectionExplanation } from "./callLabels";
 
 // Format time saved in a human-readable format (Czech)
 function formatTimeSaved(seconds: number): string {
@@ -41,51 +41,6 @@ function formatTimeSaved(seconds: number): string {
   const remainingMins = minutes % 60;
   if (remainingMins === 0) return `${hours}h`;
   return `${hours}h ${remainingMins}min`;
-}
-
-function formatStatus(status: string, rejectionReason?: string | null) {
-  switch (status) {
-    case "in_progress":
-      return "Probíhá";
-    case "completed":
-      return "Dokončeno";
-    case "queued":
-      return "Čeká";
-    case "ringing":
-      return "Vyzvání";
-    case "rejected_limit":
-      // Specific reason messaging
-      switch (rejectionReason) {
-        case "trial_expired":
-          return "Trial vypršel";
-        case "limit_exceeded":
-          return "Limit dosažen";
-        case "subscription_cancelled":
-          return "Předplatné zrušeno";
-        case "subscription_suspended":
-          return "Předplatné pozastaveno";
-        default:
-          return "Nepřijato";
-      }
-    default:
-      return status;
-  }
-}
-
-// Get explanation text for rejected calls
-function getRejectionExplanation(rejectionReason?: string | null): string {
-  switch (rejectionReason) {
-    case "trial_expired":
-      return "Asistentka nemohla přijmout hovor - váš trial skončil";
-    case "limit_exceeded":
-      return "Asistentka nemohla přijmout hovor - dosáhli jste měsíčního limitu";
-    case "subscription_cancelled":
-      return "Asistentka nemohla přijmout hovor - předplatné bylo zrušeno";
-    case "subscription_suspended":
-      return "Asistentka nemohla přijmout hovor - předplatné bylo pozastaveno";
-    default:
-      return "Asistentka nemohla přijmout tento hovor";
-  }
 }
 
 function formatRelativeTime(date: Date): string {
@@ -475,7 +430,7 @@ export function CallInboxPage() {
                           size="sm"
                           style={{ flexShrink: 0 }}
                         >
-                          {formatStatus(c.status, c.rejection_reason)}
+                          {formatCallStatus(c.status, c.rejection_reason)}
                         </Badge>
                       ) : (
                         <Badge
@@ -519,7 +474,7 @@ export function CallInboxPage() {
                   {!isRejected && (
                     <Box ta="right">
                       <Badge variant="light" color="gray" size="sm">
-                        {formatStatus(c.status, c.rejection_reason)}
+                        {formatCallStatus(c.status, c.rejection_reason)}
                       </Badge>
                     </Box>
                   )}
@@ -648,7 +603,7 @@ export function CallInboxPage() {
                     </Table.Td>
                     <Table.Td>
                       <Badge variant="light" color={isRejected ? "orange" : "gray"} size="sm">
-                        {formatStatus(c.status, c.rejection_reason)}
+                        {formatCallStatus(c.status, c.rejection_reason)}
                       </Badge>
                     </Table.Td>
                   </Table.Tr>
