@@ -139,9 +139,10 @@ describe('AuthContext', () => {
     })
   })
 
-  it('should clear auth state on API error', async () => {
+  it('should clear auth state on 401 error', async () => {
     mockGetAuthToken.mockReturnValue('invalid-token')
-    mockApi.getMe.mockRejectedValue(new Error('Unauthorized'))
+    const authError = Object.assign(new Error('unauthorized'), { status: 401 })
+    mockApi.getMe.mockRejectedValue(authError)
 
     render(
       <AuthProvider>
@@ -153,6 +154,24 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('authenticated').textContent).toBe('false')
       expect(mockSetAuthToken).toHaveBeenCalledWith(null)
     })
+  })
+
+  it('should preserve auth state on network error', async () => {
+    mockGetAuthToken.mockReturnValue('valid-token')
+    mockApi.getMe.mockRejectedValue(new TypeError('Failed to fetch'))
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    })
+
+    // Token should NOT be cleared on network errors
+    expect(mockSetAuthToken).not.toHaveBeenCalledWith(null)
   })
 
   it('should throw error when useAuth is used outside provider', () => {
