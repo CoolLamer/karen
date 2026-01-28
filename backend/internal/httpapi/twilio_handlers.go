@@ -48,6 +48,7 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 		resp := twimlResponse{Reject: &twimlReject{Reason: "busy"}}
 		out, _ := xml.MarshalIndent(resp, "", "  ")
 		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(xml.Header))
 		_, _ = w.Write(out)
 		return

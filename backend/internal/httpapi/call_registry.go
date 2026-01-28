@@ -8,8 +8,13 @@ import (
 // CallRegistry tracks active call sessions and supports graceful draining.
 // When draining is enabled, new calls are rejected while in-flight calls
 // finish naturally.
+//
+// The mu mutex makes the draining check and wg.Add atomic in Add(), preventing
+// a TOCTOU race where StartDraining+Wait could be called between the draining
+// check and wg.Add.
 type CallRegistry struct {
-	draining atomic.Bool
+	mu       sync.Mutex
+	draining bool
 	wg       sync.WaitGroup
 	count    atomic.Int64
 }
@@ -20,9 +25,12 @@ func NewCallRegistry() *CallRegistry {
 }
 
 // Add registers a new active call. Returns false if the registry is draining,
-// meaning no new calls should be accepted.
+// meaning no new calls should be accepted. The draining check and WaitGroup
+// increment are performed atomically under a mutex.
 func (cr *CallRegistry) Add() bool {
-	if cr.draining.Load() {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	if cr.draining {
 		return false
 	}
 	cr.wg.Add(1)
@@ -37,13 +45,19 @@ func (cr *CallRegistry) Done() {
 }
 
 // StartDraining sets the draining flag so that future Add calls return false.
+// This is safe to call concurrently with Add — the mutex ensures no Add can
+// slip through after StartDraining returns.
 func (cr *CallRegistry) StartDraining() {
-	cr.draining.Store(true)
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	cr.draining = true
 }
 
 // IsDraining reports whether the registry is in draining mode.
 func (cr *CallRegistry) IsDraining() bool {
-	return cr.draining.Load()
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	return cr.draining
 }
 
 // ActiveCount returns the number of currently active calls.
