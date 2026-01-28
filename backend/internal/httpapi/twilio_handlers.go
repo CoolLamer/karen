@@ -85,15 +85,17 @@ func (r *Router) handleTwilioInbound(w http.ResponseWriter, req *http.Request) {
 			r.logger.Printf("inbound: call %s rejected for tenant %s: %s (calls: %d/%d)",
 				callSid, tenant.ID, callStatus.Reason, callStatus.CallsUsed, callStatus.CallsLimit)
 
-			// Store call record as rejected
+			// Store call record as rejected with specific reason
+			rejectionReason := callStatus.Reason
 			if err := r.store.UpsertCallWithTenant(req.Context(), store.Call{
-				TenantID:       tenantID,
-				Provider:       "twilio",
-				ProviderCallID: callSid,
-				FromNumber:     from,
-				ToNumber:       to,
-				Status:         "rejected_limit",
-				StartedAt:      nowUTC(),
+				TenantID:        tenantID,
+				Provider:        "twilio",
+				ProviderCallID:  callSid,
+				FromNumber:      from,
+				ToNumber:        to,
+				Status:          "rejected_limit",
+				RejectionReason: &rejectionReason,
+				StartedAt:       nowUTC(),
 			}); err != nil {
 				r.logger.Printf("inbound: failed to save rejected call record for %s: %v", callSid, err)
 			}

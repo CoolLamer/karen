@@ -91,8 +91,9 @@ type Call struct {
 	ProviderCallID string     `json:"provider_call_id"`
 	FromNumber     string     `json:"from_number"`
 	ToNumber       string     `json:"to_number"`
-	Status         string     `json:"status"`
-	StartedAt      time.Time  `json:"started_at"`
+	Status          string     `json:"status"`
+	RejectionReason *string    `json:"rejection_reason,omitempty"`
+	StartedAt       time.Time  `json:"started_at"`
 	EndedAt        *time.Time `json:"ended_at,omitempty"`
 	EndedBy        *string    `json:"ended_by,omitempty"`
 	FirstViewedAt  *time.Time `json:"first_viewed_at,omitempty"`
@@ -168,7 +169,7 @@ func (s *Store) UpdateCallEndedBy(ctx context.Context, providerCallID string, en
 
 func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.started_at, c.ended_at, c.ended_by,
+		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.rejection_reason, c.started_at, c.ended_at, c.ended_by,
 		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
 		LEFT JOIN call_screening_results r ON r.call_id = c.id
@@ -192,7 +193,7 @@ func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error
 		var screeningCreatedAt *time.Time
 
 		err := rows.Scan(
-			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.StartedAt, &item.EndedAt, &item.EndedBy,
+			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.RejectionReason, &item.StartedAt, &item.EndedAt, &item.EndedBy,
 			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
 		if err != nil {
@@ -223,7 +224,7 @@ func (s *Store) ListCalls(ctx context.Context, limit int) ([]CallListItem, error
 // ListCallsFiltered returns calls with optional tenant_id and since filters.
 func (s *Store) ListCallsFiltered(ctx context.Context, tenantID string, since time.Time, limit int) ([]CallListItem, error) {
 	query := `
-		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.started_at, c.ended_at, c.ended_by,
+		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.rejection_reason, c.started_at, c.ended_at, c.ended_by,
 		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
 		LEFT JOIN call_screening_results r ON r.call_id = c.id
@@ -265,7 +266,7 @@ func (s *Store) ListCallsFiltered(ctx context.Context, tenantID string, since ti
 		var screeningCreatedAt *time.Time
 
 		err := rows.Scan(
-			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.StartedAt, &item.EndedAt, &item.EndedBy,
+			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.RejectionReason, &item.StartedAt, &item.EndedAt, &item.EndedBy,
 			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
 		if err != nil {
@@ -340,11 +341,11 @@ func (s *Store) GetCallDetailWithTenantCheck(ctx context.Context, providerCallID
 
 	var callID string
 	err := s.db.QueryRow(ctx, `
-		SELECT id, tenant_id, provider, provider_call_id, from_number, to_number, status, started_at, ended_at, ended_by,
+		SELECT id, tenant_id, provider, provider_call_id, from_number, to_number, status, rejection_reason, started_at, ended_at, ended_by,
 		       first_viewed_at, resolved_at, resolved_by
 		FROM calls
 		WHERE provider='twilio' AND provider_call_id=$1
-	`, providerCallID).Scan(&callID, &tenantID, &out.Provider, &out.ProviderCallID, &out.FromNumber, &out.ToNumber, &out.Status, &out.StartedAt, &out.EndedAt, &out.EndedBy,
+	`, providerCallID).Scan(&callID, &tenantID, &out.Provider, &out.ProviderCallID, &out.FromNumber, &out.ToNumber, &out.Status, &out.RejectionReason, &out.StartedAt, &out.EndedAt, &out.EndedBy,
 		&out.FirstViewedAt, &out.ResolvedAt, &out.ResolvedBy)
 	if err != nil {
 		return CallDetail{}, nil, err
@@ -769,21 +770,22 @@ func (s *Store) IsSessionValid(ctx context.Context, tokenHash string) (bool, err
 // UpsertCallWithTenant creates or updates a call record with tenant ID.
 func (s *Store) UpsertCallWithTenant(ctx context.Context, c Call) error {
 	_, err := s.db.Exec(ctx, `
-		INSERT INTO calls (id, tenant_id, provider, provider_call_id, from_number, to_number, status, started_at)
-		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO calls (id, tenant_id, provider, provider_call_id, from_number, to_number, status, rejection_reason, started_at)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (provider, provider_call_id) DO UPDATE SET
 			tenant_id = COALESCE(EXCLUDED.tenant_id, calls.tenant_id),
 			from_number = EXCLUDED.from_number,
 			to_number = EXCLUDED.to_number,
-			status = EXCLUDED.status
-	`, c.TenantID, c.Provider, c.ProviderCallID, c.FromNumber, c.ToNumber, c.Status, c.StartedAt)
+			status = EXCLUDED.status,
+			rejection_reason = EXCLUDED.rejection_reason
+	`, c.TenantID, c.Provider, c.ProviderCallID, c.FromNumber, c.ToNumber, c.Status, c.RejectionReason, c.StartedAt)
 	return err
 }
 
 // ListCallsByTenant lists calls for a specific tenant.
 func (s *Store) ListCallsByTenant(ctx context.Context, tenantID string, limit int) ([]CallListItem, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.started_at, c.ended_at, c.ended_by,
+		SELECT c.provider, c.provider_call_id, c.from_number, c.to_number, c.status, c.rejection_reason, c.started_at, c.ended_at, c.ended_by,
 		       c.first_viewed_at, c.resolved_at, c.resolved_by,
 		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
@@ -814,7 +816,7 @@ func scanCallListItems(rows pgx.Rows) ([]CallListItem, error) {
 		var screeningCreatedAt *time.Time
 
 		err := rows.Scan(
-			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.StartedAt, &item.EndedAt, &item.EndedBy,
+			&item.Provider, &item.ProviderCallID, &item.FromNumber, &item.ToNumber, &item.Status, &item.RejectionReason, &item.StartedAt, &item.EndedAt, &item.EndedBy,
 			&item.FirstViewedAt, &item.ResolvedAt, &item.ResolvedBy,
 			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
@@ -1231,7 +1233,7 @@ func (s *Store) ListCallsByTenantWithDetails(ctx context.Context, tenantID strin
 	// First get the calls
 	rows, err := s.db.Query(ctx, `
 		SELECT c.id, c.tenant_id, c.provider, c.provider_call_id, c.from_number, c.to_number,
-		       c.status, c.started_at, c.ended_at, c.ended_by,
+		       c.status, c.rejection_reason, c.started_at, c.ended_at, c.ended_by,
 		       r.legitimacy_label, r.legitimacy_confidence, r.lead_label, r.intent_category, r.intent_text, r.entities_json, r.created_at
 		FROM calls c
 		LEFT JOIN call_screening_results r ON r.call_id = c.id
@@ -1260,7 +1262,7 @@ func (s *Store) ListCallsByTenantWithDetails(ctx context.Context, tenantID strin
 
 		err := rows.Scan(
 			&callID, &cd.TenantID, &cd.Provider, &cd.ProviderCallID, &cd.FromNumber, &cd.ToNumber,
-			&cd.Status, &cd.StartedAt, &cd.EndedAt, &cd.EndedBy,
+			&cd.Status, &cd.RejectionReason, &cd.StartedAt, &cd.EndedAt, &cd.EndedBy,
 			&legitimacyLabel, &legitimacyConfidence, &leadLabel, &intentCategory, &intentText, &entities, &screeningCreatedAt,
 		)
 		if err != nil {
