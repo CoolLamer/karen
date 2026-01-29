@@ -180,12 +180,3 @@ jobs:
             VITE_HOTJAR_ID=${{ secrets.VITE_HOTJAR_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    needs: build-and-push
-    if: always() && needs.build-and-push.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Coolify deployment
-        run: |
-          curl -sf --header 'Authorization: ${{ secrets.COOLIFY_API_TOKEN }}' "${{ secrets.COOLIFY_WEBHOOK_URL }}"
