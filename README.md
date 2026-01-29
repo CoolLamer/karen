@@ -100,5 +100,3 @@ Then configure Twilio:
 
 See [deploy/SETUP.md](deploy/SETUP.md) for detailed deployment instructions.
 
-
- 
