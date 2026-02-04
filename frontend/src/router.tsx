@@ -19,6 +19,7 @@ import { AdminPhoneNumbersPage } from "./ui/AdminPhoneNumbersPage";
 import { AdminLogsPage } from "./ui/AdminLogsPage";
 import { AdminUsersPage } from "./ui/AdminUsersPage";
 import { AdminGlobalConfigPage } from "./ui/AdminGlobalConfigPage";
+import { AdminNotificationLogsPage } from "./ui/AdminNotificationLogsPage";
 import { AdminShellLayout } from "./ui/AdminShellLayout";
 
 // Protected route wrapper - requires authentication
@@ -172,6 +173,7 @@ export const router = createBrowserRouter([
           { path: "/admin/users", element: <AdminUsersPage /> },
           { path: "/admin/logs", element: <AdminLogsPage /> },
           { path: "/admin/logs/:providerCallId", element: <AdminLogsPage /> },
+          { path: "/admin/notifications", element: <AdminNotificationLogsPage /> },
           { path: "/admin/config", element: <AdminGlobalConfigPage /> },
         ],
       },

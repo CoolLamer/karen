@@ -575,3 +575,32 @@ func (r *Router) handleAdminUpdateGlobalConfig(w http.ResponseWriter, req *http.
 	r.logger.Printf("admin: updated global config %s = %s", key, body.Value)
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
+
+func (r *Router) handleAdminListNotificationLogs(w http.ResponseWriter, req *http.Request) {
+	limit := 100
+	if l := req.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
+			limit = parsed
+		}
+	}
+
+	var tenantID *string
+	if t := req.URL.Query().Get("tenant_id"); t != "" {
+		tenantID = &t
+	}
+
+	var channel *string
+	if c := req.URL.Query().Get("channel"); c != "" {
+		channel = &c
+	}
+
+	logs, err := r.store.ListNotificationLogs(req.Context(), tenantID, channel, limit)
+	if err != nil {
+		r.logger.Printf("admin: failed to list notification logs: %v", err)
+		sentry.CaptureException(err)
+		http.Error(w, `{"error": "failed to list notification logs"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "count": len(logs)})
+}

@@ -2266,3 +2266,76 @@ func (s *Store) GetTenantUsers(ctx context.Context, tenantID string) ([]TrialUse
 	}
 	return users, rows.Err()
 }
+
+// ============================================================================
+// Notification Audit Logs
+// ============================================================================
+
+// NotificationLogEntry represents a logged notification event.
+type NotificationLogEntry struct {
+	ID               string    `json:"id"`
+	Channel          string    `json:"channel"`
+	NotificationType string    `json:"notification_type"`
+	Recipient        string    `json:"recipient"`
+	TenantID         *string   `json:"tenant_id,omitempty"`
+	Body             *string   `json:"body,omitempty"`
+	Status           string    `json:"status"`
+	ErrorMessage     *string   `json:"error_message,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// InsertNotificationLog records a notification send attempt (success or failure).
+func (s *Store) InsertNotificationLog(ctx context.Context, channel, notifType, recipient string, tenantID *string, body, status, errorMsg string) error {
+	var bodyPtr, errPtr *string
+	if body != "" {
+		bodyPtr = &body
+	}
+	if errorMsg != "" {
+		errPtr = &errorMsg
+	}
+
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO notification_logs (channel, notification_type, recipient, tenant_id, body, status, error_message)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, channel, notifType, recipient, tenantID, bodyPtr, status, errPtr)
+	return err
+}
+
+// ListNotificationLogs returns notification logs with optional filters.
+func (s *Store) ListNotificationLogs(ctx context.Context, tenantID *string, channel *string, limit int) ([]NotificationLogEntry, error) {
+	query := `SELECT id, channel, notification_type, recipient, tenant_id, body, status, error_message, created_at
+		FROM notification_logs WHERE 1=1`
+	args := []any{}
+	argIdx := 1
+
+	if tenantID != nil {
+		query += fmt.Sprintf(" AND tenant_id = $%d", argIdx)
+		args = append(args, *tenantID)
+		argIdx++
+	}
+	if channel != nil {
+		query += fmt.Sprintf(" AND channel = $%d", argIdx)
+		args = append(args, *channel)
+		argIdx++
+	}
+
+	query += " ORDER BY created_at DESC"
+	query += fmt.Sprintf(" LIMIT $%d", argIdx)
+	args = append(args, limit)
+
+	rows, err := s.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []NotificationLogEntry
+	for rows.Next() {
+		var l NotificationLogEntry
+		if err := rows.Scan(&l.ID, &l.Channel, &l.NotificationType, &l.Recipient, &l.TenantID, &l.Body, &l.Status, &l.ErrorMessage, &l.CreatedAt); err != nil {
+			return nil, err
+		}
+		logs = append(logs, l)
+	}
+	return logs, rows.Err()
+}

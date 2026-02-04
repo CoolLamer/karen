@@ -1908,10 +1908,23 @@ func (s *callSession) sendPushNotifications(legitimacyLabel, intentText string) 
 	}
 
 	// Send to all iOS devices
+	pushBody := fmt.Sprintf("Novy hovor od %s: %s", call.FromNumber, intentText)
 	for _, token := range tokens {
 		if token.Platform == "ios" {
-			if err := s.apns.SendCallNotification(token.Token, notif); err != nil {
-				s.logger.Printf("media_ws: failed to send push to %s...: %v", token.Token[:16], err)
+			pushErr := s.apns.SendCallNotification(token.Token, notif)
+			if pushErr != nil {
+				s.logger.Printf("media_ws: failed to send push to %s...: %v", token.Token[:16], pushErr)
+			}
+			// Log notification for audit
+			status := "sent"
+			errMsg := ""
+			if pushErr != nil {
+				status = "failed"
+				errMsg = pushErr.Error()
+			}
+			tenantID := s.tenantCfg.TenantID
+			if logErr := s.store.InsertNotificationLog(ctx, "apns", "call_completed", token.Token[:min(16, len(token.Token))]+"...", &tenantID, pushBody, status, errMsg); logErr != nil {
+				s.logger.Printf("media_ws: failed to log notification: %v", logErr)
 			}
 		}
 	}

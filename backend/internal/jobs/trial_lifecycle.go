@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -237,6 +238,18 @@ func (j *TrialLifecycleJob) getGracePeriodDays(ctx context.Context) int {
 	return days
 }
 
+func (j *TrialLifecycleJob) logNotification(ctx context.Context, channel, notifType, recipient string, tenantID string, body string, err error) {
+	status := "sent"
+	errMsg := ""
+	if err != nil {
+		status = "failed"
+		errMsg = err.Error()
+	}
+	if logErr := j.store.InsertNotificationLog(ctx, channel, notifType, recipient, &tenantID, body, status, errMsg); logErr != nil {
+		j.logger.Printf("TrialLifecycleJob: failed to log notification: %v", logErr)
+	}
+}
+
 func (j *TrialLifecycleJob) sendDay10Notifications(ctx context.Context, tenant store.TrialTenantInfo) {
 	users, err := j.store.GetTenantUsers(ctx, tenant.TenantID)
 	if err != nil {
@@ -245,20 +258,26 @@ func (j *TrialLifecycleJob) sendDay10Notifications(ctx context.Context, tenant s
 	}
 
 	timeSavedMinutes := tenant.TimeSavedTotal / 60
+	smsBody := fmt.Sprintf("Zvednu: Zbývají ti 4 dny trialu. Karen ti zatím ušetřila %d minut. Upgraduj na zvednu.cz", timeSavedMinutes)
+	pushBody := fmt.Sprintf("Karen ti zatím ušetřila %d minut. Upgraduj na zvednu.cz", timeSavedMinutes)
 
 	for _, user := range users {
 		// Send SMS
 		if j.sms != nil {
-			if err := j.sms.SendTrialDay10Notification(ctx, user.Phone, timeSavedMinutes); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send day10 SMS to %s: %v", user.Phone, err)
+			smsErr := j.sms.SendTrialDay10Notification(ctx, user.Phone, timeSavedMinutes)
+			if smsErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send day10 SMS to %s: %v", user.Phone, smsErr)
 			}
+			j.logNotification(ctx, "sms", "trial_day10", user.Phone, tenant.TenantID, smsBody, smsErr)
 		}
 
 		// Send APNs push
 		if j.apns != nil && user.PushToken != nil {
-			if err := j.apns.SendTrialDayNotification(*user.PushToken, notifications.TrialDay10, timeSavedMinutes, tenant.CallsHandled); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send day10 push: %v", err)
+			pushErr := j.apns.SendTrialDayNotification(*user.PushToken, notifications.TrialDay10, timeSavedMinutes, tenant.CallsHandled)
+			if pushErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send day10 push: %v", pushErr)
 			}
+			j.logNotification(ctx, "apns", "trial_day10", (*user.PushToken)[:min(16, len(*user.PushToken))]+"...", tenant.TenantID, pushBody, pushErr)
 		}
 	}
 }
@@ -270,19 +289,26 @@ func (j *TrialLifecycleJob) sendDay12Notifications(ctx context.Context, tenant s
 		return
 	}
 
+	smsBody := fmt.Sprintf("Zvednu: Zbývají ti 2 dny trialu. Karen ti vyřídila %d hovorů. Upgraduj na zvednu.cz", tenant.CallsHandled)
+	pushBody := fmt.Sprintf("Karen ti vyřídila %d hovorů. Upgraduj na zvednu.cz", tenant.CallsHandled)
+
 	for _, user := range users {
 		// Send SMS
 		if j.sms != nil {
-			if err := j.sms.SendTrialDay12Notification(ctx, user.Phone, tenant.CallsHandled); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send day12 SMS to %s: %v", user.Phone, err)
+			smsErr := j.sms.SendTrialDay12Notification(ctx, user.Phone, tenant.CallsHandled)
+			if smsErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send day12 SMS to %s: %v", user.Phone, smsErr)
 			}
+			j.logNotification(ctx, "sms", "trial_day12", user.Phone, tenant.TenantID, smsBody, smsErr)
 		}
 
 		// Send APNs push
 		if j.apns != nil && user.PushToken != nil {
-			if err := j.apns.SendTrialDayNotification(*user.PushToken, notifications.TrialDay12, tenant.TimeSavedTotal/60, tenant.CallsHandled); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send day12 push: %v", err)
+			pushErr := j.apns.SendTrialDayNotification(*user.PushToken, notifications.TrialDay12, tenant.TimeSavedTotal/60, tenant.CallsHandled)
+			if pushErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send day12 push: %v", pushErr)
 			}
+			j.logNotification(ctx, "apns", "trial_day12", (*user.PushToken)[:min(16, len(*user.PushToken))]+"...", tenant.TenantID, pushBody, pushErr)
 		}
 	}
 }
@@ -294,19 +320,26 @@ func (j *TrialLifecycleJob) sendDay14Notifications(ctx context.Context, tenant s
 		return
 	}
 
+	smsBody := "Zvednu: Trial skončil. Karen nebude přijímat hovory. Upgraduj na zvednu.cz"
+	pushBody := "Trial skončil. Karen nebude přijímat hovory. Upgraduj na zvednu.cz"
+
 	for _, user := range users {
 		// Send SMS
 		if j.sms != nil {
-			if err := j.sms.SendTrialExpiredNotification(ctx, user.Phone); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send day14 SMS to %s: %v", user.Phone, err)
+			smsErr := j.sms.SendTrialExpiredNotification(ctx, user.Phone)
+			if smsErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send day14 SMS to %s: %v", user.Phone, smsErr)
 			}
+			j.logNotification(ctx, "sms", "trial_expired", user.Phone, tenant.TenantID, smsBody, smsErr)
 		}
 
 		// Send APNs push (using existing UsageWarningExpired)
 		if j.apns != nil && user.PushToken != nil {
-			if err := j.apns.SendUsageWarning(*user.PushToken, notifications.UsageWarningExpired, tenant.CallsHandled, 20); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send day14 push: %v", err)
+			pushErr := j.apns.SendUsageWarning(*user.PushToken, notifications.UsageWarningExpired, tenant.CallsHandled, 20)
+			if pushErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send day14 push: %v", pushErr)
 			}
+			j.logNotification(ctx, "apns", "trial_expired", (*user.PushToken)[:min(16, len(*user.PushToken))]+"...", tenant.TenantID, pushBody, pushErr)
 		}
 	}
 }
@@ -323,19 +356,26 @@ func (j *TrialLifecycleJob) sendGraceNotifications(ctx context.Context, tenant s
 		phoneNumber = *tenant.PhoneNumber
 	}
 
+	smsBody := fmt.Sprintf("Zvednu: Za %d dní bude vaše číslo %s odpojeno. Zrušte přesměrování nebo upgradujte na zvednu.cz", gracePeriodDays, phoneNumber)
+	pushBody := fmt.Sprintf("Za %d dní bude vaše číslo %s odpojeno. Zrušte přesměrování nebo upgradujte.", gracePeriodDays, phoneNumber)
+
 	for _, user := range users {
 		// Send SMS
 		if j.sms != nil {
-			if err := j.sms.SendTrialGraceWarningNotification(ctx, user.Phone, phoneNumber, gracePeriodDays); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send grace SMS to %s: %v", user.Phone, err)
+			smsErr := j.sms.SendTrialGraceWarningNotification(ctx, user.Phone, phoneNumber, gracePeriodDays)
+			if smsErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send grace SMS to %s: %v", user.Phone, smsErr)
 			}
+			j.logNotification(ctx, "sms", "grace_warning", user.Phone, tenant.TenantID, smsBody, smsErr)
 		}
 
 		// Send APNs push
 		if j.apns != nil && user.PushToken != nil {
-			if err := j.apns.SendTrialGraceWarning(*user.PushToken, gracePeriodDays, phoneNumber); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send grace push: %v", err)
+			pushErr := j.apns.SendTrialGraceWarning(*user.PushToken, gracePeriodDays, phoneNumber)
+			if pushErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send grace push: %v", pushErr)
 			}
+			j.logNotification(ctx, "apns", "grace_warning", (*user.PushToken)[:min(16, len(*user.PushToken))]+"...", tenant.TenantID, pushBody, pushErr)
 		}
 	}
 }
@@ -347,12 +387,16 @@ func (j *TrialLifecycleJob) sendReleaseNotifications(ctx context.Context, tenant
 		return
 	}
 
+	smsBody := fmt.Sprintf("Zvednu: Číslo %s odpojeno. Prosím zrušte přesměrování hovorů. Pro obnovení: zvednu.cz", releasedNumber)
+
 	for _, user := range users {
 		// Send SMS only (push might not work if app uninstalled)
 		if j.sms != nil {
-			if err := j.sms.SendPhoneNumberReleasedNotification(ctx, user.Phone, releasedNumber); err != nil {
-				j.logger.Printf("TrialLifecycleJob: failed to send release SMS to %s: %v", user.Phone, err)
+			smsErr := j.sms.SendPhoneNumberReleasedNotification(ctx, user.Phone, releasedNumber)
+			if smsErr != nil {
+				j.logger.Printf("TrialLifecycleJob: failed to send release SMS to %s: %v", user.Phone, smsErr)
 			}
+			j.logNotification(ctx, "sms", "phone_released", user.Phone, tenant.TenantID, smsBody, smsErr)
 		}
 	}
 }
