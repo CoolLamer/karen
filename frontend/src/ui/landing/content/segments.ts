@@ -39,7 +39,7 @@ export const SEGMENTS: Record<SegmentKey, SegmentContent> = {
       ],
     },
     exampleCall: {
-      scenario: "Technik Belix je na sanaci, volá zákazník ohledně stavu zakázky",
+      scenario: "Technik je na sanaci, volá zákazník ohledně stavu zakázky",
       dialogue: [
         {
           speaker: "karen",
