@@ -10,7 +10,7 @@ This document describes how the **voice assistant** works end-to-end, including 
 - **OpenAI (LLM)**: generates the assistant text response (streaming).
 - **ElevenLabs (TTS)**: converts assistant text to μ-law audio and streams it back to Twilio.
 - **Postgres**: stores call records and utterances for replay/analysis.
-- **Traefik (Coolify proxy)**: routes `api.zvednu.cz` to the backend container.
+- **Traefik**: reverse proxy routing `api.zvednu.cz` to the backend container.
 
 ## Runtime endpoints
 
@@ -187,7 +187,7 @@ This enables replaying the last N calls and debugging “smoothness” issues.
 
 Backend is attached to both:
 - an internal DB network, and
-- the `coolify` network (for Traefik).
+- the `coolify` network (the external Docker network that Traefik uses for routing).
 
 Traefik must be told which network to use, otherwise it may select the internal IP and time out:
 
@@ -223,5 +223,5 @@ Traefik must be told which network to use, otherwise it may select the internal 
 - **Env example**: `backend/env.example`
 - **Production compose**: `deploy/docker-compose.coolify.yml`
 - **Setup guide**: `deploy/SETUP.md`
-- **CI/CD**: `.github/workflows/deploy.yml`
+- **CI/CD**: `.github/workflows/ci.yml`
 

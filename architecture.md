@@ -522,7 +522,7 @@ Each tenant (user) has:
 - Less reliable (carrier-dependent), useful as fallback
 
 ### Infrastructure Evolution
-1. **MVP (current)**: Coolify, single tenant, hardcoded prompt
+1. **MVP (current)**: Docker Compose on VPS, single tenant, hardcoded prompt
 2. **Phase 1**: Multi-tenant DB, phone auth (Twilio Verify), routing by number
 3. **Phase 2**: Web app (landing, onboarding, dashboard, settings)
 4. **Phase 3**: Billing (Stripe), usage metering, horizontal scaling

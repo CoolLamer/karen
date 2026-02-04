@@ -42,8 +42,8 @@ func New(cfg Config, logger *log.Logger) (*App, error) {
 	s := store.New(db)
 	el := eventlog.New(db)
 
-	// MVP: no automatic migrations to keep startup simple in Coolify.
-	// Run migrations externally (psql) or extend later with a migration runner.
+	// Migrations are applied externally by the CI deploy job (docker exec psql).
+	// No automatic migration runner at startup.
 
 	// Shared HTTP client with connection pooling for TTS.
 	// Keeps TCP connections alive to reduce latency for repeated TTS calls to ElevenLabs.

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. **Server**: Coolify running on 46.224.75.8 (coolify.mechant.cz)
+1. **Server**: VPS with Docker and Traefik at 46.224.75.8
 2. **Domain**: zvednu.cz pointed to 46.224.75.8
 
 ## DNS Configuration
@@ -85,7 +85,7 @@ chmod 600 /opt/karen/.env
 Deployment happens automatically when you push to `main` branch via GitHub Actions.
 
 To manually trigger a deployment:
-1. Go to GitHub repo → Actions → "Deploy to Production"
+1. Go to GitHub repo → Actions → "CI"
 2. Click "Run workflow"
 
 ## URLs
@@ -122,6 +122,17 @@ ssh root@46.224.75.8 "cd /opt/karen && docker compose ps"
 # Restart services
 ssh root@46.224.75.8 "cd /opt/karen && docker compose restart"
 
-# Check Traefik routing
+# Check Traefik routing (Traefik runs as coolify-proxy from the original Coolify install)
 ssh root@46.224.75.8 "docker logs coolify-proxy 2>&1 | tail -50"
 ```
+
+## Maintenance
+
+No scheduled tasks or cron jobs are currently needed. Notes for future scale:
+
+- **Session cleanup**: Expired JWT sessions could be pruned periodically (currently handled at query time)
+- **Event log retention**: `call_events` table may need retention policies at high call volumes
+- **Push token cleanup**: Stale APNs device tokens could be removed after delivery failures
+- **Billing period resets**: If usage-based billing is added, periodic aggregation jobs would be needed
+
+PostgreSQL autovacuum handles routine database maintenance automatically.
