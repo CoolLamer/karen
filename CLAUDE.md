@@ -102,12 +102,39 @@ Key features: barge-in (caller interrupts), filler words ("Jasně...", "Rozumím
 4. Session hash stored in DB for logout/revocation support
 5. Admin access: phone must be in `ADMIN_PHONES` env var list
 
+## Deployment
+
+Push to `main` triggers the GitHub Actions CI pipeline (`.github/workflows/ci.yml`):
+
+1. **Test** — runs backend (Go) tests + lint, frontend tests + lint, iOS tests (if changed)
+2. **Build & Push** — builds Docker images and pushes to GHCR (`ghcr.io/coollamer/karen/backend`, `ghcr.io/coollamer/karen/frontend`)
+3. **Deploy** — SCPs the compose file to the VPS, SSHs in, runs `docker compose pull && up -d`, then applies migrations
+
+Server: `46.224.75.8`, deploy directory: `/opt/karen`
+
+GitHub secrets required: `SERVER_HOST`, `SERVER_SSH_KEY`
+
+Traefik (from the original Coolify install) handles HTTPS termination and routing. The Docker network is still named `coolify` for Traefik compatibility.
+
+```bash
+# View logs
+ssh root@46.224.75.8 "cd /opt/karen && docker compose logs -f"
+
+# Check container status
+ssh root@46.224.75.8 "cd /opt/karen && docker compose ps"
+
+# Restart services
+ssh root@46.224.75.8 "cd /opt/karen && docker compose restart"
+
+# Manually trigger deploy: GitHub repo → Actions → "CI" → Run workflow
+```
+
 ## Database Migrations
 
 Migrations in `backend/migrations/` (001-008). Applied via:
 ```bash
 # Local: manually run SQL files against Postgres
-# Production: auto-applied during deploy via docker exec
+# Production: auto-applied during deploy via docker exec (see CI deploy job)
 ```
 
 ## Key API Endpoints

@@ -29,7 +29,7 @@ Single-repo project for a **Twilio-forwarded call screener** that captures **int
 ## Repo Structure
 - `backend/` Go API (Twilio webhooks + WebSocket media endpoint + DB)
 - `frontend/` Vite + React + TypeScript admin app
-- `deploy/` Docker/Coolify deployment assets
+- `deploy/` Docker deployment assets (compose file, setup guide)
 
 ## Quick Start (Local)
 1) Copy env files:
@@ -87,16 +87,17 @@ Each tenant can customize Karen's behavior through the tenant settings API (`PAT
 
 **Endpointing** controls how long Karen waits for silence before considering the user done speaking. Lower values (e.g., 500ms) make conversations faster but may cut off slow speakers. Higher values (e.g., 1200ms) are more forgiving but feel slower.
 
-## Coolify Deployment (Recommended)
-Import `deploy/docker-compose.coolify.yml` into Coolify (or create services from the Dockerfiles).
+## Deployment
+
+Pushing to `main` triggers CI (`.github/workflows/ci.yml`) which builds Docker images, pushes to GHCR, and deploys to the VPS via SSH (`docker compose pull && up -d` + migrations).
 
 Production domains:
 - `api.zvednu.cz` → backend service
 - `zvednu.cz` / `www.zvednu.cz` → frontend service
 
-Then configure Twilio:
-- Voice webhook for your Twilio number: `https://api.zvednu.cz/telephony/inbound` (POST)
-- Media stream URL used by backend: `wss://api.zvednu.cz/media`
+Twilio configuration:
+- Voice webhook: `https://api.zvednu.cz/telephony/inbound` (POST)
+- Media stream URL: `wss://api.zvednu.cz/media`
 
-See [deploy/SETUP.md](deploy/SETUP.md) for detailed deployment instructions.
+See [deploy/SETUP.md](deploy/SETUP.md) for detailed deployment and server setup instructions.
 

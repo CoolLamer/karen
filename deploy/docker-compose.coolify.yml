@@ -1,4 +1,4 @@
-# Docker Compose for production deployment with Traefik (Coolify)
+# Docker Compose for production deployment with Traefik
 # Domain: zvednu.cz (frontend), api.zvednu.cz (backend)
 #
 # Required environment variables:

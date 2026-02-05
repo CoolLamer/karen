@@ -180,7 +180,7 @@ func (h *Handler) InboundCall(w http.ResponseWriter, r *http.Request) {
 
 ## Infrastructure Options
 
-### Option 1: Stay on Coolify (Recommended for Start)
+### Option 1: Stay on Current Setup (Recommended for Start)
 
 **Keep current setup, add multi-tenancy:**
 - Same deployment model
@@ -454,7 +454,7 @@ See [UX.md](UX.md) for mobile-specific considerations.
 - ElevenLabs TTS: ~$0.18/1K chars (or $5-22/month plans)
 
 ### Infrastructure (Shared)
-- Coolify/Railway: $5-20/month
+- VPS/Railway: $5-20/month
 - PostgreSQL: Included or $7-15/month
 - Total fixed: ~$20-50/month for small scale
 

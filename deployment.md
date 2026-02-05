@@ -1,4 +1,4 @@
-# Deployment & Stack Specification (Coolify + Twilio + Go backend + Vite/React frontend)
+# Deployment & Stack Specification (Docker Compose + SSH deploy + Twilio + Go backend + Vite/React frontend)
 
 ## Stack Choices (Locked In)
 - **Telephony**: Twilio Programmable Voice (webhooks + Media Streams over WebSocket)
@@ -6,7 +6,7 @@
 - **Frontend**: Vite + React + TypeScript + UI kit (recommended: Chakra UI, Mantine, or MUI)
 - **Database**: PostgreSQL (recommended) for calls/transcripts/screening results
 - **Cache/Queue (optional)**: Redis (if you later add async jobs)
-- **Deployment**: Coolify (Docker-based deployment with HTTPS + reverse proxy)
+- **Deployment**: Docker Compose on VPS with Traefik for HTTPS + reverse proxy, deployed via GitHub Actions SSH
 
 ---
 
@@ -28,7 +28,7 @@
 
 ---
 
-## Deployment Topology on Coolify
+## Deployment Topology
 ### Services
 - **`backend` (Go)**:
   - Exposes:
@@ -43,7 +43,7 @@
   - Calls backend via HTTPS REST for listing calls/transcripts/classifications.
 
 - **`postgres`**:
-  - Persistent volume enabled in Coolify.
+  - Persistent volume for data durability.
 
 - **(optional) `redis`**:
   - Only if you add background jobs, caching, rate-limit counters, etc.
@@ -58,38 +58,28 @@
 
 ---
 
-## Coolify Setup (Practical Steps)
-### 1) Create a Project
-- Create a new Coolify project for this app.
+## Docker Compose + SSH Deploy (Current Setup)
 
-### 2) Add Postgres (and Redis if needed)
-- Add a Postgres resource.
-- Enable persistent storage/volume.
-- Note connection info for env vars.
+Deployment is automated via GitHub Actions (`.github/workflows/ci.yml`):
 
-### 3) Deploy Backend (Go)
-Recommended deployment style:
-- A Dockerized Go service (multi-stage build).
-- Expose HTTP + WebSocket on a single port (e.g., `8080`).
+1. **Push to `main`** triggers the CI pipeline
+2. **Build & Push** — Docker images are built and pushed to GHCR
+3. **Deploy** — the compose file is SCPed to the VPS, then SSH runs `docker compose pull && up -d` and applies migrations
 
-In Coolify:
-- Create a new service from your Git repo (Dockerfile or Buildpack).
-- Set the service domain to `api.zvednu.cz`.
-- Ensure "WebSocket support" is enabled (Coolify's proxy typically supports it; still validate).
+### Server Setup
+- **VPS**: `46.224.75.8`, deploy directory: `/opt/karen`
+- **Traefik** handles HTTPS (Let's Encrypt) and reverse proxy routing
+- **Docker Compose** (`deploy/docker-compose.coolify.yml`) defines all services
+- **`.env`** file at `/opt/karen/.env` contains secrets (see Initial Server Setup above)
 
-### 4) Deploy Frontend (Vite)
-Recommended:
-- Build Vite in CI/build step.
-- Serve `dist/` via Nginx/Caddy container.
+### Services
+- **backend**: Go service (multi-stage Docker build), exposes port 8080
+- **frontend**: Vite build served by Nginx, exposes port 80
+- **db**: PostgreSQL 16 with persistent volume
 
-In Coolify:
-- Create a second service from the same repo (or separate repo) for the frontend.
-- Set domain to `zvednu.cz`.
-- Configure env var for API base URL (e.g., `VITE_API_BASE_URL=https://api.zvednu.cz`).
-
-### 5) HTTPS
-- Enable Let’s Encrypt certificates via Coolify for both domains.
-- Twilio webhooks should use **HTTPS** endpoints.
+### HTTPS
+- Traefik automatically provisions Let's Encrypt certificates for both domains
+- Twilio webhooks require **HTTPS** endpoints
 
 ---
 
@@ -202,9 +192,10 @@ For your use case (call list + filters + detail view), Mantine is often the quic
 
 ## Infrastructure Alternatives (for Scale/Productization)
 
-### Current: Coolify
+### Current: Docker Compose + SSH Deploy
 - Good for MVP and small scale (< 100 tenants)
-- Simple Docker-based deployment
+- Simple Docker Compose on a single VPS with Traefik
+- GitHub Actions CI/CD with SSH-based deploy
 - Manual scaling
 
 ### Alternative: Railway
@@ -229,7 +220,7 @@ For your use case (call list + filters + detail view), Mantine is often the quic
 - Horizontal pod autoscaling
 - Per-tenant isolation if needed
 
-**Recommendation**: Stay on Coolify for initial productization. Add database-level multi-tenancy first. Migrate to Railway or K8s when you need horizontal scaling (likely at 100+ concurrent calls).
+**Recommendation**: The current SSH-based Docker Compose setup works well for initial productization. Add database-level multi-tenancy first. Migrate to Railway or K8s when you need horizontal scaling (likely at 100+ concurrent calls).
 
 See [docs/PRODUCTIZATION.md](docs/PRODUCTIZATION.md) for the full scaling roadmap.
 
