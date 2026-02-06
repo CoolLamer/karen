@@ -170,6 +170,9 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("GET /admin/config", r.withAdmin(r.handleAdminListGlobalConfig))
 	r.mux.HandleFunc("PATCH /admin/config/{key}", r.withAdmin(r.handleAdminUpdateGlobalConfig))
 
+	// Notification audit logs (admin only)
+	r.mux.HandleFunc("GET /admin/notification-logs", r.withAdmin(r.handleAdminListNotificationLogs))
+
 	// AI Debug API (for Claude CLI remote debugging)
 	r.mux.HandleFunc("GET /ai/health", r.handleAIHealth) // Unauthenticated health check
 	r.mux.HandleFunc("GET /ai/calls", r.withAIKey(r.handleAIListCalls))

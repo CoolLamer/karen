@@ -203,6 +203,18 @@ export type GlobalConfigEntry = {
   updated_at: string;
 };
 
+export type NotificationLogEntry = {
+  id: string;
+  channel: string;
+  notification_type: string;
+  recipient: string;
+  tenant_id?: string;
+  body?: string;
+  status: string;
+  error_message?: string;
+  created_at: string;
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
 
 let authToken: string | null = localStorage.getItem("karen_token");
@@ -494,4 +506,20 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ value }),
     }),
+
+  // Admin notification logs
+  adminListNotificationLogs: (params?: {
+    tenant_id?: string;
+    channel?: string;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.tenant_id) qs.set("tenant_id", params.tenant_id);
+    if (params?.channel) qs.set("channel", params.channel);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const query = qs.toString();
+    return http<{ logs: NotificationLogEntry[]; count: number }>(
+      `/admin/notification-logs${query ? `?${query}` : ""}`
+    );
+  },
 };

@@ -48,6 +48,20 @@ type Config struct {
 
 	// AI Debug API
 	AIDebugAPIKey string
+
+	// SMS Notifications
+	SMSSenderNumber string // Twilio phone number for sending SMS notifications (E.164 format)
+
+	// APNs Push Notifications
+	APNsKeyPath    string // Path to .p8 key file
+	APNsKeyID      string // Key ID from Apple Developer Portal
+	APNsTeamID     string // Team ID from Apple Developer Portal
+	APNsBundleID   string // App bundle ID (e.g., cz.zvednu.app)
+	APNsProduction bool   // Use production environment
+
+	// Trial Lifecycle Job
+	TrialLifecycleJobEnabled  bool
+	TrialLifecycleJobInterval time.Duration
 }
 
 func LoadConfigFromEnv() Config {
@@ -102,6 +116,20 @@ func LoadConfigFromEnv() Config {
 
 		// AI Debug API
 		AIDebugAPIKey: os.Getenv("AI_DEBUG_API_KEY"),
+
+		// SMS Notifications
+		SMSSenderNumber: os.Getenv("SMS_SENDER_NUMBER"),
+
+		// APNs Push Notifications
+		APNsKeyPath:    os.Getenv("APNS_KEY_PATH"),
+		APNsKeyID:      os.Getenv("APNS_KEY_ID"),
+		APNsTeamID:     os.Getenv("APNS_TEAM_ID"),
+		APNsBundleID:   getenv("APNS_BUNDLE_ID", "cz.zvednu.app"),
+		APNsProduction: os.Getenv("APNS_PRODUCTION") == "true",
+
+		// Trial Lifecycle Job
+		TrialLifecycleJobEnabled:  getenv("TRIAL_LIFECYCLE_JOB_ENABLED", "true") == "true",
+		TrialLifecycleJobInterval: parseDuration(os.Getenv("TRIAL_LIFECYCLE_JOB_INTERVAL"), 1*time.Hour),
 	}
 }
 
@@ -157,4 +185,16 @@ func getenvIntClamped(k string, def, min, max int) int {
 		}
 	}
 	return def
+}
+
+// parseDuration parses a duration string, returning the default if empty or invalid.
+func parseDuration(s string, def time.Duration) time.Duration {
+	if s == "" {
+		return def
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return def
+	}
+	return d
 }

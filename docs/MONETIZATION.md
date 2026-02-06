@@ -116,9 +116,76 @@ ALTER TABLE tenants ADD COLUMN period_started_at TIMESTAMPTZ;
    - Push/SMS: "Trial skončil. Upgraduj na zvednu.cz"
    - Karen simply doesn't answer (call rings through/voicemail)
 
-**Notification channels (already implemented):**
+**Notification channels (implemented):**
 - iOS: APNs push notifications (via `backend/internal/notifications/apns.go`)
-- Web: SMS via Twilio (no browser push yet)
+- Web/iOS: SMS via Twilio Programmable Messaging (via `backend/internal/notifications/sms.go`)
+
+### Trial Grace Period and Phone Number Release
+
+After trial expiration, tenants have a configurable grace period (default: 7 days) before their phone number is released back to the pool. This gives users time to upgrade while also ensuring phone numbers are recycled for new users.
+
+**Timeline:**
+
+```
+Day 1-9:   Trial active, Karen answers calls
+Day 10:    SMS + Push: "Zbývají ti 4 dny trialu. Karen ti ušetřila X minut."
+Day 12:    SMS + Push: "Zbývají ti 2 dny trialu. Karen ti vyřídila X hovorů."
+Day 14:    Trial expires
+           - Karen stops answering calls
+           - SMS + Push: "Trial skončil. Upgraduj na zvednu.cz"
+           - Grace period starts
+Day 15-20: Grace period (user can still upgrade to keep their number)
+           - SMS: "Za X dní bude vaše číslo odpojeno. Zrušte přesměrování nebo upgradujte."
+Day 21:    Phone number released
+           - SMS: "Číslo odpojeno. Prosím zrušte přesměrování hovorů."
+           - Number returns to available pool
+           - Tenant status set to "churned"
+```
+
+**Notifications sent:**
+
+| Event | Channel | Message (Czech) |
+|-------|---------|-----------------|
+| Day 10 (4 days left) | SMS + Push | "Zbývají ti 4 dny trialu. Karen ti zatím ušetřila X minut. Upgraduj na zvednu.cz" |
+| Day 12 (2 days left) | SMS + Push | "Zbývají ti 2 dny trialu. Karen ti vyřídila X hovorů. Upgraduj na zvednu.cz" |
+| Day 14 (expired) | SMS + Push | "Trial skončil. Karen nebude přijímat hovory. Upgraduj na zvednu.cz" |
+| Grace warning | SMS + Push | "Za X dní bude vaše číslo +420XXX odpojeno. Zrušte přesměrování nebo upgradujte." |
+| Number released | SMS only | "Číslo +420XXX odpojeno. Prosím zrušte přesměrování hovorů. Pro obnovení: zvednu.cz" |
+
+**Configuration (via global_config / admin page):**
+
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `trial_grace_period_days` | 7 | Days after trial expiration before releasing phone number |
+| `sms_sender_number` | (required) | Twilio phone number for sending SMS notifications (E.164 format, e.g., +420123456789) |
+
+Configure via admin page, global_config table, or AI Debug API:
+```bash
+# Set SMS sender number
+curl -X PATCH -H "X-API-Key: $ZVEDNU_AI_API_KEY" \
+  -d '{"value":"+420123456789"}' 'https://api.zvednu.cz/ai/config/sms_sender_number'
+
+# Set grace period to 14 days
+curl -X PATCH -H "X-API-Key: $ZVEDNU_AI_API_KEY" \
+  -d '{"value":"14"}' 'https://api.zvednu.cz/ai/config/trial_grace_period_days'
+```
+
+**Note:** The `sms_sender_number` must be configured in global_config for SMS notifications to work. The job fetches this value on each run, so changes take effect immediately without restart.
+
+**Important:** Users must manually cancel call forwarding from their phone settings. The SMS notifications remind them which number to remove from their forwarding rules.
+
+**Database tracking fields (in `tenants` table):**
+- `trial_day10_notification_sent_at` - When day 10 notification was sent
+- `trial_day12_notification_sent_at` - When day 12 notification was sent
+- `trial_day14_notification_sent_at` - When trial expired notification was sent
+- `trial_grace_notification_sent_at` - When grace period warning was sent
+- `phone_number_released_at` - When phone number was released
+
+**Background job:**
+The `TrialLifecycleJob` runs hourly (configurable via `TRIAL_LIFECYCLE_JOB_INTERVAL` env var) and:
+1. Sends Day 10/12/14 conversion prompts
+2. Sends grace period warnings
+3. Releases phone numbers after grace period
 
 ---
 
