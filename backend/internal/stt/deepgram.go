@@ -40,16 +40,21 @@ type DeepgramConfig struct {
 }
 
 // deepgramResponse represents a Deepgram WebSocket response.
+// Channel is RawMessage because Deepgram sends different types depending on
+// message type: object for Results, array for SpeechStarted/UtteranceEnd.
 type deepgramResponse struct {
-	Type    string `json:"type"`
-	Channel struct {
-		Alternatives []struct {
-			Transcript string  `json:"transcript"`
-			Confidence float64 `json:"confidence"`
-		} `json:"alternatives"`
-	} `json:"channel"`
-	IsFinal     bool `json:"is_final"`
-	SpeechFinal bool `json:"speech_final"`
+	Type        string          `json:"type"`
+	Channel     json.RawMessage `json:"channel"`
+	IsFinal     bool            `json:"is_final"`
+	SpeechFinal bool            `json:"speech_final"`
+}
+
+// deepgramChannel represents the channel object in a Deepgram Results message.
+type deepgramChannel struct {
+	Alternatives []struct {
+		Transcript string  `json:"transcript"`
+		Confidence float64 `json:"confidence"`
+	} `json:"alternatives"`
 }
 
 // NewDeepgramClient creates a new Deepgram streaming STT client.
@@ -214,8 +219,13 @@ func (c *DeepgramClient) readLoop() {
 		// Extract transcript from first alternative (can be empty).
 		var transcript string
 		var confidence float64
-		if len(resp.Channel.Alternatives) > 0 {
-			alt := resp.Channel.Alternatives[0]
+		var ch deepgramChannel
+		if err := json.Unmarshal(resp.Channel, &ch); err != nil {
+			log.Printf("deepgram: failed to parse channel in Results: %v", err)
+			continue
+		}
+		if len(ch.Alternatives) > 0 {
+			alt := ch.Alternatives[0]
 			transcript = alt.Transcript
 			confidence = alt.Confidence
 		}
