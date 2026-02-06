@@ -42,7 +42,7 @@ type DeepgramConfig struct {
 // deepgramResponse represents a Deepgram WebSocket response.
 type deepgramResponse struct {
 	Type    string `json:"type"`
-	Channel []struct {
+	Channel struct {
 		Alternatives []struct {
 			Transcript string  `json:"transcript"`
 			Confidence float64 `json:"confidence"`
@@ -176,6 +176,12 @@ func (c *DeepgramClient) readLoop() {
 		var resp deepgramResponse
 		if err := json.Unmarshal(msg, &resp); err != nil {
 			log.Printf("deepgram: failed to parse response: %v", err)
+			select {
+			case <-c.done:
+				return
+			case c.errors <- fmt.Errorf("deepgram: JSON parse error: %w", err):
+			default:
+			}
 			continue
 		}
 
@@ -208,8 +214,8 @@ func (c *DeepgramClient) readLoop() {
 		// Extract transcript from first alternative (can be empty).
 		var transcript string
 		var confidence float64
-		if len(resp.Channel) > 0 && len(resp.Channel[0].Alternatives) > 0 {
-			alt := resp.Channel[0].Alternatives[0]
+		if len(resp.Channel.Alternatives) > 0 {
+			alt := resp.Channel.Alternatives[0]
 			transcript = alt.Transcript
 			confidence = alt.Confidence
 		}
